@@ -88,9 +88,12 @@ ad_proc -public im_date_components_to_julian { top_vars top_entry} {
     Takes an entry from top_vars/top_entry and tries
     to figure out the julian date from this
 } {
+    ns_log Notice "im_date_components_to_julian {$top_vars} {$top_entry}"
+
     set ctr 0
     foreach var $top_vars {
 	set val [lindex $top_entry $ctr]
+	set val [string trimleft $val 0]
 	set $var $val
 	incr ctr
     }
@@ -100,11 +103,11 @@ ad_proc -public im_date_components_to_julian { top_vars top_entry} {
     # Try to calculate the current data from top dimension
     switch $top_vars {
 	"year week_of_year day_of_week" {
-	    catch {
 		set first_of_year_julian [dt_ansi_to_julian $year 1 1]
 		set dow_first_of_year_julian [util_memoize [list db_string dow "select to_char('$year-01-07'::date, 'D')"]]
 		set start_first_week_julian [expr $first_of_year_julian - $dow_first_of_year_julian]
 		set julian [expr $start_first_week_julian + 7 * $week_of_year + $day_of_week]
+	    catch {
 	    }
 	}
 	"year week_of_year" {
@@ -128,10 +131,12 @@ ad_proc -public im_date_components_to_julian { top_vars top_entry} {
 		set julian [db_string jul "select to_char('$year-$month_of_year-01'::date,'J')"]
 	    }
 	}
+	default {
+	    ad_return_complaint 1 "Unknown time dimension: '$top_vars'" 
+	}
     }
 
     if {0 == $julian} { 
-	ad_return_complaint 1 "$top_vars<br>$top_entry"
 	ad_return_complaint 1 "Unable to calculate data from date dimension: '$top_vars'" 
     }
 
@@ -518,6 +523,8 @@ ad_proc -public im_resource_mgmt_resource_planning {
 	set trans_tasks_per_project_hash($trans_task_project_id) $tasks
 	set parent_hash($task_id) $trans_task_project_id
 
+	ns_log Notice "im_resource_mgmt_resource_planning: parent_hash ( $task_id ) =  $trans_task_project_id"
+
     }
 
     set clicks([clock clicks -milliseconds]) trans_tasks
@@ -545,14 +552,13 @@ ad_proc -public im_resource_mgmt_resource_planning {
 		im_projects child,
 		acs_objects o
 	where
-		parent.project_status_id not in ([join [im_sub_categories [im_project_status_closed]] ","])
-		and parent.parent_id is null
-		and parent.project_id in (
+		parent.parent_id is null and 
+		parent.project_id in (
 			select	main_project_id
 			from	($percentage_sql) t
-		)
-		and child.project_id = o.object_id
-		and child.tree_sortkey
+		) and
+		child.project_id = o.object_id and
+		child.tree_sortkey
 			between parent.tree_sortkey
 			and tree_right(parent.tree_sortkey)
 	order by
@@ -575,6 +581,9 @@ ad_proc -public im_resource_mgmt_resource_planning {
 	    set old_parent_project_id $parent_project_id
 	}
 
+	# Set the parent of the main project to ""
+	set parent_hash($parent_id) ""
+
 	# Store project hierarchy information into hashes
 	set parent_hash($project_id) $parent_id
 	set has_children_hash($parent_id) 1
@@ -590,7 +599,8 @@ ad_proc -public im_resource_mgmt_resource_planning {
 	set pid $project_id
 	while {$level >= 0} {
 	    lappend hierarchy_row $pid
-	    set pid $parent_hash($pid)
+	    set pid ""
+	    if {[info exists parent_hash($pid)]} { set pid $parent_hash($pid) }
 	    incr level -1
 	}
 
@@ -755,7 +765,8 @@ ad_proc -public im_resource_mgmt_resource_planning {
 		if {"" == $pid} { 
 		    set continue 0 
 		} else {
-		    set pid $parent_hash($pid)
+		    set pid ""
+		    if {[info exists parent_hash($pid)]} { set pid $parent_hash($pid) }
 		}
 	    }
 	}
@@ -911,7 +922,7 @@ ad_proc -public im_resource_mgmt_resource_planning {
 	set user_capacity_percent 100
 
 	# Calculate the percentage of time required for the task divided by the time available for the task.
-	set percentage [expr round(10.0 * 100.0 * $task_hours / ($task_duration_days * $hours_per_day * $user_capacity_percent * 0.01)) / 10.0]
+	set percentage [expr 100.0 * $task_hours / ($task_duration_days * $hours_per_day * $user_capacity_percent * 0.01)]
 
 	ns_log Notice "im_resource_mgmt_resource_planning: trans_tasks: task_name=$task_name, org_size=$task_units [im_category_from_id $task_uom_id], transition=$transition, user_id=$user_id, task_hours=$task_hours, task_duration_days=$task_duration_days => percentage=$percentage"
 
@@ -953,7 +964,8 @@ ad_proc -public im_resource_mgmt_resource_planning {
 		if {"" == $pid} { 
 		    set continue 0 
 		} else {
-		    set pid $parent_hash($pid)
+		    set pid ""
+		    if {[info exists parent_hash($pid)]} { set pid $parent_hash($pid) }
 		}
 	    }
 	}
