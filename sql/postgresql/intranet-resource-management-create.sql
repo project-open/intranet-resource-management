@@ -7,6 +7,14 @@
 --
 -- @author frank.bergmann@project-open.com
 
+
+-- Delete previous menu from Gantt Resource Planning
+select im_menu__delete(
+	(select	menu_id
+	from	im_menus
+	where	label = 'projects_gantt_resources')
+);
+
 SELECT im_menu__new (
 	null,						-- p_menu_id
 	'im_menu',					-- object_type
