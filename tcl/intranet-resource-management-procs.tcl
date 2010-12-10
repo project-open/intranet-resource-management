@@ -552,6 +552,7 @@ ad_proc -public im_resource_mgmt_resource_planning {
 		im_projects child,
 		acs_objects o
 	where
+		parent.project_status_id not in ([join [im_sub_categories [im_project_status_closed]] ","]) and
 		parent.parent_id is null and 
 		parent.project_id in (
 			select	main_project_id
