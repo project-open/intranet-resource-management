@@ -24,6 +24,7 @@ ad_proc -public im_resource_mgmt_resource_planning_cell {
 } {
     if {![string is double $percentage]} { return $percentage }
     if {0.0 == $percentage || "" == $percentage} { return "" }
+    if {$percentage > 1000} { set percentage 1000.0 }
 
     # Color selection
     set color ""
