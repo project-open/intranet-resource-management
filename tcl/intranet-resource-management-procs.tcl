@@ -483,7 +483,6 @@ ad_proc -public im_resource_mgmt_resource_planning {
 		append val [expr $absence_type_id - 5000]
 		set absences_hash($key) $val
 	    }
-
 	}
     }
 
@@ -1615,6 +1614,7 @@ ad_proc -public im_resource_mgmt_resource_planning {
 	    } else {
 		if { $user_department_id_predecessor != $user_department_id } {
 		    set first_department_p 0
+
 		    # Change of department -> show subtotals and print rows 
 		    append html [write_department_row \
 				     $department_row_html \
@@ -1854,7 +1854,7 @@ ad_proc -public im_resource_mgmt_resource_planning {
 			
 			# Accumulation absences 
 			if {[info exists absences_hash($absence_key)]} {
-			    set occupation_user [expr $occupation_user + $hours_per_absence]
+			    set occupation_user [expr $occupation_user + $hours_per_absence * $availability_user_perc / 100]
 			    set occupation_user_total [expr $occupation_user_total + $occupation_user]
 			}
 
@@ -2461,7 +2461,7 @@ ad_proc -private write_department_row {
 	            } else {
 	                # We have absences and planned hours -> Calculate availability
 	                set total_hours_department_occupancy [expr $totals_department_planned_hours_arr_loc($ctr) + $totals_department_absences_arr_loc($ctr)]
-	                set total_hours_department_occupancy [format "%0.1f" $total_hours_department_occupancy]
+	                set total_hours_department_occupancy_pretty [format "%0.1f" $total_hours_department_occupancy]
 
 			if {$totals_department_availability_arr_loc($ctr) eq 0} {
 			    set percentage_occupancy 0
@@ -2472,11 +2472,11 @@ ad_proc -private write_department_row {
 	                set bar_color [im_resource_mgmt_get_bar_color "traffic_light" $percentage_occupancy]
 
 			set par_hint  [lang::message::lookup "" intranet-resource-management.Absence_And_Planned_Hours "Abs.&Planned Hours"]
-			append par_hint ":$total_hours_department_occupancy / "
+			append par_hint ": $total_hours_department_occupancy_pretty / "
                         append par_hint [lang::message::lookup "" intranet-resource-management.Total_Hours_Dep_Avail "Total Hours Dep. Avail."]			
-                        append par_hint ":$totals_department_availability_arr_loc($ctr) / "
+                        append par_hint ": $totals_department_availability_arr_loc($ctr) / "
                         append par_hint [lang::message::lookup "" intranet-resource-management.Occupancy "Occ."]
-                        append par_hint ":$percentage_occupancy%"
+                        append par_hint ": $percentage_occupancy%"
 
 	                append row_html "<td>[im_resource_mgmt_resource_planning_cell "custom" $percentage_occupancy $bar_color $par_hint "" $limit_height]</td>\n"
 	            }
