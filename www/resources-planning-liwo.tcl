@@ -55,7 +55,7 @@ if {![im_permission $user_id "view_projects_all"]} {
 # set page_title [lang::message::lookup "" intranet-reporting.Gantt_Resources "Gantt Resources"]
 set page_title "Resource Planning"
 
-set page_url "/intranet-cust-lippokwolf/resources-planning"
+set page_url "/intranet-resource-management/resources-planning-liwo"
 set sub_navbar ""
 set main_navbar_label "reporting"
 set show_context_help_p 0
