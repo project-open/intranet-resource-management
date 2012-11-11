@@ -292,12 +292,16 @@ append filter_html "</table>\n</form>\n"
 # ---------------------------------------------------------------
 
 # Project Navbar goes to the top
-#
+set main_navbar_label "projects"
+set project_menu ""
+
+# Show the same header as the ProjectListPage
 set letter ""
 set next_page_url ""
 set previous_page_url ""
-set menu_select_label ""
-set sub_navbar_html [im_project_navbar $letter $page_url $next_page_url $previous_page_url [list start_idx order_by how_many view_name letter project_status_id] $menu_select_label]
+set menu_select_label "projects_resource_planning_liwo"
+set sub_navbar [im_project_navbar $letter "/intranet/projects/index" $next_page_url $previous_page_url [list start_idx order_by how_many view_name letter project_status_id] $menu_select_label]
+
 
 
 # Left Navbar is the filter/select part of the left bar
