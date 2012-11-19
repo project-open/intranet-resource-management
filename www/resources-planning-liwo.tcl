@@ -91,8 +91,8 @@ db_1row todays_date "
         from dual
 "
 
-if {"" == $start_date} { set start_date "$todays_year-$todays_month-01" }
-if {"" == $end_date} { set end_date [db_string get_previous_month "SELECT '$start_date'::date+'7 day'::interval-'1 day'::interval" -default 0] }
+if {"" == $start_date} { set start_date [db_string start_date "select now()::date from dual"] }
+if {"" == $end_date} { set end_date [db_string get_previous_month "SELECT '$start_date'::date+'14 day'::interval-'1 day'::interval" -default 0] }
 
 # ------------------------------------------------------------
 # Contents
