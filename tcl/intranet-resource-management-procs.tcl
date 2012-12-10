@@ -1031,6 +1031,10 @@ ad_proc -public im_resource_mgmt_resource_planning {
 	
 		ns_log NOTICE "intranet-resource-management-procs::eval_user_percentage_list ------------------------------- START: project_id:$project_id --------------------------------------"		
                 db_foreach user_list_sql $user_sql {
+
+		    # If no availability, we assume 100% 
+		    if { "" == $availability } { set availability 100 }
+
 		    set total_user_percentages [expr $total_user_percentages + $user_percentage]
 		    lappend user_percentage_list [list $user_id $user_percentage $availability]
 		    ns_log NOTICE "intranet-resource-management-procs::eval_user_percentage_list::user_id:$user_id"			    
