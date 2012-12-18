@@ -1155,12 +1155,12 @@ ad_proc -public im_resource_mgmt_resource_planning {
 					    set no_planned_hours_to_assign 0 
 				       } else {
 				       	    # Calculate no_planned_hours based on percentage 	      
-					   set no_planned_hours_to_assign [$planned_units.0 * $user_percentage / $total_user_percentages * ([expr $user_availability+0]/100.0)] 
+					   set no_planned_hours_to_assign [expr $planned_units.0 * $user_percentage / $total_user_percentages * ([expr $user_availability+0]/100.0)] 
 				       }
 				}
 				ns_log NOTICE "intranet-resource-management-procs: 0 workdays::user_id:$user_id/day:$days_julian/project_id:$project_id -> hours to assign: $no_planned_hours_to_assign"
 				# Done calculating number of hours to assign, now set arry 
-                                if { [info exists user_day_task_arr($user_id-$next_workday_julian-$project_id)] } {
+                                if { [info exists user_day_task_arr($user_id-$days_julian-$project_id)] } {
                                        set user_day_task_arr($user_id-$days_julian-$project_id) [expr $no_planned_hours_to_assign + $user_day_task_arr($user_id-$days_julian-$project_id)]
                                 } else {
                                       set user_day_task_arr($user_id-$days_julian-$project_id) $no_planned_hours_to_assign
@@ -1189,7 +1189,7 @@ ad_proc -public im_resource_mgmt_resource_planning {
 				    incr ctr
 				}
 
-				if { [info exists user_day_task_arr($user_id-$next_workday_julian-$super_project_id)] } {
+				if { [info exists user_day_task_arr($user_id-$days_julian-$super_project_id)] } {
 					set user_day_task_arr($user_id-$days_julian-$super_project_id) [expr $no_planned_hours_to_assign + $user_day_task_arr($user_id-$days_julian-$super_project_id)]
 				} else {
 					set user_day_task_arr($user_id-$days_julian-$super_project_id) $no_planned_hours_to_assign
