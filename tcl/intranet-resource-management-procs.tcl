@@ -384,7 +384,8 @@ ad_proc -public im_resource_mgmt_resource_planning {
 	select	object_type,
 		object_type_gif
 	from	acs_object_types
-	where	object_type in ('user', 'person', 'im_project', 'im_trans_task', 'im_timesheet_task')
+	-- where	object_type in ('user', 'person', 'im_project', 'im_trans_task', 'im_timesheet_task')
+	where	object_type in ('user', 'person', 'im_project', 'im_timesheet_task')
     "
     db_foreach gif $object_type_gif_sql {
 	set gif_hash($object_type) [im_gif $object_type_gif]
@@ -662,17 +663,17 @@ ad_proc -public im_resource_mgmt_resource_planning {
 			t.target_language_id
     "
 
-    db_foreach trans_tasks $trans_task_sql {
-	# collect trans_task per child.project_id
-	set task_name_pretty "$task_name ($source_language -> $target_language)"
-	set tasks {}
-	if {[info exists trans_tasks_per_project_hash($trans_task_project_id)]} { set tasks $trans_tasks_per_project_hash($trans_task_project_id) }
-	lappend tasks [list $task_id $task_name_pretty]
-	set trans_tasks_per_project_hash($trans_task_project_id) $tasks
-	set parent_hash($task_id) $trans_task_project_id
-    }
+    # db_foreach trans_tasks $trans_task_sql {
+    # 	       # collect trans_task per child.project_id
+    # 	       set task_name_pretty "$task_name ($source_language -> $target_language)"
+    # 	       set tasks {}
+    # 	       if {[info exists trans_tasks_per_project_hash($trans_task_project_id)]} { set tasks $trans_tasks_per_project_hash($trans_task_project_id) }
+    # 	       lappend tasks [list $task_id $task_name_pretty]
+    # 	       set trans_tasks_per_project_hash($trans_task_project_id) $tasks
+    # 	       set parent_hash($task_id) $trans_task_project_id
+    # }
 
-    set clicks([clock clicks -milliseconds]) trans_tasks
+    # set clicks([clock clicks -milliseconds]) trans_tasks
 
     # ------------------------------------------------------------------
     # Calculate the hierarchy.
@@ -778,18 +779,18 @@ ad_proc -public im_resource_mgmt_resource_planning {
 	# ----------------------------------------------------------
 	# Check if there are translation tasks associated with the current project
 	# and add in a level below.
-	set trans_tasks {}
-	if {[info exists trans_tasks_per_project_hash($project_id)]} { set trans_tasks $trans_tasks_per_project_hash($project_id) }
-	foreach task_row $trans_tasks {
-	    set task_id [lindex $task_row 0]
-	    set task_name [lindex $task_row 1]
+	# set trans_tasks {}
+	# if {[info exists trans_tasks_per_project_hash($project_id)]} { set trans_tasks $trans_tasks_per_project_hash($project_id) }
+	# foreach task_row $trans_tasks {
+	#    set task_id [lindex $task_row 0]
+	#    set task_name [lindex $task_row 1]
 
-	    set object_type_hash($task_id) "im_trans_task"
-	    set object_name_hash($task_id) $task_name
-	    set indent_hash($task_id) [expr 2+$tree_level]
+	#    set object_type_hash($task_id) "im_trans_task"
+	#    set object_name_hash($task_id) $task_name
+	#    set indent_hash($task_id) [expr 2+$tree_level]
 
-	    lappend hierarchy_lol [list $task_id $task_name [expr 1+$tree_level] [linsert $project_path end $task_id]]
-	}
+	#    lappend hierarchy_lol [list $task_id $task_name [expr 1+$tree_level] [linsert $project_path end $task_id]]
+	# }
     }
 
     # Save the list of sub-projects of the last main project (see above in the loop)
@@ -1147,7 +1148,7 @@ ad_proc -public im_resource_mgmt_resource_planning {
 			        # ----------------------------------------
 			    	if { "0" == $total_user_percentages } {
 				       # No percentage assignments, distribute hours equaly over all members 
-				       set no_planned_hours_to_assign [expr $planned_units.0 / $number_of_users_on_task]  
+				       set no_planned_hours_to_assign [expr [expr $planned_units + 0] / $number_of_users_on_task]  
 				       ns_log NOTICE "intranet-resource-management-procs: no-workdays - total_user_percentages=0 for user_id: $user_id, day:$days_julian,project_id:$project_id" 
 			    	} else {
 				       if { "0" == $user_percentage || "" == $user_percentage } {
@@ -1155,7 +1156,7 @@ ad_proc -public im_resource_mgmt_resource_planning {
 					    set no_planned_hours_to_assign 0 
 				       } else {
 				       	    # Calculate no_planned_hours based on percentage 	      
-					   set no_planned_hours_to_assign [expr $planned_units.0 * $user_percentage / $total_user_percentages * ([expr $user_availability+0]/100.0)] 
+					   set no_planned_hours_to_assign [expr [expr $planned_units+0] * $user_percentage / $total_user_percentages * ([expr $user_availability+0]/100.0)] 
 				       }
 				}
 				ns_log NOTICE "intranet-resource-management-procs: 0 workdays::user_id:$user_id/day:$days_julian/project_id:$project_id -> hours to assign: $no_planned_hours_to_assign"
@@ -1450,8 +1451,7 @@ ad_proc -public im_resource_mgmt_resource_planning {
 			t.target_language_id
     "
 
-
-    db_foreach trans_task_percentage $trans_task_percentage_sql {
+    # db_foreach trans_task_percentage $trans_task_percentage_sql {
 
 	# Calculate the percentage for the assigned user.
 	# Input:
@@ -1461,141 +1461,142 @@ ad_proc -public im_resource_mgmt_resource_planning {
 	#	- quality_id: Higher quality may take longer.
 
 	# How many hours does a translator work per day?
-	set hours_per_day 8.0
+	# set hours_per_day 8.0
 
 	# How many words does a translator translate per hour? 3000 words/day is assumed average.
 	# This factor may need adjustment depending on language pair (Japanese is a lot slower...)
-	set words_per_hour [expr 3000.0 / $hours_per_day]
+	# set words_per_hour [expr 3000.0 / $hours_per_day]
 
 	# How many words does a "standard" page have?
-	set words_per_page 400.0
+	# set words_per_page 400.0
 
 	# How many words are there in a "standard" line?
-	set words_per_line 4.5
+	# set words_per_line 4.5
+	
+	
+    # 	switch $task_uom_id {
+    # 	    320 { 
+    # 		#   320 | Hour
+    # 		set task_hours $task_units 
+    # 	    }
+    # 	    321 { 
+    # 		#   321 | Day
+    # 		set task_hours [expr $task_units * $hours_per_day] 
+    # 	    }
+    # 	    322 { 
+    # 		#   322 | Unit
+    # 		# No idea how to convert a "unit"...
+    # 		set task_hours [expr $task_units * $hours_per_day] 
+    # 	    }
+    # 	    323 { 
+    # 		#   323 | Page
+    # 		set task_hours [expr $task_units * $words_per_page / $words_per_hour] 
+    # 	    }
+    # 	    324 { 
+    # 		#   324 | S-Word
+    # 		set task_hours [expr $task_units / $words_per_hour] 
+    # 	    }
+    # 	    325 { 
+    # 		#   325 | T-Word
+    # 		# Here we should consider language specific conversion, but not yet...
+    # 		set task_hours [expr $task_units * $words_per_line / $words_per_hour] 
+    # 	    }
+    # 	    326 { 
+    # 		#   326 | S-Line
+    # 		# Here we should consider language specific conversion, but not yet...
+    # 		set task_hours [expr $task_units * $words_per_line / $words_per_hour] 
+    # 	    }
+    # 	    327 { 
+    # 		#   327 | T-Line
+    # 		# Should be adjusted to language specific swell
+    # 		set task_hours [expr $task_units * $words_per_line / $words_per_hour] 
+    # 	    }
+    # 	    328 { 
+    # 		#   328 | Week
+    # 		set task_hours [expr $task_units * 5 * $hours_per_day] 
+    # 	    }
+    # 	    329 { 
+    # 		#   329 | Month
+    # 		set task_hours [expr $task_units * 22 * $hours_per_day] 
+    # 	    }
+    # 	    default {
+    # 		# Strange UoM, maybe custom defined?
+    # 		set task_hours $task_units 
+    # 	    }
+    # 	}
 
-	switch $task_uom_id {
-	    320 { 
-		#   320 | Hour
-		set task_hours $task_units 
-	    }
-	    321 { 
-		#   321 | Day
-		set task_hours [expr $task_units * $hours_per_day] 
-	    }
-	    322 { 
-		#   322 | Unit
-		# No idea how to convert a "unit"...
-		set task_hours [expr $task_units * $hours_per_day] 
-	    }
-	    323 { 
-		#   323 | Page
-		set task_hours [expr $task_units * $words_per_page / $words_per_hour] 
-	    }
-	    324 { 
-		#   324 | S-Word
-		set task_hours [expr $task_units / $words_per_hour] 
-	    }
-	    325 { 
-		#   325 | T-Word
-		# Here we should consider language specific conversion, but not yet...
-		set task_hours [expr $task_units * $words_per_line / $words_per_hour] 
-	    }
-	    326 { 
-		#   326 | S-Line
-		# Here we should consider language specific conversion, but not yet...
-		set task_hours [expr $task_units * $words_per_line / $words_per_hour] 
-	    }
-	    327 { 
-		#   327 | T-Line
-		# Should be adjusted to language specific swell
-		set task_hours [expr $task_units * $words_per_line / $words_per_hour] 
-	    }
-	    328 { 
-		#   328 | Week
-		set task_hours [expr $task_units * 5 * $hours_per_day] 
-	    }
-	    329 { 
-		#   329 | Month
-		set task_hours [expr $task_units * 22 * $hours_per_day] 
-	    }
-	    default {
-		# Strange UoM, maybe custom defined?
-		set task_hours $task_units 
-	    }
-	}
-
-	# Change the task_hours, depending on the transition to perform
-	# Editing and proof reading takes about 1/10 of the time of translation.
-	switch $transition {
-	    trans { set task_hours [expr $task_hours * 1.0] }
-	    edit  { set task_hours [expr $task_hours * 0.1] }
-	    proof { set task_hours [expr $task_hours * 0.1] }
-	    other { set task_hours [expr $task_hours * 1.0] }
-	}
+    # 	# Change the task_hours, depending on the transition to perform
+    # 	# Editing and proof reading takes about 1/10 of the time of translation.
+    # 	switch $transition {
+    # 	    trans { set task_hours [expr $task_hours * 1.0] }
+    # 	    edit  { set task_hours [expr $task_hours * 0.1] }
+    # 	    proof { set task_hours [expr $task_hours * 0.1] }
+    # 	    other { set task_hours [expr $task_hours * 1.0] }
+    # 	}
 
 
-	# Calculate how many days are between start- and end date
-	set task_duration_days [expr ($trans_task_end_date_julian - $trans_task_start_date_julian) * 5.0 / 7.0]
+    # 	# Calculate how many days are between start- and end date
+    # 	set task_duration_days [expr ($trans_task_end_date_julian - $trans_task_start_date_julian) * 5.0 / 7.0]
 
-	# How much is the user available?
-	set user_capacity_percent 100
+    # 	# How much is the user available?
+    # 	set user_capacity_percent 100
 
-	# Calculate the percentage of time required for the task divided by the time available for the task.
-	set percentage [expr round(10.0 * 100.0 * $task_hours / ($task_duration_days * $hours_per_day * $user_capacity_percent * 0.01)) / 10.0]
+    # 	# Calculate the percentage of time required for the task divided by the time available for the task.
+    # 	set percentage [expr round(10.0 * 100.0 * $task_hours / ($task_duration_days * $hours_per_day * $user_capacity_percent * 0.01)) / 10.0]
 
-	ns_log Notice "im_resource_mgmt_resource_planning: trans_tasks: task_name=$task_name, org_size=$task_units 
-                       [im_category_from_id $task_uom_id], transition=$transition, user_id=$user_id, task_hours=$task_hours, 
-                       task_duration_days=$task_duration_days => percentage=$percentage"
+    # 	ns_log Notice "im_resource_mgmt_resource_planning: trans_tasks: task_name=$task_name, org_size=$task_units 
+    #                    [im_category_from_id $task_uom_id], transition=$transition, user_id=$user_id, task_hours=$task_hours, 
+    #                    task_duration_days=$task_duration_days => percentage=$percentage"
 
-	# Calculate approx. dedication of users to tasks and aggregate per week
-	# Loop through the days between start_date and end_data
-	for {set i $trans_task_start_date_julian} {$i <= $trans_task_end_date_julian} {incr i} {
+    # 	# Calculate approx. dedication of users to tasks and aggregate per week
+    # 	# Loop through the days between start_date and end_data
+    # 	for {set i $trans_task_start_date_julian} {$i <= $trans_task_end_date_julian} {incr i} {
 	    
-	    # Skip dates before or after the currently displayed range for performance reasons
-	    if {$i < $start_date_julian} { continue }
-	    if {$i > $end_date_julian} { continue }
+    # 	    # Skip dates before or after the currently displayed range for performance reasons
+    # 	    if {$i < $start_date_julian} { continue }
+    # 	    if {$i > $end_date_julian} { continue }
 	    
-	    # Loop through the project hierarchy towards the top
-	    set pid $task_id
-	    set continue 1
-	    while {$continue} {
+    # 	    # Loop through the project hierarchy towards the top
+    # 	    set pid $task_id
+    # 	    set continue 1
+    # 	    while {$continue} {
 		
-		# Aggregate per day
-		if {$calc_day_p} {
-		    set key "$user_id-$pid-$i"
-		    set perc 0
-		    if {[info exists perc_day_hash($key)]} { set perc $perc_day_hash($key) }
-		    set perc [expr $perc + $percentage]
-		    set perc_day_hash($key) $perc
-		}
+    # 		# Aggregate per day
+    # 		if {$calc_day_p} {
+    # 		    set key "$user_id-$pid-$i"
+    # 		    set perc 0
+    # 		    if {[info exists perc_day_hash($key)]} { set perc $perc_day_hash($key) }
+    # 		    set perc [expr $perc + $percentage]
+    # 		    set perc_day_hash($key) $perc
+    # 		}
 		
-		# Aggregate per week
-		if {$calc_week_p} {
-		    set week_julian $start_of_week_julian_hash($i)
-		    set key "$user_id-$pid-$week_julian"
-		    set perc 0
-		    if {[info exists perc_week_hash($key)]} { set perc $perc_week_hash($key) }
-		    set perc [expr $perc + $percentage]
-		    set perc_week_hash($key) $perc
-		}
+    # 		# Aggregate per week
+    # 		if {$calc_week_p} {
+    # 		    set week_julian $start_of_week_julian_hash($i)
+    # 		    set key "$user_id-$pid-$week_julian"
+    # 		    set perc 0
+    # 		    if {[info exists perc_week_hash($key)]} { set perc $perc_week_hash($key) }
+    # 		    set perc [expr $perc + $percentage]
+    # 		    set perc_week_hash($key) $perc
+    # 		}
 		
-		# Check if there is a super-project and continue there.
-		# Otherwise allow for one iteration with an empty $pid
-		# to deal with the user's level
-		if {"" == $pid} { 
-		    set continue 0 
-		} else {
-		    if { [info exists parent_hash($pid)] } {
-			set pid $parent_hash($pid)
-		    } else {
-			ad_return_complaint 1 "We have found an issue with project id: <a href='/intranet/projects/view?project_id=$pid'>$pid</a>."
-		    }
-		}
-	    }
-	}
-    }
+    # 		# Check if there is a super-project and continue there.
+    # 		# Otherwise allow for one iteration with an empty $pid
+    # 		# to deal with the user's level
+    # 		if {"" == $pid} { 
+    # 		    set continue 0 
+    # 		} else {
+    # 		    if { [info exists parent_hash($pid)] } {
+    # 			set pid $parent_hash($pid)
+    # 		    } else {
+    # 			ad_return_complaint 1 "We have found an issue with project id: <a href='/intranet/projects/view?project_id=$pid'>$pid</a>."
+    # 		    }
+    # 		}
+    # 	    }
+    # 	}
+    # }
 
-    set clicks([clock clicks -milliseconds]) percentage_trans_tasks_hash
+    # set clicks([clock clicks -milliseconds]) percentage_trans_tasks_hash
 
     # -------------------
     # Define Top Scale 
@@ -1807,13 +1808,15 @@ ad_proc -public im_resource_mgmt_resource_planning {
 		if {[info exists object_name_hash($oid)]} { set project_name $object_name_hash($oid) }
 		set cell_html "$collapse_html $gif_hash(im_timesheet_task) <a href='[export_vars -base $project_base_url {{project_id $oid}}]'>$project_name</a>"
 	    }
+
 	    im_trans_task {
-		set indent_level 1
-		set task_id $oid
-		set task_name "undef im_trans_task $oid"
-		if {[info exists object_name_hash($oid)]} { set task_name $object_name_hash($oid) }
-		set cell_html "$collapse_html $gif_hash(im_trans_task) <a href='[export_vars -base $trans_task_base_url {{task_id $oid}}]'>$task_name</a>"
+	     	set indent_level 1
+	     	set task_id $oid
+	     	set task_name "undef im_trans_task $oid"
+	     	if {[info exists object_name_hash($oid)]} { set task_name $object_name_hash($oid) }
+	     	set cell_html "$collapse_html $gif_hash(im_trans_task) <a href='[export_vars -base $trans_task_base_url {{task_id $oid}}]'>$task_name</a>"
 	    }
+
 	    default { 
 		set cell_html "unknown object '$otype' type for object '$oid'" 
 	    }
@@ -2218,7 +2221,7 @@ ad_proc -public im_resource_mgmt_resource_planning {
 		}
             }
             im_trans_task {
-		append department_row_html $department_row_html_tmp
+	     	append department_row_html $department_row_html_tmp
             }
             default {
 		append department_row_html $department_row_html_tmp
