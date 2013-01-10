@@ -632,6 +632,7 @@ ad_proc -public im_resource_mgmt_resource_planning {
     # ------------------------------------------------------------------
     # Check for translation tasks below a sub-project
     #
+    if {[im_table_exists im_trans_tasks]} {
     set trans_task_sql "
 		select
 			t.*,
@@ -674,6 +675,7 @@ ad_proc -public im_resource_mgmt_resource_planning {
     # }
 
     # set clicks([clock clicks -milliseconds]) trans_tasks
+    }
 
     # ------------------------------------------------------------------
     # Calculate the hierarchy.
@@ -1398,6 +1400,8 @@ ad_proc -public im_resource_mgmt_resource_planning {
     # We are re-using the same SQL as for calculating the
     # trans_tasks for the hierarchy
     #
+
+    if {[im_table_exists im_trans_tasks]} {
     set trans_task_percentage_sql "
 		select
 			t.*,
@@ -1597,6 +1601,8 @@ ad_proc -public im_resource_mgmt_resource_planning {
     # }
 
     # set clicks([clock clicks -milliseconds]) percentage_trans_tasks_hash
+
+    }
 
     # -------------------
     # Define Top Scale 
