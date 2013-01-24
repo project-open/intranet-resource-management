@@ -2480,6 +2480,9 @@ ad_proc im_resource_mgmt_resource_planning_add_member_component { } {
     set order_freelancer_sql "user_name"
 
     # Project's Source & Target Languages
+    set project_source_lang ""
+    set project_target_langs ""
+    catch {
     set project_source_lang [db_string source_lang "
                 select  substr(im_category_from_id(source_language_id), 1, 2)
                 from    im_projects
@@ -2491,6 +2494,7 @@ ad_proc im_resource_mgmt_resource_planning_add_member_component { } {
 		from	im_target_languages 
 		where	project_id = :object_id
     "]
+    }
     if {0 == [llength $project_target_langs]} { set project_target_langs [list "'none'"]}
 
 
