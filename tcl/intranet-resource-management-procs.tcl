@@ -463,6 +463,8 @@ ad_proc -public im_resource_mgmt_resource_planning {
 		end_date   >= to_date(:start_date, 'YYYY-MM-DD')
     "
 
+#    ad_return_complaint 1 [im_ad_hoc_query -format html $absences_sql]
+
     db_foreach absences $absences_sql {
 	for {set i $absence_start_date_julian} {$i <= $absence_end_date_julian} {incr i} {
 
@@ -2148,11 +2150,12 @@ ad_proc -public im_resource_mgmt_resource_planning {
 	    set absence_key "$julian_date-$user_id"
 	    if {[info exists absences_hash($absence_key)]} {
 		# Color the entire column in case of an absence 
-		# append list_of_absences $absences_hash($absence_key)
+		append list_of_absences $absences_hash($absence_key)
 	    }
 	
 	    set col_attrib ""
 	    if {"" != $list_of_absences} {
+#		ad_return_complaint 1 '$list_of_absences'
 		if {$calc_week_p} {
 		    while {[string length $list_of_absences] < 5} { append list_of_absences " " }
 		}
@@ -2549,7 +2552,7 @@ ad_proc im_resource_mgmt_resource_planning_add_member_component { } {
     set result [im_resource_mgmt_resource_planning \
 		-start_date $start_date \
 		-end_date $end_date \
-		-top_vars "year week_of_year day_of_week" \
+		-top_vars "year month_of_year day_of_month" \
 		-user_id $user_list
     ]
 
