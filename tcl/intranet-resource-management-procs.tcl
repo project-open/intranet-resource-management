@@ -1094,11 +1094,13 @@ ad_proc -public im_resource_mgmt_resource_planning {
 		} 
 
 		# Employees are assigned and no Profile User is assigned 
+		# fraber 130805: Completely wrong!!!
+		# What happens if there are more than one user assigned???
                 if {
                     0 != [llength $user_percentage_list_employee] && \
 		    0 == [llength $user_percentage_list_skill_profile_users]
                 } {
-                    set total_user_percentages 100
+#                    set total_user_percentages 100
                 }
 
                 ns_log NOTICE "intranet-resource-management-procs::eval_user_percentage_list ------------------------------- STOP: project_id:$project_id --------------------------------------"
