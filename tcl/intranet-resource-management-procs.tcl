@@ -277,8 +277,7 @@ ad_proc -public im_resource_mgmt_resource_planning {
     set rowclass(0) "roweven"
     set rowclass(1) "rowodd"
     set sigma "&Sigma;"
-    # set page_url "/intranet-resource-management/gantt-resources-planning"
-    set page_url "/intranet-cust-lippokwolf/resources-planning"
+    set page_url "/intranet-resource-management/resources-planning"
 
     set current_user_id [ad_get_user_id]
     set return_url [im_url_with_query]
@@ -462,8 +461,6 @@ ad_proc -public im_resource_mgmt_resource_planning {
 		start_date <= to_date(:end_date, 'YYYY-MM-DD') and
 		end_date   >= to_date(:start_date, 'YYYY-MM-DD')
     "
-
-#    ad_return_complaint 1 [im_ad_hoc_query -format html $absences_sql]
 
     db_foreach absences $absences_sql {
 	for {set i $absence_start_date_julian} {$i <= $absence_end_date_julian} {incr i} {
@@ -1751,7 +1748,8 @@ ad_proc -public im_resource_mgmt_resource_planning {
 		    set first_department_p 0
 
 		    # Change of department -> show subtotals and print rows 
-		    append html [write_department_row \
+		    if { "planned_hours" == $calculation_mode } {
+			append html [write_department_row \
 				     $department_row_html \
 				     $user_department_id_predecessor \
 				     [array get totals_department_absences_arr] \
@@ -1759,6 +1757,7 @@ ad_proc -public im_resource_mgmt_resource_planning {
 				     [array get totals_department_availability_arr] \
 				     $top_scale $top_vars $show_departments_only_p \
 				    ] 
+		    }
 		    
 		    set user_department_id_predecessor $user_department_id
 		    
@@ -1884,7 +1883,6 @@ ad_proc -public im_resource_mgmt_resource_planning {
 	    set last_click [clock clicks]
 
 	    # Calculate the julian date for today from top_vars
-
 	    set julian_date [util_memoize [list im_date_components_to_julian $top_vars $top_entry]]
 	    if {$julian_date == $last_julian} {
 		# We're with the second ... seventh entry of a week.
@@ -1896,7 +1894,11 @@ ad_proc -public im_resource_mgmt_resource_planning {
 	    set left_clicks(top_scale_to_julian) [expr $left_clicks(top_scale_to_julian) + [clock clicks] - $last_click]
 	    set last_click [clock clicks]
 
+
+	    # -----------------------------------
 	    # Get the value for this cell 
+	    # -----------------------------------
+
 	    set val ""
 	    set val_hours ""
 
@@ -2016,7 +2018,7 @@ ad_proc -public im_resource_mgmt_resource_planning {
 			    } else {
 				set totals_department_availability_arr($column_ctr) $hours_availability_user
 			    }		    
-			}    
+			}   
 			# --------------------------------------------------------------------------------------------
 			# END: Calculate Totals
 			# --------------------------------------------------------------------------------------------
@@ -2108,10 +2110,10 @@ ad_proc -public im_resource_mgmt_resource_planning {
 			}
 
 			append cell_html "</div>"
-
-		   } else {
-			set cell_html "&nbsp;"    
-		   }
+		    } else {
+			#  "planned_hours" != $calculation_mode
+			set cell_html "${val}%"
+    		   }
 		}   
 
 	        default {
@@ -2247,7 +2249,7 @@ ad_proc -public im_resource_mgmt_resource_planning {
     }; # end loop user/project/task rows 
 
  
-    if {[info exists department_row_html]} {
+    if { [info exists department_row_html] } {
 	append html [write_department_row \
 			 $department_row_html \
 			 $user_department_id_predecessor \
