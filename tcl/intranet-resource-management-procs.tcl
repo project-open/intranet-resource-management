@@ -362,6 +362,10 @@ ad_proc -public im_resource_mgmt_resource_planning {
 	"
     } 
 
+    #DEBUG
+    # lappend criteria "u.user_id in (80512)"
+    # set union_criteria "and e.employee_id in (80512)"
+
     if { "" != $excluded_group_ids } {
         lappend criteria "u.user_id not in (
                                 select  object_id_two from acs_rels
@@ -444,8 +448,8 @@ ad_proc -public im_resource_mgmt_resource_planning {
 		im_user_absences
 	where 
 		group_id is null and
-		start_date <= to_date(:end_date, 'YYYY-MM-DD') and
-		end_date   >= to_date(:start_date, 'YYYY-MM-DD')
+		start_date <= to_date(:end_date_request, 'YYYY-MM-DD') and
+		end_date   >= to_date(:start_date_request, 'YYYY-MM-DD')
     UNION
 	-- Absences via groups - Check if the user is a member of group_id
 	select
@@ -458,8 +462,8 @@ ad_proc -public im_resource_mgmt_resource_planning {
 		group_distinct_member_map mm
 	where 
 		a.group_id = mm.group_id and
-		start_date <= to_date(:end_date, 'YYYY-MM-DD') and
-		end_date   >= to_date(:start_date, 'YYYY-MM-DD')
+		start_date <= to_date(:end_date_request, 'YYYY-MM-DD') and
+		end_date   >= to_date(:start_date_request, 'YYYY-MM-DD')
     "
 
     db_foreach absences $absences_sql {
@@ -508,8 +512,8 @@ ad_proc -public im_resource_mgmt_resource_planning {
 		where
 			parent.project_status_id not in ([join [im_sub_categories [im_project_status_closed]] ","])
 			and parent.parent_id is null
-			and parent.end_date >= to_date(:start_date, 'YYYY-MM-DD')
-			and parent.start_date <= to_date(:end_date, 'YYYY-MM-DD')
+			and parent.end_date >= to_date(:start_date_request, 'YYYY-MM-DD')
+			and parent.start_date <= to_date(:end_date_request, 'YYYY-MM-DD')
 			and child.tree_sortkey
 				between parent.tree_sortkey
 				and tree_right(parent.tree_sortkey)
@@ -712,7 +716,7 @@ ad_proc -public im_resource_mgmt_resource_planning {
 		parent.project_id,
 		child.tree_sortkey
     "
-    ns_log NOTICE "intranet-resource-management-procs: $hierarchy_sql KHD"
+
     set empty ""
     set name_hash($empty) ""
     set parent_project_id 0
@@ -893,10 +897,17 @@ ad_proc -public im_resource_mgmt_resource_planning {
 
     set clicks([clock clicks -milliseconds]) left_scale
 
-    # ------------------------------------------------------------------
+    # ------------------------------------------------------------------------------------------------------------------------------------
+    # ------------------------------------------------------------------------------------------------------------------------------------
+    # 
+    # PLANNED HOURS & ABSENCES 
+    #  
     # Calculate the main resource assignment for "planned hours" and "absences" hash by looping
     # through the project hierarchy x looping through the date dimension
-    #
+    # 
+    # ------------------------------------------------------------------------------------------------------------------------------------
+    # ------------------------------------------------------------------------------------------------------------------------------------    
+    
     set planned_hours_sql "
 	select 
 		distinct sq.project_id,
@@ -1322,31 +1333,50 @@ ad_proc -public im_resource_mgmt_resource_planning {
 	# if { $next_workday > $max_date } { set max_date $next_workday }
 
 	}
-    }
+    }; # END: Filling array "user_day_total_plannedhours_arr"  
 
 
-    # ------------------------------------------------------------------
+    # ------------------------------------------------------------------------------------------------------------------------------------
+    # ------------------------------------------------------------------------------------------------------------------------------------
+    # 
+    # RESSOURCE ASSIGNMENT (%)
+    #
     # Calculate the main resource assignment hash by looping
     # through the project hierarchy x looping through the date dimension  
+    #
+    # ------------------------------------------------------------------------------------------------------------------------------------
+    # ------------------------------------------------------------------------------------------------------------------------------------
 
     db_foreach percentage_loop $percentage_sql {
-
+	ns_log NOTICE "intranet-resource-management-procs::percentage_sql: -----------------------------------------------------------------------------------------------------------------------"
         ns_log NOTICE "intranet-resource-management-procs::percentage_sql: project_id:$project_id child_start_date_julian: $child_start_date_julian, child_end_date_julian: $child_end_date_julian"
-	
+	ns_log NOTICE "intranet-resource-management-procs::percentage_sql: "
 	# sanity check for empty start/end date
 	if {""==$start_date_julian || ""==$end_date_julian} {
 	    ad_return_complaint 1 "Empty date found. Please verify start/end date of Project ID: <a href='/intranet/projects/view?project_id=$project_id'>$project_id</a>" 
 	}
 
 	# Skip if no data
-	if {"" == $child_start_date_julian} { continue }
-	if {"" == $child_end_date_julian} { continue }
+	if {"" == $child_start_date_julian} { 
+	    ns_log NOTICE "intranet-resource-management-procs::percentage_sql: Found empty child_end_start_julian, not setting perc_day_hash/perc_week_hash"
+	    continue 
+	}
+	if {"" == $child_end_date_julian} { 
+	    ns_log NOTICE "intranet-resource-management-procs::percentage_sql: Found empty child_end_date_julian, not setting perc_day_hash/perc_week_hash"
+	    continue 
+	}
 	
 	# Loop through the days between start_date and end_data
 	for {set i $child_start_date_julian} {$i <= $child_end_date_julian} {incr i} {
-
-	    if {$i < $start_date_julian} { continue }
-	    if {$i > $end_date_julian} { continue }
+	    ns_log NOTICE "intranet-resource-management-procs::percentage_sql: Loop through the days between start_date and end_data: Handling Jday: $i"
+	    if {$i < $start_date_julian} { 
+		ns_log NOTICE "intranet-resource-management-procs::percentage_sql: Loop through the days between start_date and end_data: day < start_date_julian ($start_date_julian), leaving loop,nothing set perc_day_hash/perc_week_hash"
+		continue 
+	    }
+	    if {$i > $end_date_julian} { 
+		ns_log NOTICE "intranet-resource-management-procs::percentage_sql: Loop through the days between start_date and end_data: day > end_date_julian ($end_date_julian), leaving loop, nothing set perc_day_hash/perc_week_hash"
+		continue 
+	    }
 
 	    # Loop through the project hierarchy towards the top
 	    set pid $project_id
@@ -1359,6 +1389,7 @@ ad_proc -public im_resource_mgmt_resource_planning {
 		    if {[info exists perc_day_hash($key)]} { set perc $perc_day_hash($key) }
 		    set perc [expr $perc + $percentage]
 		    set perc_day_hash($key) $perc
+		    ns_log NOTICE "intranet-resource-management-procs::percentage_sql: AGGREGATE DAY: ${perc}% (key:$key)"
 		}
 
 		# Aggregate per week
@@ -1369,6 +1400,7 @@ ad_proc -public im_resource_mgmt_resource_planning {
 		    if {[info exists perc_week_hash($key)]} { set perc $perc_week_hash($key) }
 		    set perc [expr $perc + $percentage]
 		    set perc_week_hash($key) $perc
+		    ns_log NOTICE "intranet-resource-management-procs::percentage_sql: AGGREGATE WEEK: ${perc}% (key:$key)"
 		}
 
 		# Check if there is a super-project and continue there.
@@ -1392,7 +1424,10 @@ ad_proc -public im_resource_mgmt_resource_planning {
 		}
 	    }
 	}
-    }
+    }; # End creating perc_day_hash, perc_week_hash
+
+    #DEBUG 
+    # ad_return_complaint 1 [array get perc_day_hash]
 
     set clicks([clock clicks -milliseconds]) percentage_hash
 
@@ -1605,6 +1640,7 @@ ad_proc -public im_resource_mgmt_resource_planning {
 
     }
 
+
     # -------------------
     # Define Top Scale 
     # -------------------
@@ -1612,9 +1648,10 @@ ad_proc -public im_resource_mgmt_resource_planning {
     # Top scale is a list of lists like {{2006 01} {2006 02} ...}
     set top_scale {}
     set last_top_dim {}
+    ns_log NOTICE "intranet-resource-management-procs::DefineTopScale: -------------------------------------------------------------------------"
+    ns_log NOTICE "intranet-resource-management-procs::DefineTopScale: start_date_julian: $start_date_julian ([dt_julian_to_ansi $start_date_julian]), end_date_julian: $end_date_julian (([dt_julian_to_ansi $end_date_julian]))" 
 
-    for {set i $start_date_julian} {$i <= $end_date_julian} {incr i} {
-
+    for {set i [dt_ansi_to_julian_single_arg $start_date_request]} {$i <= [dt_ansi_to_julian_single_arg $end_date_request]} {incr i} {
 	array unset date_hash
 	array set date_hash [im_date_julian_to_components $i]
 	
@@ -1634,6 +1671,7 @@ ad_proc -public im_resource_mgmt_resource_planning {
 	}
     }
 
+    ns_log NOTICE "intranet-resource-management-procs::DefineTopScale: Top Scale: $top_scale"
 
     set clicks([clock clicks -milliseconds]) top_scale
 
@@ -1672,9 +1710,12 @@ ad_proc -public im_resource_mgmt_resource_planning {
     "
     db_foreach absence $absence_sql { lappend absence_list $category }
 
+
+
     # ------------------------------------------------------------------------------------------------------------------------
     # ------------------------------------------------------------------------------------------------------------------------
     # Create OUTPUT
+    # Expects values in the following hash tables: perc_day_hash, perc_week_hash, ..... 
     # ------------------------------------------------------------------------------------------------------------------------
     # ------------------------------------------------------------------------------------------------------------------------
 
@@ -1864,8 +1905,8 @@ ad_proc -public im_resource_mgmt_resource_planning {
 	set column_ctr 0 
 
 	# topscale example: {2011 9 01} {2011 9 02}
-	
 	foreach top_entry $top_scale {
+	    ns_log NOTICE "intranet-resource-management-procs::WriteMatrixElements::------------------------------------------------------ Loop through to_scale"
 	    
 	    set left_clicks(top_scale_start) [expr $left_clicks(top_scale_start) + [clock clicks] - $last_click]
 	    set last_click [clock clicks]
@@ -1884,6 +1925,7 @@ ad_proc -public im_resource_mgmt_resource_planning {
 
 	    # Calculate the julian date for today from top_vars
 	    set julian_date [util_memoize [list im_date_components_to_julian $top_vars $top_entry]]
+	    ns_log NOTICE "intranet-resource-management-procs::WriteMatrixElements:: Evaluating im_date_components_to_julian (top_vars: $top_vars // top_entry: $top_entry): $julian_date ([dt_julian_to_ansi $julian_date])"	    
 	    if {$julian_date == $last_julian} {
 		# We're with the second ... seventh entry of a week.
 		continue
@@ -1894,6 +1936,7 @@ ad_proc -public im_resource_mgmt_resource_planning {
 	    set left_clicks(top_scale_to_julian) [expr $left_clicks(top_scale_to_julian) + [clock clicks] - $last_click]
 	    set last_click [clock clicks]
 
+	    ns_log NOTICE "intranet-resource-management-procs::WriteMatrixElements:: Writing cell for julian_date: $julian_date ([dt_julian_to_ansi $julian_date] - user_id: $user_id"
 
 	    # -----------------------------------
 	    # Get the value for this cell 
@@ -1905,11 +1948,13 @@ ad_proc -public im_resource_mgmt_resource_planning {
 	    if { "percentage" == $calculation_mode } {
 		if {$calc_day_p} {
 		    set key "$user_id-$project_id-$julian_date"
+		    ns_log NOTICE "intranet-resource-management-procs::WriteMatrixElements::(Day) key:$user_id-$project_id-$julian_date - Value before: $val"
 		    if {[info exists perc_day_hash($key)]} { set val $perc_day_hash($key) }
+		    ns_log NOTICE "intranet-resource-management-procs::WriteMatrixElements::(Day) key:$user_id-$project_id-$julian_date - Value after: $val"
 		}
 		if { $calc_week_p } {
 		    set week_julian [util_memoize [list im_date_julian_to_week_julian $julian_date]]
-		    ns_log Notice "intranet-resource-management-procs: julian_date=$julian_date, week_julian=$week_julian"
+		    ns_log Notice "intranet-resource-management-procs::WriteMatrixElements::(Week) julian_date=$julian_date, week_julian=$week_julian"
 		    set key "$user_id-$project_id-$week_julian"
 		    if {[info exists perc_week_hash($key)]} { set val $perc_week_hash($key) }
 		    if {"" == [string trim $val]} { set val 0 }
@@ -1935,6 +1980,10 @@ ad_proc -public im_resource_mgmt_resource_planning {
 	    if {"" == [string trim $val]} { set val 0 }
 	    if {"" == [string trim $val_hours]} { set val_hours 0 }
 
+	    # ----------------------------------------------------------------------
+	    # Cell value evaluated, now format content based on object type .... 
+	    # ----------------------------------------------------------------------
+
 	    set left_clicks(top_scale_calc) [expr $left_clicks(top_scale_calc) + [clock clicks] - $last_click]
 	    set last_click [clock clicks]
 
@@ -1944,6 +1993,7 @@ ad_proc -public im_resource_mgmt_resource_planning {
 	    set day_of_week [util_memoize [list db_string dow "select extract(dow from to_date('$julian_date', 'J'))"]]
 	    if {0 == $day_of_week} { set day_of_week 7 }
 
+	    # Which type of line: person or project/task  
 	    switch $otype {
             	person {
 
@@ -2022,7 +2072,6 @@ ad_proc -public im_resource_mgmt_resource_planning {
 			# --------------------------------------------------------------------------------------------
 			# END: Calculate Totals
 			# --------------------------------------------------------------------------------------------
-
 
 			# --------------------------------------------------------------------------------------------
 			# START: Create Bars 
@@ -2117,8 +2166,10 @@ ad_proc -public im_resource_mgmt_resource_planning {
 		}   
 
 	        default {
+		    # default line is showing project or task 
                     if { "percentage" == $calculation_mode } {
-			set cell_html [util_memoize [list im_resource_mgmt_resource_planning_cell default $val "" "" "" $limit_height]]
+			# set cell_html [util_memoize [list im_resource_mgmt_resource_planning_cell default $val "" "" "" $limit_height]]
+			set cell_html "${val}%"
 		    } else {
 			if { "6" != $day_of_week && "7" != $day_of_week  } {
 			    # set cell_html [im_resource_mgmt_resource_planning_cell "custom" $val [im_resource_mgmt_get_bar_color $bar_type $val] "$val%" "" $limit_height]
@@ -2265,12 +2316,15 @@ ad_proc -public im_resource_mgmt_resource_planning {
     set clicks([clock clicks -milliseconds]) display_table_body
 
     # ----------------------------------------------------------------------------------------------------------------------------
+    # ----------------------------------------------------------------------------------------------------------------------------
+    # 
     # Start header creation
+    # 
+    # ----------------------------------------------------------------------------------------------------------------------------
     # ----------------------------------------------------------------------------------------------------------------------------
 
     set header ""
     for {set row 0} {$row < $top_scale_rows} { incr row } {
-
 	
 	append header "<tr class=rowtitle>\n"
 	set col_l10n [lang::message::lookup "" "intranet-resource-management.Dim_[lindex $top_vars $row]" [lindex $top_vars $row]]
@@ -2318,15 +2372,14 @@ ad_proc -public im_resource_mgmt_resource_planning {
 	append header "</tr>\n"
     }
 
-    # ------------------------------
-    # Create row for COMPANY totals  
-    # ------------------------------
+    # ------------------------------------------------------------
+    # Create row for COMPANY totals: Mode planned_hours only!
+    # ------------------------------------------------------------
 
     if { $calc_day_p && "planned_hours" == $calculation_mode} {
 	append header "<tr class=rowtitle>\n"
 	set col_l10n [lang::message::lookup "" "intranet-resource-management.Total" "Total"]
 	append header "<td class=rowtitle colspan=$left_scale_size align=right>$col_l10n</td>\n"
-
 
 	for {set col 0} {$col <= [expr [llength $top_scale]-1]} { incr col } {
 	    # Check if column is a weekend 
@@ -2374,7 +2427,7 @@ ad_proc -public im_resource_mgmt_resource_planning {
 	    }
 	}
        append header "</tr>\n"
-    }
+    }; # END: Create row for COMPANY totals: Mode planned_hours only!
 
     # -----------------------
     # End header creation  
