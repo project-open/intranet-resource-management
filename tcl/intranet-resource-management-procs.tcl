@@ -151,6 +151,12 @@ ad_proc -public im_date_components_to_julian { top_vars top_entry} {
     Takes an entry from top_vars/top_entry and tries
     to figure out the julian date from this
 } {
+
+    set year 0
+    set week_of_year 0
+    set day_of_week 0 
+    set month 0 
+    
     set ctr 0
     foreach var $top_vars {
 	set val [lindex $top_entry $ctr]
@@ -163,22 +169,24 @@ ad_proc -public im_date_components_to_julian { top_vars top_entry} {
 
     set julian 0
 
+    # -------------------------------------------------------------
     # Try to calculate the current data from top dimension
+    # -------------------------------------------------------------
+    
+    # Security 
+    if { ![string is integer $year] || ![string is integer $month] || ![string is integer $week_of_year] || ![string is integer $day_of_week] } {
+	    ad_return_complaint 1 "<b>Unable to calculate data from date dimension</b>:<br/> Found non-integer"
+    }
+
     switch $top_vars {
 	"year week_of_year day_of_week" {
 	    catch {
-		set first_of_year_julian [dt_ansi_to_julian $year 1 1]
-		set dow_first_of_year_julian [util_memoize [list db_string dow "select to_char('$year-01-07'::date, 'D')"]]
-		set start_first_week_julian [expr $first_of_year_julian - $dow_first_of_year_julian]
-		set julian [expr $start_first_week_julian + 7 * $week_of_year + $day_of_week]
+		set julian [dt_ansi_to_julian_single_arg [db_string get_iso_week_date "select (to_date('$year-$week_of_year', 'IYYY-IW')::date + interval '[expr $day_of_week-1]' day)::date;" -default 0]]
 	    }
 	}
 	"year week_of_year" {
 	    catch {
-		set first_of_year_julian [dt_ansi_to_julian $year 1 1]
-		set dow_first_of_year_julian [util_memoize [list db_string dow "select to_char('$year-01-07'::date, 'D')"]]
-		set start_first_week_julian [expr $first_of_year_julian - $dow_first_of_year_julian]
-		set julian [expr $start_first_week_julian + 7 * $week_of_year]
+		set julian [dt_ansi_to_julian_single_arg [db_string get_iso_week_date "select (to_date('$year-$week_of_year', 'IYYY-IW')::date)::date;" -default 0]]
 	    }
 	}
 	"year month_of_year day_of_month" {
@@ -363,8 +371,8 @@ ad_proc -public im_resource_mgmt_resource_planning {
     } 
 
     #DEBUG
-    # lappend criteria "u.user_id in (80512)"
-    # set union_criteria "and e.employee_id in (80512)"
+    #lappend criteria "u.user_id in (624)"
+    #set union_criteria "and e.employee_id in (624)"
 
     if { "" != $excluded_group_ids } {
         lappend criteria "u.user_id not in (
@@ -830,6 +838,8 @@ ad_proc -public im_resource_mgmt_resource_planning {
 
 	# Add a line without project, only for the user
 	if {$user_id != $old_user_id} {
+	    ns_log NOTICE "intranet-resource-management-procs::main_projects_sql -- -------------------------------------------------------------------------------"
+	    ns_log NOTICE "intranet-resource-management-procs::main_projects_sql - Building left_scale - Adding: $user_name ($user_id) - (old_user_id=$old_user_id)"
 	    # remember the type of the object
 	    set otype_hash($user_id) "person"
 	    # append the user_id to the left_scale
@@ -839,7 +849,6 @@ ad_proc -public im_resource_mgmt_resource_planning {
 	    # Count users listed in this whole report  
 	    incr total_user_ctr 
 	}
-
 	# ----------------------------------------------------------------------
 	# Write out the project-tree for the main-projects.
 
@@ -865,7 +874,7 @@ ad_proc -public im_resource_mgmt_resource_planning {
 	    # Iterate through the project_path, looking for:
 	    # - the name of the project to display and
 	    # - if any of the parents has been closed
-	    ns_log Notice "intranet-resource-management: pid=$project_id, name=$project_name, path=$project_path, row=$row"
+	    ns_log Notice "intranet-resource-management:main_projects_sql - Loop through PROJ hirarchy - pid=$project_id, name=$project_name, path=$project_path, row=$row"
 	    set collapse_control_oid 0
 	    set closed_p "c"
 	    if {[info exists collapse_hash($user_id)]} { set closed_p $collapse_hash($user_id) }
@@ -993,6 +1002,8 @@ ad_proc -public im_resource_mgmt_resource_planning {
 
     # At the same time build an array that shows the users total 
     # for a particular day: user_day_total_plannedhours_arr($user_id-$days_julian)
+
+    ns_log NOTICE "intranet-resource-management-procs::eval_user_percentage_list::planned_hours_sql - Evaluating PLANNED HOURS "
 
     db_foreach planned_hours_loop $planned_hours_sql {
 
@@ -1389,7 +1400,7 @@ ad_proc -public im_resource_mgmt_resource_planning {
 		    if {[info exists perc_day_hash($key)]} { set perc $perc_day_hash($key) }
 		    set perc [expr $perc + $percentage]
 		    set perc_day_hash($key) $perc
-		    ns_log NOTICE "intranet-resource-management-procs::percentage_sql: AGGREGATE DAY: ${perc}% (key:$key)"
+		    ns_log NOTICE "intranet-resource-management-procs::percentage_sql: AGGREGATE DAY \$perc_day_hash : ${perc}% (key:$key)"
 		}
 
 		# Aggregate per week
@@ -1400,7 +1411,7 @@ ad_proc -public im_resource_mgmt_resource_planning {
 		    if {[info exists perc_week_hash($key)]} { set perc $perc_week_hash($key) }
 		    set perc [expr $perc + $percentage]
 		    set perc_week_hash($key) $perc
-		    ns_log NOTICE "intranet-resource-management-procs::percentage_sql: AGGREGATE WEEK: ${perc}% (key:$key)"
+		    ns_log NOTICE "intranet-resource-management-procs::percentage_sql: AGGREGATE WEEK \$perc_week_hash: ${perc}% (key:$key)"
 		}
 
 		# Check if there is a super-project and continue there.
@@ -1671,6 +1682,7 @@ ad_proc -public im_resource_mgmt_resource_planning {
 	}
     }
 
+
     ns_log NOTICE "intranet-resource-management-procs::DefineTopScale: Top Scale: $top_scale"
 
     set clicks([clock clicks -milliseconds]) top_scale
@@ -1735,6 +1747,7 @@ ad_proc -public im_resource_mgmt_resource_planning {
     set row_ctr 0
     set show_row_task_p 0 
 
+
     foreach left_entry $left_scale {
 	# example for left scale: {8892 {}} {624 {}} {30730 {}} {29622 {}} {29622 29946} ... 
 
@@ -1744,7 +1757,9 @@ ad_proc -public im_resource_mgmt_resource_planning {
 	set left_clicks(start) [expr $left_clicks(start) + [clock clicks] - $last_click]
 	set last_click [clock clicks]
 
-	ns_log Notice "gantt-resources-planning: left_entry=$left_entry"
+	ns_log Notice "intranet-resource-management-procs::output: -- --------------------------------------------------"
+	ns_log Notice "intranet-resource-management-procs::output: -- --------------------------------------------------"
+	ns_log Notice "intranet-resource-management-procs::output: Handling user: $left_entry"
 	set row_html ""
 
 	# Extract user and project. An empty project indicates 
@@ -1771,9 +1786,11 @@ ad_proc -public im_resource_mgmt_resource_planning {
 	set otype "person"
 
 	if {"" != $project_id} { 
+	    ns_log Notice "intranet-resource-management-procs::output: Showing Project row" 
 	    set oid $project_id 
 	    set otype "im_project"
 	} else {
+	    ns_log Notice "intranet-resource-management-procs::output: Showing Employee row" 	    
 	    # no project_id found, row shows employee
 	    set row_shows_employee_p 1
 	}
@@ -1782,24 +1799,24 @@ ad_proc -public im_resource_mgmt_resource_planning {
 	# Write department Row when user_department_id has changed ...   
 	# -------------------------------------------------------------------
 	if { $row_shows_employee_p } {
+	    ns_log Notice "intranet-resource-management-procs::output: Check if department is completed and shoudl be added to outpout" 
 	    if { 0 == $row_ctr } {
+		ns_log Notice "intranet-resource-management-procs::output: No rows found, setting user_department_id_predecessor to user_department_id"
 		set user_department_id_predecessor $user_department_id
 	    } else {
 		if { $user_department_id_predecessor != $user_department_id } {
 		    set first_department_p 0
-
+		    ns_log Notice "intranet-resource-management-procs::output: Change of department -> show subtotals and print rows"
 		    # Change of department -> show subtotals and print rows 
-		    if { "planned_hours" == $calculation_mode } {
-			append html [write_department_row \
+		    append html [write_department_row \
 				     $department_row_html \
 				     $user_department_id_predecessor \
 				     [array get totals_department_absences_arr] \
 				     [array get totals_department_planned_hours_arr] \
 				     [array get totals_department_availability_arr] \
-				     $top_scale $top_vars $show_departments_only_p \
-				    ] 
-		    }
-		    
+				     $top_scale $top_vars $show_departments_only_p $calculation_mode\
+		    ] 
+		    		    
 		    set user_department_id_predecessor $user_department_id
 		    
 		    # Reset department arrays 
@@ -1906,7 +1923,7 @@ ad_proc -public im_resource_mgmt_resource_planning {
 
 	# topscale example: {2011 9 01} {2011 9 02}
 	foreach top_entry $top_scale {
-	    ns_log NOTICE "intranet-resource-management-procs::WriteMatrixElements::------------------------------------------------------ Loop through to_scale"
+	    ns_log NOTICE "intranet-resource-management-procs::output:WriteMatrixElements::------------------------------------------------------ Loop through to_scale"
 	    
 	    set left_clicks(top_scale_start) [expr $left_clicks(top_scale_start) + [clock clicks] - $last_click]
 	    set last_click [clock clicks]
@@ -1925,7 +1942,7 @@ ad_proc -public im_resource_mgmt_resource_planning {
 
 	    # Calculate the julian date for today from top_vars
 	    set julian_date [util_memoize [list im_date_components_to_julian $top_vars $top_entry]]
-	    ns_log NOTICE "intranet-resource-management-procs::WriteMatrixElements:: Evaluating im_date_components_to_julian (top_vars: $top_vars // top_entry: $top_entry): $julian_date ([dt_julian_to_ansi $julian_date])"	    
+	    ns_log NOTICE "intranet-resource-management-procs::output:WriteMatrixElements:: Evaluating im_date_components_to_julian (top_vars: $top_vars // top_entry: $top_entry): $julian_date ([dt_julian_to_ansi $julian_date])"	    
 	    if {$julian_date == $last_julian} {
 		# We're with the second ... seventh entry of a week.
 		continue
@@ -1936,7 +1953,7 @@ ad_proc -public im_resource_mgmt_resource_planning {
 	    set left_clicks(top_scale_to_julian) [expr $left_clicks(top_scale_to_julian) + [clock clicks] - $last_click]
 	    set last_click [clock clicks]
 
-	    ns_log NOTICE "intranet-resource-management-procs::WriteMatrixElements:: Writing cell for julian_date: $julian_date ([dt_julian_to_ansi $julian_date] - user_id: $user_id"
+	    ns_log NOTICE "intranet-resource-management-procs::output:WriteMatrixElements:: Writing cell for julian_date: $julian_date ([dt_julian_to_ansi $julian_date] - user_id: $user_id"
 
 	    # -----------------------------------
 	    # Get the value for this cell 
@@ -1948,13 +1965,13 @@ ad_proc -public im_resource_mgmt_resource_planning {
 	    if { "percentage" == $calculation_mode } {
 		if {$calc_day_p} {
 		    set key "$user_id-$project_id-$julian_date"
-		    ns_log NOTICE "intranet-resource-management-procs::WriteMatrixElements::(Day) key:$user_id-$project_id-$julian_date - Value before: $val"
+		    ns_log NOTICE "intranet-resource-management-procs::output:WriteMatrixElements::(Day) key:$user_id-$project_id-$julian_date - Value before: $val"
 		    if {[info exists perc_day_hash($key)]} { set val $perc_day_hash($key) }
-		    ns_log NOTICE "intranet-resource-management-procs::WriteMatrixElements::(Day) key:$user_id-$project_id-$julian_date - Value after: $val"
+		    ns_log NOTICE "intranet-resource-management-procs::output:WriteMatrixElements::(Day) key:$user_id-$project_id-$julian_date - Value after: $val"
 		}
 		if { $calc_week_p } {
 		    set week_julian [util_memoize [list im_date_julian_to_week_julian $julian_date]]
-		    ns_log Notice "intranet-resource-management-procs::WriteMatrixElements::(Week) julian_date=$julian_date, week_julian=$week_julian"
+		    ns_log Notice "intranet-resource-management-procs::output:WriteMatrixElements::(Week) julian_date=$julian_date, week_julian=$week_julian"
 		    set key "$user_id-$project_id-$week_julian"
 		    if {[info exists perc_week_hash($key)]} { set val $perc_week_hash($key) }
 		    if {"" == [string trim $val]} { set val 0 }
@@ -2157,10 +2174,10 @@ ad_proc -public im_resource_mgmt_resource_planning {
 			} else {
 			    set totals_department_absences_arr($column_ctr) $occupation_user     			    
 			}
-
 			append cell_html "</div>"
 		    } else {
 			#  "planned_hours" != $calculation_mode
+			ns_log NOTICE "intranet-resource-management-procs::output: Person ($user_id): calculation_mode <> planned_hours - set cell_html: $val"
 			set cell_html "${val}%"
     		   }
 		}   
@@ -2169,6 +2186,7 @@ ad_proc -public im_resource_mgmt_resource_planning {
 		    # default line is showing project or task 
                     if { "percentage" == $calculation_mode } {
 			# set cell_html [util_memoize [list im_resource_mgmt_resource_planning_cell default $val "" "" "" $limit_height]]
+			ns_log NOTICE "intranet-resource-management-procs::output: Line is showing project or task"
 			set cell_html "${val}%"
 		    } else {
 			if { "6" != $day_of_week && "7" != $day_of_week  } {
@@ -2237,10 +2255,14 @@ ad_proc -public im_resource_mgmt_resource_planning {
 	# ---------------------------------------------------------------
 	# Decide if we need  to show this row 
 	# ----------------------------------------------------------------
+
+	ns_log NOTICE "intranet-resource-management-procs::output: Do we need to show this row?" 
 	
         switch $otype {
             person {
+		ns_log NOTICE "intranet-resource-management-procs::output:Person: Adding department_row_html_tmp: $department_row_html_tmp"
 		append department_row_html $department_row_html_tmp
+		ns_log NOTICE "intranet-resource-management-procs::output:Person: New department_row_html: $department_row_html"
             }
             im_project {
 		# Is user even member of this project?  
@@ -2296,8 +2318,18 @@ ad_proc -public im_resource_mgmt_resource_planning {
 	set show_row_task_p 0
 
 	incr row_ctr
+	ns_log NOTICE "intranet-resource-management-procs::output: ENDING LOOP - row_ctr: $row_ctr"
 
     }; # end loop user/project/task rows 
+
+
+
+    # ----------------------------------------------------------------------------------------------------------------------------
+    # END 
+    # ----------------------------------------------------------------------------------------------------------------------------
+    # foreach left_entry $left_scale {} (loop user/project/task rows) 
+    # ----------------------------------------------------------------------------------------------------------------------------
+    # ----------------------------------------------------------------------------------------------------------------------------
 
  
     if { [info exists department_row_html] } {
@@ -2307,7 +2339,7 @@ ad_proc -public im_resource_mgmt_resource_planning {
 			 [array get totals_department_absences_arr] \
 			 [array get totals_department_planned_hours_arr] \
 			 [array get totals_department_availability_arr] \
-			 $top_scale $top_vars $show_departments_only_p \
+			 $top_scale $top_vars $show_departments_only_p $calculation_mode\
 			]
     }
 
@@ -2316,10 +2348,9 @@ ad_proc -public im_resource_mgmt_resource_planning {
     set clicks([clock clicks -milliseconds]) display_table_body
 
     # ----------------------------------------------------------------------------------------------------------------------------
+    # START
     # ----------------------------------------------------------------------------------------------------------------------------
-    # 
     # Start header creation
-    # 
     # ----------------------------------------------------------------------------------------------------------------------------
     # ----------------------------------------------------------------------------------------------------------------------------
 
@@ -2331,7 +2362,7 @@ ad_proc -public im_resource_mgmt_resource_planning {
 	if {0 == $row} {
 	    set zoom_in "<a href=[export_vars -base $this_url {top_vars {zoom "in"}}]>$gif_hash(magnifier_zoom_in)</a>\n" 
 	    set zoom_out "<a href=[export_vars -base $this_url {top_vars {zoom "out"}}]>$gif_hash(magnifier_zoom_out)</a>\n" 
-	    set col_l10n "<!-- $zoom_in $zoom_out --> $col_l10n\n" 
+	    set col_l10n "<!-- $zoom_in $zoom_out --> $col_l10n \n" 
 	}
 	append header "<td class=rowtitle colspan=$left_scale_size align=right>$col_l10n</td>\n"
 	
@@ -2626,7 +2657,7 @@ ad_proc -private write_department_row {
         { top_scale }
         { top_vars }
         { show_departments_only_p }
-
+        { calculation_mode }
 } {
     - writes department row
 } {
@@ -2648,7 +2679,7 @@ ad_proc -private write_department_row {
 	    set julian_date [util_memoize [list im_date_components_to_julian $top_vars $top_entry]]
 	    set day_of_week [util_memoize [list db_string dow "select extract(dow from to_date('$julian_date', 'J'))"]]
 	    if {0 == $day_of_week} { set day_of_week 7 }
-	    if { "6" != $day_of_week && "7" != $day_of_week  } {
+	    if { "6" != $day_of_week && "7" != $day_of_week && "planned_hours" == $calculation_mode } {
 	            set total_department_occupancy [expr $totals_department_planned_hours_arr_loc($ctr) + $totals_department_absences_arr_loc($ctr)]
 	            # Create bar showing availability
 	            if { 0 == $total_department_occupancy } {
