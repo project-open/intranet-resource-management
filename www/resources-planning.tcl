@@ -148,6 +148,7 @@ if {0} {
 
 
 if {1} {
+    # Not yet supported: "year quarter_of_year", "Quarter"
     set top_var_options {
 	"year week_of_year day_of_week"
 	"Week and Day"
@@ -157,10 +158,7 @@ if {1} {
 	"Week"
 	"year month_of_year"
 	"Month"
-	"year quarter_of_year"
-	"Quarter"
     }
-
     append filter_html "
   <tr>
     <td class=form-label>[lang::message::lookup "" intranet-ganttproject.Top_Scale "Top Scale"]:</td>
