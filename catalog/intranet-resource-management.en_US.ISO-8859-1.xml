@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="ISO-8859-1"?>
+<message_catalog package_key="intranet-resource-management" locale="en_US" charset="ISO-8859-1">
+  <msg key="Dim_year">Year</msg>
+  <msg key="Dim_week_of_year">Calendar Week</msg>
+  <msg key="Dim_day_of_week">Day of Week</msg>
+  <msg key="Dim_month_of_year">Month of Year</msg>
+  <msg key="Dim_day_of_month">Day of month</msg>
+</message_catalog>
+
