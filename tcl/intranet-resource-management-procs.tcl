@@ -1,6 +1,6 @@
 # /packages/intranet-resource-management/tcl/intranet-resource-management.tcl
 #
-# Copyright (C) 2010-2011 ]project-open[
+# Copyright (C) 2010-2013 ]project-open[
 #
 # All rights reserved. Please check
 # http://www.project-open.com/license/ for details.
@@ -10,6 +10,10 @@ ad_library {
     @author frank.bergmann@project-open.com
     @author klaus.hofeditz@project-open.com
 }
+
+# ---------------------------------------------------------------
+# -- Please re-factor me 
+# ---------------------------------------------------------------
 
 # ---------------------------------------------------------------
 # Display Procedure for Resource Planning
@@ -435,7 +439,7 @@ ad_proc -public im_resource_mgmt_resource_planning {
 
 	# Weekend
 	if {0 == $dow || 6 == $dow || 7 == $dow} { set weekend_hash($i) 5 }
-
+	
 	# Start of Week Julian
 	set start_of_week_julian_hash($i) [expr $i - $dow]
     }
@@ -1673,15 +1677,13 @@ ad_proc -public im_resource_mgmt_resource_planning {
 	    lappend top_dim $date_val
 	}
 
-	# "distinct" clause: add the values of top_vars to the top scale, 
-	# if it is different from the last one...
+	# "distinct" clause: add the values of top_vars to the top scale, if it is different from the last one...
 	# This is necessary for aggregated top scales like weeks and months.
 	if {$top_dim != $last_top_dim} {
 	    lappend top_scale $top_dim
 	    set last_top_dim $top_dim
 	}
     }
-
 
     ns_log NOTICE "intranet-resource-management-procs::DefineTopScale: Top Scale: $top_scale"
 
@@ -1747,7 +1749,6 @@ ad_proc -public im_resource_mgmt_resource_planning {
     set row_ctr 0
     set show_row_task_p 0 
 
-
     foreach left_entry $left_scale {
 	# example for left scale: {8892 {}} {624 {}} {30730 {}} {29622 {}} {29622 29946} ... 
 
@@ -1799,7 +1800,7 @@ ad_proc -public im_resource_mgmt_resource_planning {
 	# Write department Row when user_department_id has changed ...   
 	# -------------------------------------------------------------------
 	if { $row_shows_employee_p } {
-	    ns_log Notice "intranet-resource-management-procs::output: Check if department is completed and shoudl be added to outpout" 
+	    ns_log Notice "intranet-resource-management-procs::output: Check if department is completed and should be added to outpout" 
 	    if { 0 == $row_ctr } {
 		ns_log Notice "intranet-resource-management-procs::output: No rows found, setting user_department_id_predecessor to user_department_id"
 		set user_department_id_predecessor $user_department_id
@@ -1855,6 +1856,8 @@ ad_proc -public im_resource_mgmt_resource_planning {
 	set object_has_children_p 0
 	if {[info exists has_children_hash($oid)]} { set object_has_children_p $has_children_hash($oid) }
 	if {!$object_has_children_p} { set collapse_html [util_memoize [list im_gif cleardot "" 0 9 9]] }
+
+	ns_log Notice "intranet-resource-management-procs::output: Handling object_type: $otype (user_id: $user_id)"
 
 	switch $otype {
 	    person {
@@ -1923,8 +1926,8 @@ ad_proc -public im_resource_mgmt_resource_planning {
 
 	# topscale example: {2011 9 01} {2011 9 02}
 	foreach top_entry $top_scale {
-	    ns_log NOTICE "intranet-resource-management-procs::output:WriteMatrixElements::------------------------------------------------------ Loop through to_scale"
-	    
+	    ns_log NOTICE "intranet-resource-management-procs::output:WriteMatrixElements::------------------------------------------------------ Loop through top_scale"
+
 	    set left_clicks(top_scale_start) [expr $left_clicks(top_scale_start) + [clock clicks] - $last_click]
 	    set last_click [clock clicks]
 
@@ -2095,9 +2098,8 @@ ad_proc -public im_resource_mgmt_resource_planning {
 			# --------------------------------------------------------------------------------------------
 
 			# Show bar for user rows (only weekdays) 
-		        if { "6" != $day_of_week && "7" != $day_of_week  } {
+			    if { ![info exists weekend_hash($julian_date)] } {
  			        if { $row_shows_employee_p } {
-
 				    # Bar is composed of multiple bars  
 				    if { "0" != $acc_hours } { 
 		   		        # if absence exist, add hours of absence  
@@ -2177,19 +2179,25 @@ ad_proc -public im_resource_mgmt_resource_planning {
 			append cell_html "</div>"
 		    } else {
 			#  "planned_hours" != $calculation_mode
-			ns_log NOTICE "intranet-resource-management-procs::output: Person ($user_id): calculation_mode <> planned_hours - set cell_html: $val"
-			set cell_html "${val}%"
+			ns_log NOTICE "intranet-resource-management-procs::output: Person ($user_id): calculation_mode != planned_hours - set cell_html: $val"
+			if { [info exists weekend_hash($julian_date)] } {
+			    # This is a weekend, do not print values for SAT and SUN
+			    set cell_html "&nbsp;"
+			} else {
+			    set cell_html "${val}%"
+			}
+
     		   }
 		}   
 
 	        default {
 		    # default line is showing project or task 
+		    ns_log NOTICE "intranet-resource-management-procs::output: Line is showing project or task"
                     if { "percentage" == $calculation_mode } {
 			# set cell_html [util_memoize [list im_resource_mgmt_resource_planning_cell default $val "" "" "" $limit_height]]
-			ns_log NOTICE "intranet-resource-management-procs::output: Line is showing project or task"
 			set cell_html "${val}%"
 		    } else {
-			if { "6" != $day_of_week && "7" != $day_of_week  } {
+			if { ![info exists weekend_hash($julian_date)] } {
 			    # set cell_html [im_resource_mgmt_resource_planning_cell "custom" $val [im_resource_mgmt_get_bar_color $bar_type $val] "$val%" "" $limit_height]
 			    if { $val_hours == 0  } {
 				set cell_html ""
@@ -2260,16 +2268,19 @@ ad_proc -public im_resource_mgmt_resource_planning {
 	
         switch $otype {
             person {
-		ns_log NOTICE "intranet-resource-management-procs::output:Person: Adding department_row_html_tmp: $department_row_html_tmp"
+		ns_log NOTICE "intranet-resource-management-procs::output:Person: Yes we show always"
 		append department_row_html $department_row_html_tmp
-		ns_log NOTICE "intranet-resource-management-procs::output:Person: New department_row_html: $department_row_html"
             }
             im_project {
-		# Is user even member of this project?  
-	        set user_is_project_member_p [db_string project_member_p "select count(*) from acs_rels where object_id_one = $oid and object_id_two =$user_id" -default 0]
-		if { $user_is_project_member_p } {
-		    # Does this project contain a task with planned hours for the given period where the user is a member of 
-		    set show_this_row_sql "
+		if { "percentage" == $calculation_mode } {
+		    append department_row_html $department_row_html_tmp
+		} else {
+		    ns_log NOTICE "intranet-resource-management-procs::output:Project: Checking if user is member of project ..."
+		    # Is user even member of this project?  
+		    set user_is_project_member_p [db_string project_member_p "select count(*) from acs_rels where object_id_one = $oid and object_id_two =$user_id" -default 0]
+		    if { $user_is_project_member_p } {
+			# Does this project contain a task with planned hours for the given period where the user is a member of 
+			set show_this_row_sql "
 				select count(*) from (
 			                select
 						distinct parent.project_id
@@ -2295,12 +2306,18 @@ ad_proc -public im_resource_mgmt_resource_planning {
 						and parent.project_id = $oid
 					) isql
 		    "
-		    set found_task_p [db_string found_task_p $show_this_row_sql -default 0]
-		    if { $found_task_p } {
-			 append department_row_html $department_row_html_tmp	
-		    }	 
+			set found_task_p [db_string found_task_p $show_this_row_sql -default 0]
+			if { $found_task_p } {
+			    ns_log NOTICE "intranet-resource-management-procs::output:Project: User is member of project, showing line"
+			    append department_row_html $department_row_html_tmp	
+			} else {
+			    ns_log NOTICE "intranet-resource-management-procs::output:Project: No task found with 'Planned hours'" 
+			}	 
+		    } else {
+                        ns_log NOTICE "intranet-resource-management-procs::output:Project: User is not member of project, no output"
+		    }
 		}
-            }
+            } ; #im_project
             im_timesheet_task {
 		if { $show_row_task_p } {
 		    append department_row_html $department_row_html_tmp
@@ -2321,7 +2338,6 @@ ad_proc -public im_resource_mgmt_resource_planning {
 	ns_log NOTICE "intranet-resource-management-procs::output: ENDING LOOP - row_ctr: $row_ctr"
 
     }; # end loop user/project/task rows 
-
 
 
     # ----------------------------------------------------------------------------------------------------------------------------
@@ -2367,7 +2383,7 @@ ad_proc -public im_resource_mgmt_resource_planning {
 	append header "<td class=rowtitle colspan=$left_scale_size align=right>$col_l10n</td>\n"
 	
 	# ------------------------------
-	# Create Top Scale
+	# Create Top Scale (Header)
 	# ------------------------------
 
 	for {set col 0} {$col <= [expr [llength $top_scale]-1]} { incr col } {
@@ -2404,7 +2420,7 @@ ad_proc -public im_resource_mgmt_resource_planning {
     }
 
     # ------------------------------------------------------------
-    # Create row for COMPANY totals: Mode planned_hours only!
+    # Create row for COMPANY totals: Mode "planned_hours" only!
     # ------------------------------------------------------------
 
     if { $calc_day_p && "planned_hours" == $calculation_mode} {
