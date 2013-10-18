@@ -625,6 +625,17 @@ ad_proc -public im_resource_mgmt_resource_planning {
 		$show_users_sql
 		$show_all_employees_sql
 		) t
+	where
+		t.user_id not in (
+			select	u.user_id
+			from	users u,
+				acs_rels r,
+				membership_rels mr
+			where	r.rel_id = mr.rel_id and
+				r.object_id_two = u.user_id and
+				r.object_id_one = -2 and
+				mr.member_state != 'approved'
+		)
 	order by
 		department_id,
 		user_name,
