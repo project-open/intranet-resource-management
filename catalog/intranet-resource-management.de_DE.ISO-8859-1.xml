@@ -1,6 +1,5 @@
 <?xml version="1.0" encoding="ISO-8859-1"?>
-<message_catalog package_key="intranet-core" package_version="3.4.0.7.0" locale="de_DE" charset="ISO-8859-1">
-  <msg key="Dim_year">Jahr</msg>
-  <msg key="Dim_week_of_year">Kalenderwoche</msg>
-  <msg key="Dim_day_of_week">Wochentag</msg>
+<message_catalog package_key="intranet-resource-management" locale="de_DE" charset="ISO-8859-1">
+
+  <msg key="Resource_Management_Home">Ressourcenmanagement</msg>
 </message_catalog>
