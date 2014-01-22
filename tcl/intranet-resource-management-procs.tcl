@@ -1168,7 +1168,7 @@ ad_proc -public im_resource_mgmt_resource_planning {
 			if { $start_date != $end_date} {
 				# Find next workday - should be no longer than 2 days from start_date
 			    	set next_julian_end_date [im_date_julian_to_ansi [expr $end_date_julian_planned_hours + 2]] 				
-				set next_workday [db_string get_next_workday "select * from im_absences_working_days_period_weekend_only('$start_date', '$next_julian_end_date') as series_days (days date) limit 1" -default 0]
+				set next_workday [db_string get_next_workday "select * from im_absences_working_days_period_weekend_only($start_date::date, $next_julian_end_date::date) as series_days (days date) limit 1" -default 0]
 				ns_log NOTICE "Calculated next_workday: $next_workday, based on start_date: $start_date and next_julian_end_date: $next_julian_end_date for project_id: $project_id"
 				set days_julian-startdate-ne-end-date $next_workday
 
@@ -2787,5 +2787,5 @@ ad_proc -public im_absence_working_days_weekend_only {
     -end_date
 } {
 } {
-    return [db_list get_work_days "select * from im_absences_working_days_period_weekend_only('$start_date', '$end_date') as series_days (days date)"]
+    return [db_list get_work_days "select * from im_absences_working_days_period_weekend_only($start_date::date, $end_date::date) as series_days (days date)"]
 }
