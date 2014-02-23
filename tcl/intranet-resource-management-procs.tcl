@@ -12,8 +12,124 @@ ad_library {
 }
 
 # ---------------------------------------------------------------
-# -- Please re-factor me 
+# Reusable Resource Management Components
 # ---------------------------------------------------------------
+
+ad_proc -public im_resource_management_cost_centers {
+    {-start_date ""}
+    {-end_date ""}
+} {
+    Returns a Hash with the list of all cost_centers in the system
+    with name and available resources. 
+    he cost_center name and the "perpetually"
+    available users (who are member of the cost_center).
+} {
+    # Variables of 
+    set vars [im_rest_object_type_columns -include_acs_objects_p 0 -rest_otype "im_cost_center"]
+
+    set cc_sql "
+	select	cc.cost_center_id as object_id,
+		cc.*,
+		t.availability_percent
+	from	im_cost_centers cc,
+		(select	e.department_id,
+			sum(e.availability) as availability_percent
+		from	im_employees e
+		where	e.employee_id in (
+				select	r.object_id_two
+				from	acs_rels r,
+					membership_rels mr
+				where	r.rel_id = mr.rel_id and
+					r.object_id_one = -2 and
+					mr.member_state = 'approved'
+			)
+		group by	e.department_id
+		) t
+	where	t.department_id = cc.cost_center_id
+    "
+    db_foreach cost_centers $cc_sql {
+	array unset value_hash
+	foreach v $vars {
+	    set value_hash($v) [set $v]
+	}
+	set value_hash(availability_percent) $availability_percent
+	set cc_hash($object_id) [array get value_hash]
+    }
+
+    return [array get cc_hash]
+}
+
+
+ad_proc -public im_resource_management_user_absences {
+    {-start_date ""}
+    {-end_date ""}
+} {
+    Returns a Hash with the list of all absences in the interval.
+} {
+    # Variables of 
+    set vars [im_rest_object_type_columns -include_acs_objects_p 0 -rest_otype "im_user_absence"]
+
+    set date_where ""
+    if {"" != $start_date} { append date_where "and end_date >= :start_date::date " }
+    if {"" != $end_date} { append date_where "and start_date <= :end_date::date " }
+
+    set absences_sql "
+	select	t.absence_id as object_id,
+		t.*,
+		a.*,
+		e.*,
+		to_char(a.start_date,'J') as start_date_julian,
+		to_char(a.end_date,'J') as end_date_julian
+	from	(-- Direct absences for a user within the period
+		select	owner_id,
+			absence_id
+		from	im_user_absences
+		where	group_id is null
+			$date_where
+	    UNION
+		-- Absences via groups - Check if the user is a member of group_id
+		select	mm.member_id as owner_id,
+			absence_id
+		from	im_user_absences a,
+			group_distinct_member_map mm
+		where	a.group_id = mm.group_id
+			$date_where
+		) t,
+		im_user_absences a,
+		im_employees e
+	where	t.absence_id = a.absence_id and
+		a.owner_id = e.employee_id
+    "
+    db_foreach absences $absences_sql {
+
+	# Set the values into a Hash array
+	array unset value_hash
+	foreach v $vars {
+	    set value_hash($v) [set $v]
+	}
+	
+	# Calculate the number of workdays in the absence
+	set absence_workdays 0
+	for {set i $start_date_julian} {$i <= $end_date_julian} {incr i} {
+	    array unset date_comps
+	    array set date_comps [util_memoize [list im_date_julian_to_components $i]]
+
+	    set dow $date_comps(day_of_week)
+	    if {0 != $dow && 6 != $dow && 7 != $dow} { 
+		# Workday
+		incr absence_workdays
+	    }
+	}
+	set value_hash(absence_workdays) $absence_workdays
+	set value_hash(department_id) $department_id
+	set absence_hash($object_id) [array get value_hash]
+    }
+
+    return [array get absence_hash]
+}
+
+
+
 
 # ---------------------------------------------------------------
 # Display Procedure for Resource Planning
