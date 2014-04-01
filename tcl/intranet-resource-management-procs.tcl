@@ -2903,5 +2903,5 @@ ad_proc -public im_absence_working_days_weekend_only {
     -end_date
 } {
 } {
-    return [db_list get_work_days "select * from im_absences_working_days_period_weekend_only($start_date::date, $end_date::date) as series_days (days date)"]
+    return [db_list get_work_days "select * from im_absences_working_days_period_weekend_only(:start_date::date, :end_date::date) as series_days (days date)"]
 }
