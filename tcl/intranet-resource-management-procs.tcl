@@ -233,6 +233,8 @@ ad_proc -public im_date_julian_to_components { julian_date } {
     Takes a Julian data and returns an array of its components:
     Year, MonthOfYear, DayOfMonth, WeekOfYear, Quarter
 } {
+    im_security_alert_check_integer -location "im_date_julian_to_components" -value $julian_date
+
     set ansi [dt_julian_to_ansi $julian_date]
     regexp {(....)-(..)-(..)} $ansi match year month_of_year day_of_month
 
