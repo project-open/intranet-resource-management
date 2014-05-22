@@ -1,4 +1,4 @@
-# /packages/intranet-reporting/www/resources-planning.tcl
+# /packages/intranet-reporting/www/resources-planning-liwo.tcl
 #
 # Copyright (c) 2003-2011 ]project-open[
 #
