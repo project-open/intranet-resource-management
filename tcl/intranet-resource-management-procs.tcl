@@ -1053,6 +1053,7 @@ ad_proc -public im_resource_mgmt_resource_planning {
     set planned_hours_sql "
 	select 
 		distinct sq.project_id,
+		sq.project_name,
 		start_date_julian_planned_hours,
 		end_date_julian_planned_hours,
 		start_date,
@@ -1090,6 +1091,7 @@ ad_proc -public im_resource_mgmt_resource_planning {
                 (
                 select
                         child.project_id,
+			child.project_name,
                         parent.project_id as main_project_id,
                         u.user_id,
                         trunc(m.percentage) as percentage,
@@ -1139,6 +1141,11 @@ ad_proc -public im_resource_mgmt_resource_planning {
     ns_log NOTICE "intranet-resource-management-procs::eval_user_percentage_list::planned_hours_sql - Evaluating PLANNED HOURS "
 
     db_foreach planned_hours_loop $planned_hours_sql {
+
+	# Check for existing start & end date 
+	if { "" == $start_date || "" == $end_date } {
+	    ad_return_complaint 1 [lang::message::lookup "" intranet-resource-management.NoStartOrEndDatefound "Can't create report. No start date or end date found for task: <a href='/intranet/projects/view?project_id=$project_id'>$project_name</a>"]
+	}	
 
 	if {"" == $planned_units} { set planned_units 0 }
 	if {"" == $percent_completed} { set percent_completed 0 }
