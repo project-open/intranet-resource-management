@@ -53,7 +53,7 @@ if {![im_permission $user_id "view_projects_all"]} {
 set page_title [lang::message::lookup "" intranet-reporting.Gantt_Resources "Gantt Resources"]
 set page_url "/intranet-resource-management/resources-planning"
 set sub_navbar ""
-set main_navbar_label "reporting"
+set main_navbar_label "resource_management"
 set show_context_help_p 0
 
 regsub -all {%20} $top_vars " " top_vars
@@ -242,14 +242,20 @@ append filter_html "</table>\n</form>\n"
 # Navbars
 # ---------------------------------------------------------------
 
-# Project Navbar goes to the top
-#
-set letter ""
-set next_page_url ""
-set previous_page_url ""
-set menu_select_label ""
-set sub_navbar_html [im_project_navbar $letter $page_url $next_page_url $previous_page_url [list start_idx order_by how_many view_name letter project_status_id] $menu_select_label]
-
+set main_navbar_label "resource_management"
+set bind_vars [ns_set create]
+set parent_menu_id [db_string parent_menu "select menu_id from im_menus where label = :main_navbar_label"]
+set sub_navbar [im_sub_navbar \
+                    -components \
+                    -base_url "/intranet-resource-management/index" \
+                    -plugin_url "/intranet-resource-management/index" \
+                    -menu_gif_type "none" \
+                    $parent_menu_id \
+                    $bind_vars \
+		    "" \
+		    "pagedesriptionbar" \
+		    "projects_resource_planning" \
+]
 
 # Left Navbar is the filter/select part of the left bar
 set left_navbar_html "
