@@ -2914,3 +2914,35 @@ ad_proc -public im_absence_working_days_weekend_only {
 } {
     return [db_list get_work_days "select * from im_absences_working_days_period_weekend_only(:start_date::date, :end_date::date) as series_days (days date)"]
 }
+
+# ---------------------------------------------------------------
+# Component showing related objects
+# ---------------------------------------------------------------
+
+ad_proc -public im_resource_mgmt_employee_assignment_pie_chart {
+    {-diagram_interval "next_quarter"}
+    {-diagram_width 600}
+    {-diagram_height 350}
+} {
+    Returns a HTML component with a pie chart of user assignments
+} {
+    if {![im_sencha_extjs_installed_p]} { return "" }
+    set diagram_title [lang::message::lookup "" intranet-resource-management.Employee_Assignment "Employee Assignment"]
+    set version [im_sencha_extjs_version]
+    set ext "ext-all-debug-w-comments.js"
+
+    # Make sure the Sencha library is loaded
+    template::head::add_css -href "/sencha-$version/resources/css/ext-all.css" -media "screen" -order 1
+    template::head::add_javascript -src "/sencha-$version/$ext" -order 2
+
+    set params [list \
+                    [list diagram_interval $diagram_interval] \
+                    [list diagram_width $diagram_width] \
+                    [list diagram_height $diagram_height] \
+                    [list diagram_title $diagram_title] \
+    ]
+
+    set result [ad_parse_template -params $params "/packages/intranet-resource-management/lib/employee-assignment-pie-chart"]
+    return [string trim $result]
+}
+
