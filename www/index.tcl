@@ -16,6 +16,10 @@ set page_title [lang::message::lookup "" intranet-resource-management.Resource_M
 set context_bar [im_context_bar $page_title]
 set return_url [im_url_with_query]
 
+
+# Redirect to the main report
+ad_returnredirect "/intranet-resource-management/resources-planning"
+
 # ---------------------------------------------------------------
 # Sub-Navbar
 # ---------------------------------------------------------------
