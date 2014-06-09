@@ -1,6 +1,36 @@
 <div id=@diagram_id@></div>
-<script type='text/javascript'>
 
+<style type="text/css">
+.extjs-indent-level-0 {
+        font-size: 11px; padding-left: 5px
+}
+.extjs-indent-level-1 {
+        font-size: 11px; padding-left: 25px
+}
+.extjs-indent-level-2 {
+        font-size: 11px; padding-left: 45px
+}
+.extjs-indent-level-3 {
+        font-size: 11px; padding-left: 65px
+}
+.extjs-indent-level-4 {
+        font-size: 11px; padding-left: 85px
+}
+.extjs-indent-level-5 {
+        font-size: 11px; padding-left: 105px
+}
+.extjs-indent-level-6 {
+        font-size: 11px; padding-left: 125px
+}
+.extjs-indent-level-7 {
+        font-size: 11px; padding-left: 145px
+}
+.extjs-indent-level-8 {
+        font-size: 11px; padding-left: 165px
+}
+</style>
+
+<script type='text/javascript'>
 Ext.require(['Ext.chart.*', 'Ext.Window', 'Ext.fx.target.Sprite', 'Ext.layout.container.Fit']);
 Ext.onReady(function () {
     
@@ -11,7 +41,8 @@ Ext.onReady(function () {
             type: 'rest',
             url: '/intranet-resource-management/employee-assignment-pie-chart.json',
             extraParams: {				// Parameters to the data-source
-		diagram_interval: 'next_quarter'	// Number of customers to show
+		diagram_interval: 'next_quarter',	// Number of customers to show
+		diagram_department_user_id: ""		// Department or user for which to show
             },
             reader: { type: 'json', root: 'data' }
 	}
@@ -20,7 +51,19 @@ Ext.onReady(function () {
     var employeeAssignmentIntervalStore = Ext.create('Ext.data.Store', {
 	fields: ['display', 'value'],
 	data : [
-            {"display":"<%=[lang::message::lookup "" intranet-resource-management.Next_Quarter "Next Quarter"]%>", "value": "next_quarter"}
+            {value: "next_quarter", display: "<%=[lang::message::lookup "" intranet-resource-management.Next_Quarter "Next Quarter"]%>"},
+            {value: "over_next_quarter", display: "<%=[lang::message::lookup "" intranet-resource-management.Over_Next_Quarter "Over Next Quarter"]%>"},
+            {value: "last_quarter", display: "<%=[lang::message::lookup "" intranet-resource-management.Last_Quarter "Last Quarter"]%>"},
+            {value: "over_last_quarter", display: "<%=[lang::message::lookup "" intranet-resource-management.Over_Last_Quarter "Over Last Quarter"]%>"}
+	]
+    });
+
+    var employeeAssignmentDepartmentStore = Ext.create('Ext.data.Store', {
+	fields: ['display', 'value', 'indent'],
+	data : [
+	    <multiple name="departments">
+		{value: '@departments.value@', indent: @departments.indent@, display: '@departments.display@'},
+	    </multiple>
 	]
     });
 
@@ -76,6 +119,29 @@ Ext.onReady(function () {
 		    var value = comboValues[0].data.value;
 		    var extraParams = employeeAssignmentStore.getProxy().extraParams;
 		    extraParams.diagram_interval = value;
+		    employeeAssignmentStore.load();
+		}}}
+            }, {
+		xtype: 'combo',
+		editable: false,
+		store: employeeAssignmentDepartmentStore,
+		mode: 'local',
+		displayField: 'display',
+		valueField: 'value',
+		triggerAction: 'all',
+		width: 300,
+		forceSelection: true,
+		value: '@company_department_id@',
+		listConfig: {
+		    getInnerTpl : function() {
+			return '<div class="extjs-indent-level-' + '{indent}' + '">' + '{display}&nbsp;' + '</div>';
+			return '{name}';
+		    }
+		},
+		listeners:{select:{fn:function(combo, comboValues) {
+		    var value = comboValues[0].data.value;
+		    var extraParams = employeeAssignmentStore.getProxy().extraParams;
+		    extraParams.diagram_department_user_id = value;
 		    employeeAssignmentStore.load();
 		}}}
             }
