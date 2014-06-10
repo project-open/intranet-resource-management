@@ -43,10 +43,10 @@ switch $diagram_interval {
 set employee_assignments_sql "
 	select	user_id,
 		coalesce(e.availability, 100.0) as user_availability,
-		im_rm_work_days(u.user_id, '$start_date', '$end_date') as workday_array,
-		im_rm_user_absence(u.user_id, '$start_date', '$end_date') as absence_array,
-		im_rm_project_assignation(u.user_id, '$start_date', '$end_date', true) as billable_array,
-		im_rm_project_assignation(u.user_id, '$start_date', '$end_date', false) as nonbillable_array
+		im_resource_mgmt_work_days(u.user_id, '$start_date', '$end_date') as workday_array,
+		im_resource_mgmt_user_absence(u.user_id, '$start_date', '$end_date') as absence_array,
+		im_resource_mgmt_project_assignation(u.user_id, '$start_date', '$end_date', true) as billable_array,
+		im_resource_mgmt_project_assignation(u.user_id, '$start_date', '$end_date', false) as nonbillable_array
 	from	users u
 		LEFT OUTER JOIN im_employees e ON (u.user_id = e.employee_id)
 	where	u.user_id in (select member_id from group_distinct_member_map where group_id = [im_profile_employees]) and

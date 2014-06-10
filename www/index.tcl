@@ -18,7 +18,7 @@ set return_url [im_url_with_query]
 
 
 # Redirect to the main report
-ad_returnredirect "/intranet-resource-management/resources-planning"
+# ad_returnredirect "/intranet-resource-management/resources-planning"
 
 # ---------------------------------------------------------------
 # Sub-Navbar
