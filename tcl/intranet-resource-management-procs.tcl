@@ -2927,14 +2927,9 @@ ad_proc -public im_resource_mgmt_employee_assignment_pie_chart {
     Returns a HTML component with a pie chart of user assignments
 } {
     if {![im_sencha_extjs_installed_p]} { return "" }
+    im_sencha_extjs_load_libraries
+
     set diagram_title [lang::message::lookup "" intranet-resource-management.Employee_Assignment "Employee Assignment"]
-    set version [im_sencha_extjs_version]
-    set ext "ext-all-debug-w-comments.js"
-
-    # Make sure the Sencha library is loaded
-    template::head::add_css -href "/sencha-$version/resources/css/ext-all.css" -media "screen" -order 1
-    template::head::add_javascript -src "/sencha-$version/$ext" -order 2
-
     set params [list \
                     [list diagram_interval $diagram_interval] \
                     [list diagram_width $diagram_width] \
