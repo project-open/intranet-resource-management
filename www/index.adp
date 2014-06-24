@@ -13,7 +13,6 @@
 <table cellpadding=0 cellspacing=0 border=0 width="100%">
 <tr>
   <td valign=top>
-    <%= [im_resource_mgmt_employee_assignment_pie_chart] %>
     <%= [im_component_bay left] %>
   </td>
   <td valign=top>
