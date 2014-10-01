@@ -171,7 +171,7 @@ ad_proc -public im_resource_mgmt_resource_planning_cell {
 	    if {$percentage > 0} { set color "bluedot" }
 	    if {$percentage > 100} { set color "FF0000" }
 	    set color "bluedot"    
-	    set result [im_gif $color "$percentage" 0 15 $p]
+	    set result [im_gif -translate_p 0 $color "$percentage" 0 15 $p]
     } else {
 	if { $limit_height_p } { 
 	    set percentage 10 
