@@ -20,9 +20,8 @@ ad_proc -public im_resource_management_cost_centers {
     {-end_date ""}
 } {
     Returns a Hash with the list of all cost_centers in the system
-    with name and available resources. 
-    he cost_center name and the "perpetually"
-    available users (who are member of the cost_center).
+    with name and the "perpetually" available users (member of the 
+    cost_center).
 } {
     # Variables of 
     set vars [im_rest_object_type_columns -include_acs_objects_p 0 -rest_otype "im_cost_center"]
