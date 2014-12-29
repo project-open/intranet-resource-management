@@ -8,8 +8,8 @@
 ad_page_contract {
     Editor for projects
 } {
-    { start_date:array }
-    { end_date:array }
+    { start_date:array,optional }
+    { end_date:array,optional }
     { report_start_date "" }
     { report_end_date "" }
     { granularity "week" }
@@ -29,6 +29,10 @@ if {![im_permission $current_user_id "view_projects_all"]} {
 
 if {"" == $report_start_date} { set start_date [db_string now "select (now()::date - '1 month'::interval)::date"] }
 if {"" == $report_end_date} { set end_date [db_string now "select (now()::date + '1 year'::interval)::date"] }
+
+set report_start_date [string range $report_start_date 0 9]
+set report_end_date [string range $report_end_date 0 9]
+
 
 # ---------------------------------------------------------------
 # Calculate available resources per cost_center
