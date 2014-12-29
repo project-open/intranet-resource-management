@@ -8,10 +8,14 @@
 ad_page_contract {
     Editor for projects
 } {
-    { start_date "" }
-    { end_date "" }
+    { start_date:array }
+    { end_date:array }
+    { report_start_date "" }
+    { report_end_date "" }
     { granularity "week" }
 }
+
+# ad_return_complaint 1 "<pre>[array get start_date]<br>[array get end_date]</pre>"
 
 # ---------------------------------------------------------------
 # Defaults & Security
@@ -23,11 +27,8 @@ if {![im_permission $current_user_id "view_projects_all"]} {
     ad_script_abort
 }
 
-if {"" == $start_date} { set start_date [db_string now "select (now()::date - '1 month'::interval)::date"] }
-if {"" == $end_date} { set end_date [db_string now "select (now()::date + '1 year'::interval)::date"] }
-
-set report_start_date $start_date
-set report_end_date $end_date
+if {"" == $report_start_date} { set start_date [db_string now "select (now()::date - '1 month'::interval)::date"] }
+if {"" == $report_end_date} { set end_date [db_string now "select (now()::date + '1 year'::interval)::date"] }
 
 # ---------------------------------------------------------------
 # Calculate available resources per cost_center

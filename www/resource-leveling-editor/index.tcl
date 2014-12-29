@@ -55,10 +55,10 @@ set project_main_store_where ""
 if {"" != $report_project_type_id} {
     append project_main_store_where "and project_type_id in (select * from im_sub_categories($report_project_type_id)) "
 }
-if {"" != $report_customer_id} {
+if {"" != $report_customer_id && 0 != $report_customer_id} {
     append project_main_store_where "and company_id = $report_customer_id "
 }
-if {"" != $report_program_id} {
+if {"" != $report_program_id && 0 != $report_program_id} {
     append project_main_store_where "and program_id = $report_program_id "
 }
 

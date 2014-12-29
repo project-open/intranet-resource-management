@@ -72,11 +72,11 @@ Ext.define('PO.store.resource_management.ProjectResourceLoadStore', {
         type:			'rest',			// Standard ]po[ REST interface for loading
         url:			'/intranet-resource-management/resource-leveling-editor/main-projects-forward-load.json',
         timeout:		300000,
-	extraParams: {
+        extraParams: {
             format:             'json',
-	    start_date:		report_start_date,	// When to start
-	    end_date:		report_end_date,	// when to end
-	    granularity:	'@report_granularity@',	// 'week' or 'day'
+            start_date:		report_start_date,	// When to start
+            end_date:		report_end_date,	// when to end
+            granularity:	'@report_granularity@',	// 'week' or 'day'
             project_type_id:	report_project_type_id	// Only projects in status "active" (no substates)
         },
         reader: {
@@ -104,23 +104,55 @@ Ext.define('PO.store.resource_management.CostCenterResourceLoadStore', {
     storeId:			'costCenterResourceLoadStore',
     model: 			'PO.model.resource_management.CostCenterResourceLoadModel',
     remoteFilter:		true,			// Do not filter on the Sencha side
-    autoLoad:			true,
+    autoLoad:			false,
     pageSize:			100000,			// Load all cost_centers, no matter what size(?)
     proxy: {
         type:			'rest',			// Standard ]po[ REST interface for loading
         url:			'/intranet-resource-management/resource-leveling-editor/cost-center-resource-availability.json',
         timeout:		300000,
-	extraParams: {
+        extraParams: {
             format:             'json',
-	    granularity:	'@report_granularity@',	// 'week' or 'day'
-	    report_start_date:	report_start_date,	// When to start
-	    report_end_date:	report_end_date		// when to end
+            granularity:	'@report_granularity@',	// 'week' or 'day'
+            report_start_date:	report_start_date,	// When to start
+            report_end_date:	report_end_date		// when to end
         },
         reader: {
             type:		'json',			// Tell the Proxy Reader to parse JSON
             root:		'data',			// Where do the data start in the JSON file?
             totalProperty:	'total'			// Total number of tickets for pagination
         }
+    },
+
+    /**
+     * Custom load function that accepts a ProjectResourceLoadStore
+     * as a parameter with the current start- and end dates of the
+     * included projects, overriding the information stored in the 
+     * ]po[ database.
+     */
+    loadWithOffset: function(projectStore, callback) {
+        console.log('PO.store.resource_management.CostCenterResourceLoadStore.loadWithOffset: starting');
+        console.log(this);
+
+        var proxy = this.getProxy();
+        proxy.extraParams = {
+            format:             'json',
+            granularity:	'@report_granularity@',				// 'week' or 'day'
+            report_start_date:	report_start_date.substring(0, 10),		// When to start
+            report_end_date:	report_end_date.substring(0,10)			// when to end
+        };
+
+	// Write the simulation start- and end dates as parameters to the store
+	// As a result we will get the resource load with moved projects
+        projectStore.each(function(model) {
+            var projectId = model.get('project_id');
+            var startDate = model.get('start_date').substring(0,10);
+            var endDate = model.get('end_date').substring(0,10);
+            proxy.extraParams['start_date.'+projectId] = startDate;
+            proxy.extraParams['end_date.'+projectId] = endDate;
+        });
+
+        this.load(callback);
+        console.log('PO.store.resource_management.CostCenterResourceLoadStore.loadWithOffset: finished');
     }
 });
 
@@ -159,9 +191,9 @@ Ext.define('PO.view.resource_management.ResourceLevelingEditor', {
     axisStartTime: 0,
     axisStartX: 0,
     axisEndTime: 0,
-    axisEndX: 290,                                      // End of the date axis
-    axisHeight: 20,                                     // Height of each of the two axis levels
-    axisScale: 'month',                                 // Default scale for the time axis
+    axisEndX: 290,					// End of the date axis
+    axisHeight: 20,					// Height of each of the two axis levels
+    axisScale: 'month',					// Default scale for the time axis
 
     // Size of the Gantt diagram
     ganttWidth: 1500,
@@ -206,11 +238,23 @@ Ext.define('PO.view.resource_management.ResourceLevelingEditor', {
             'scope': this
         });
 
-	// Catch the moment when the "view" of the ProjectGrid 
-	// is ready in order to draw the GanttBars for the first time.
-	// The view seems to take a while...
-	me.projectGrid.on({
-	    'viewready': me.onProjectGridViewReady,
+        // Catch the moment when the "view" of the ProjectGrid 
+        // is ready in order to draw the GanttBars for the first time.
+        // The view seems to take a while...
+/*
+        me.projectGrid.on({
+            'viewready': me.onProjectGridViewReady,
+            'scope': this
+        });
+	*/
+        me.costCenterGrid.on({
+            'viewready': me.onProjectGridViewReady,
+            'scope': this
+        });
+
+	// Redraw Cost Center load whenever the store has new data
+	me.costCenterResourceLoadStore.on({
+	    'load': me.onCostCenterResourceLoadStoreLoad,
 	    'scope': this
 	});
 
@@ -229,11 +273,26 @@ Ext.define('PO.view.resource_management.ResourceLevelingEditor', {
 
     },
 
+    /**
+     * The list of projects is (finally...) ready to be displayed.
+     * We need to wait until this one-time event in in order to 
+     * set the width of the surface and to perform the first redraw().
+     */
     onProjectGridViewReady: function() {
-	var me = this;
+        var me = this;
         console.log('PO.class.GanttDrawComponent.onProjectGridViewReady');
-	me.surface.setSize(1500, me.surface.height);
+        me.surface.setSize(1500, me.surface.height);
         me.redraw();
+    },
+
+    /**
+     * New data have arrived about the CostCenter load.
+     * Redraw the CC bars
+     */
+    onCostCenterResourceLoadStoreLoad: function() {
+	var me = this;
+	console.log('PO.class.GanttDrawComponent.onCostCenterResourceLoadStoreLoad');
+	me.redraw();
     },
 
     /**
@@ -245,22 +304,22 @@ Ext.define('PO.view.resource_management.ResourceLevelingEditor', {
         var me = this;
         console.log('PO.class.GanttDrawComponent.onProjectMove: '+projectModel.get('id') + ', ' + xDiff);
 
-	var bBox = me.dndBaseSprite.getBBox();
-	var diffTime = Math.floor(1.0 * xDiff * (me.axisEndTime - me.axisStartTime) / (me.axisEndX - me.axisStartX));
+        var bBox = me.dndBaseSprite.getBBox();
+        var diffTime = Math.floor(1.0 * xDiff * (me.axisEndTime - me.axisStartTime) / (me.axisEndX - me.axisStartX));
 
-	var startTime = new Date(projectModel.get('start_date')).getTime();
-	var endTime = new Date(projectModel.get('end_date')).getTime();
+        var startTime = new Date(projectModel.get('start_date')).getTime();
+        var endTime = new Date(projectModel.get('end_date')).getTime();
 
-	startTime = startTime + diffTime;
-	endTime = endTime + diffTime;
+        startTime = startTime + diffTime;
+        endTime = endTime + diffTime;
 
-	var startDate = new Date(startTime);
-	var endDate = new Date(endTime);
+        var startDate = new Date(startTime);
+        var endDate = new Date(endTime);
 
-	projectModel.set('start_date', startDate.toISOString());
-	projectModel.set('end_date', endDate.toISOString());
+        projectModel.set('start_date', startDate.toISOString());
+        projectModel.set('end_date', endDate.toISOString());
 
-	me.redraw();
+        me.redraw();
     },
 
 
@@ -275,10 +334,10 @@ Ext.define('PO.view.resource_management.ResourceLevelingEditor', {
         // Now using offsetX/offsetY instead of getXY()
         var baseSprite = me.getSpriteForPoint(point);
         console.log('PO.class.GanttDrawComponent.onMouseDown: '+point+' -> ' + baseSprite);
-	if (baseSprite == null) { return; }
+        if (baseSprite == null) { return; }
 
-	var bBox = baseSprite.getBBox();
-	var surface = me.surface;
+        var bBox = baseSprite.getBBox();
+        var surface = me.surface;
         var spriteShadow = surface.add({
             type: 'rect',
             x: bBox.x,
@@ -291,8 +350,8 @@ Ext.define('PO.view.resource_management.ResourceLevelingEditor', {
         }).show(true);
 
         me.dndBasePoint = point;
-	me.dndBaseSprite = baseSprite;
-	me.dndShadowSprite = spriteShadow;
+        me.dndBaseSprite = baseSprite;
+        me.dndShadowSprite = spriteShadow;
     },
 
     /**
@@ -302,7 +361,7 @@ Ext.define('PO.view.resource_management.ResourceLevelingEditor', {
         var me = this;
         if (me.dndBasePoint == null) { return; }				// Only if we are dragging
         var point = me.getMousePoint(e);
-	
+        
         me.dndShadowSprite.setAttributes({
             translate: {
                 x: point[0] - me.dndBasePoint[0],
@@ -322,16 +381,14 @@ Ext.define('PO.view.resource_management.ResourceLevelingEditor', {
 
         // Reset the offset when just clicking
         console.log('oldX='+me.dndBasePoint[0]+', newX='+point[0]);
-	var xDiff = point[0] - me.dndBasePoint[0];
+        var xDiff = point[0] - me.dndBasePoint[0];
         if (0 == xDiff) {
             // Single click - nothing
         } else {
-	    
-	    // Tell the project that it has been moved by some pixels
-	    var projectModel = me.dndBaseSprite.model;
-	    me.onProjectMove(me.dndBaseSprite, projectModel, xDiff);
-
-	}
+            // Tell the project that it has been moved by some pixels
+            var projectModel = me.dndBaseSprite.model;
+            me.onProjectMove(me.dndBaseSprite, projectModel, xDiff);
+        }
 
         me.dndBasePoint = null;					// Stop dragging
         me.dndBaseSprite = null;
@@ -340,8 +397,8 @@ Ext.define('PO.view.resource_management.ResourceLevelingEditor', {
     },
 
     getMousePoint: function(mouseEvent) {
-        var point = [mouseEvent.browserEvent.offsetX, mouseEvent.browserEvent.offsetY];   // Coordinates relative to surface (why?)
-	return point;
+        var point = [mouseEvent.browserEvent.offsetX, mouseEvent.browserEvent.offsetY];		// Coordinates relative to surface (why?)
+        return point;
     },
 
     /**
@@ -383,26 +440,27 @@ Ext.define('PO.view.resource_management.ResourceLevelingEditor', {
         console.log('PO.ResourceLevelingEditor.redraw: Starting');
         var me = this;
         me.surface.removeAll();
+	// me.drawAxis();					// Draw the top axis
 
-//	me.surface.setSize(1500, me.surface.height);
+	// Draw project bars
+        var projectStore = me.projectResourceLoadStore;
+        var projectGridView = me.projectGrid.getView();		// The "view" for the GridPanel, containing HTML elements
+        projectStore.each(function(model) {
+            var viewNode = projectGridView.getNode(model);	// DIV with project name on the ProjectGrid for Y coo
+            if (viewNode == null) { return; }			// hidden nodes/models don't have a viewNode
+            // if (!model.isVisible()) { return; }		// ToDo: Don't draw if project isn't selected
+            me.drawProjectBar(model, viewNode);
+        });
 
-        // Draw the top axis
-//        me.drawAxis();
-
-	var projectStore = me.projectResourceLoadStore;
-	var projectGridView = me.projectGrid.getView();   // The "view" for the GridPanel, containing HTML elements
-
-        // Iterate through all children of the root node and check if they are visible
-	projectStore.each(function(model) {
-
-            console.log('PO.ResourceLevelingEditor.redraw: each(' + model.get('project_name') + '): drawing bar');
-
-            var viewNode = projectGridView.getNode(model);
-            // hidden nodes/models don't have a viewNode, so we don't need to draw a bar.
-            if (viewNode == null) { return; }
-//            if (!model.isVisible()) { return; }         // ToDo: Don't draw if project isn't selected
-            me.drawBar(model, viewNode);
-	});
+	// Draw CostCenter bars
+        var costCenterStore = me.costCenterResourceLoadStore;
+        var costCenterGridView = me.costCenterGrid.getView();	// The "view" for the GridPanel, containing HTML elements
+        costCenterStore.each(function(model) {
+            var viewNode = costCenterGridView.getNode(model);	// DIV with costCenter name on the CostCenterGrid for Y coo
+            if (viewNode == null) { return; }			// hidden nodes/models don't have a viewNode
+            // if (!model.isVisible()) { return; }		// ToDo: Don't draw if costCenter isn't selected
+            me.drawCostCenterBar(model, viewNode);
+        });
 
         console.log('PO.ResourceLevelingEditor.redraw: Finished');
     },
@@ -411,11 +469,10 @@ Ext.define('PO.view.resource_management.ResourceLevelingEditor', {
     /**
      * Draw a single bar for a project or task
      */
-    drawBar: function(project, viewNode) {
+    drawProjectBar: function(project, viewNode) {
         var me = this;
-        if (me.debug) { console.log('PO.class.GanttDrawComponent.drawBar: Starting'); }
-	var projectStore = me.projectResourceLoadStore;
-	var projectGridView = me.projectGrid.getView();   // The "view" for the GridPanel, containing HTML elements
+        if (me.debug) { console.log('PO.class.GanttDrawComponent.drawProjectBar: Starting'); }
+        var projectGridView = me.projectGrid.getView();			// The "view" for the GridPanel, containing HTML elements
         var surface = me.surface;
         var panelY = me.projectGrid.getY() - 30;
 
@@ -454,16 +511,81 @@ Ext.define('PO.view.resource_management.ResourceLevelingEditor', {
             }
         }).show(true);
 
-        spriteBar.model = project;                                      // Store the task information for the sprite
+        spriteBar.model = project;					// Store the task information for the sprite
         spriteGroup.add(spriteBar);
 
         // Store the start and end points of the bar
         var id = project.get('id');
-        me.barStartHash[id] = [x,y];                                  // Move the start of the bar 5px to the right
-        me.barEndHash[id] = [x+w, y+h];                             // End of the bar is in the middle of the bar
+        me.barStartHash[id] = [x,y];					// Move the start of the bar 5px to the right
+        me.barEndHash[id] = [x+w, y+h];					// End of the bar is in the middle of the bar
 
-        if (me.debug) { console.log('PO.class.GanttDrawComponent.drawBar: Finished'); }
+        if (me.debug) { console.log('PO.class.GanttDrawComponent.drawProjectBar: Finished'); }
     },
+
+
+
+    /**
+     * Draw a single bar for a cost center
+     */
+    drawCostCenterBar: function(costCenter, viewNode) {
+        var me = this;
+        if (me.debug) { console.log('PO.class.GanttDrawComponent.drawCostCenterBar: Starting'); }
+        var costCenterGridView = me.costCenterGrid.getView();			// The "view" for the GridPanel, containing HTML elements
+        var surface = me.surface;
+
+        var start_date = '@report_start_date@'.substring(0,10);
+        var end_date = '@report_end_date@'.substring(0,10);
+        var startTime = new Date(start_date).getTime();
+        var endTime = new Date(end_date).getTime();
+
+        // Used for grouping all sprites into one group
+        var spriteGroup = Ext.create('Ext.draw.CompositeSprite', {
+            surface: surface,
+            autoDestroy: true
+        });
+
+	// Calculate the Y position for the bar, depending on 
+        var costCenterPanelY = me.costCenterGrid.getBox().top;
+        var projectPanelY = me.projectGrid.getBox().top;
+        var surfacePanelY = me.getBox().top;
+        var costCenterDivY = costCenterGridView.getNode(costCenter).getBoundingClientRect().top;
+
+        var y = (costCenterPanelY - surfacePanelY) + (costCenterDivY - costCenterPanelY) + 5;
+
+        var x = me.date2x(startTime);
+        var w = Math.floor( me.ganttWidth * (endTime - startTime) / (me.axisEndTime - me.axisStartTime));
+        var h = me.barHeight; 							// Height of the bars
+        var d = Math.floor(h / 2.0) + 1;    				// Size of the indent of the super-costCenter bar
+
+        var spriteBar = surface.add({
+            type: 'rect',
+            x: x,
+            y: y,
+            width: w,
+            height: h,
+            radius: 3,
+            fill: 'url(#gradientId)',
+            stroke: 'blue',
+            'stroke-width': 0.3,
+            listeners: {						// Highlight the sprite on mouse-over
+                mouseover: function() { this.animate({duration: 500, to: {'stroke-width': 2.0}}); },
+                mouseout: function()  { this.animate({duration: 500, to: {'stroke-width': 0.3}}); }
+            }
+        }).show(true);
+
+        spriteBar.model = costCenter;					// Store the task information for the sprite
+        spriteGroup.add(spriteBar);
+
+        // Store the start and end points of the bar
+        var id = costCenter.get('id');
+        me.barStartHash[id] = [x,y];					// Move the start of the bar 5px to the right
+        me.barEndHash[id] = [x+w, y+h];					// End of the bar is in the middle of the bar
+
+        if (me.debug) { console.log('PO.class.GanttDrawComponent.drawCostCenterBar: Finished'); }
+    },
+
+
+
 
     /**
      * Convert a date object into the corresponding X coordinate.
@@ -550,30 +672,30 @@ function launchApplication(){
         region:'center',
 	store: 'projectResourceLoadStore',
 	height: projectGridHeight,
-	selModel: projectGridSelectionModel,
-	columns: [{ 
-	    text: 'Projects',  
-	    dataIndex: 'project_name',
-	    flex: 1
-	}],
-	shrinkWrap: true
+        selModel: projectGridSelectionModel,
+        columns: [{ 
+            text: 'Projects',  
+            dataIndex: 'project_name',
+            flex: 1
+        }],
+        shrinkWrap: true
     });
 
 
     var costCenterGridHeight = listCostCenterAddOnHeight + listCellHeight * numDepts;
     var costCenterGridSelectionModel = Ext.create('Ext.selection.CheckboxModel');
     var costCenterGrid = Ext.create('Ext.grid.Panel', {
-	title: '',
+        title: '',
         region:'south',
-	height: costCenterGridHeight,
-	store: 'costCenterResourceLoadStore',
-	selModel: costCenterGridSelectionModel,
-	columns: [{ 
-	    text: 'Departments',  
-	    dataIndex: 'cost_center_name',
-	    flex: 1
-	}],
-	shrinkWrap: true
+        height: costCenterGridHeight,
+        store: 'costCenterResourceLoadStore',
+        selModel: costCenterGridSelectionModel,
+        columns: [{ 
+            text: 'Departments',  
+            dataIndex: 'cost_center_name',
+            flex: 1
+        }],
+        shrinkWrap: true
     });
 
 
@@ -598,18 +720,18 @@ function launchApplication(){
             }
         }],
 
-	overflowX: 'scroll',  // Allows for horizontal scrolling, but not vertical
-	scrollFlags: {x: true},
+        overflowX: 'scroll',				// Allows for horizontal scrolling, but not vertical
+        scrollFlags: {x: true},
 
         projectMainStore: projectMainStore,
         projectResourceLoadStore: projectResourceLoadStore,
-	costCenterResourceLoadStore: costCenterResourceLoadStore,
+        costCenterResourceLoadStore: costCenterResourceLoadStore,
 
-	projectGrid: projectGrid,
-	costCenterGrid: costCenterGrid,
+        projectGrid: projectGrid,
+        costCenterGrid: costCenterGrid,
 
-	reportStartDate: new Date('@report_start_date@'),
-	reportEndDate: new Date('@report_end_date@')
+        reportStartDate: new Date('@report_start_date@'),
+        reportEndDate: new Date('@report_end_date@')
     });
 
 
@@ -620,42 +742,42 @@ function launchApplication(){
     var borderPanelHeight = (listProjectsAddOnHeight + listCostCenterAddOnHeight) + listCellHeight * numProjectsDepts;
     var borderPanelWidth = Ext.getBody().getViewSize().width - 350;
     var borderPanel = Ext.create('Ext.panel.Panel', {
-	width: borderPanelWidth,
-	height: borderPanelHeight,
-	title: false,
-	layout: 'border',
-	defaults: {
-	    collapsible: true,
-	    split: true,
-	    bodyPadding: 0
-	},
-	items: [
-	    {
-		region: 'west',
-		xtype: 'panel',
-		layout: 'border',
-		shrinkWrap: true,
-		width: 300,
-		split: true,
-		items: [
-		    projectGrid, 
-		    costCenterGrid
-		]
-	    },
-	    resourceLevelingEditor
-	],
-	renderTo: renderDiv
+        width: borderPanelWidth,
+        height: borderPanelHeight,
+        title: false,
+        layout: 'border',
+        defaults: {
+            collapsible: true,
+            split: true,
+            bodyPadding: 0
+        },
+        items: [
+            {
+                region: 'west',
+                xtype: 'panel',
+                layout: 'border',
+                shrinkWrap: true,
+                width: 300,
+                split: true,
+                items: [
+                    projectGrid, 
+                    costCenterGrid
+                ]
+            },
+            resourceLevelingEditor
+        ],
+        renderTo: renderDiv
     });
 
     var onWindowResize = function () {
-	// ToDo: Try to find out if there is another onWindowResize Event waiting
-	var borderPanelHeight = (listProjectsAddOnHeight + listCostCenterAddOnHeight) + listCellHeight * numProjectsDepts;
+        // ToDo: Try to find out if there is another onWindowResize Event waiting
+        var borderPanelHeight = (listProjectsAddOnHeight + listCostCenterAddOnHeight) + listCellHeight * numProjectsDepts;
         var width = Ext.getBody().getViewSize().width - 350;
-	var surface = resourceLevelingEditor.surface;
-	borderPanel.setSize(width, borderPanelHeight);
+        var surface = resourceLevelingEditor.surface;
+        borderPanel.setSize(width, borderPanelHeight);
 
-	surface.setSize(1500, surface.height);
-	resourceLevelingEditor.redraw();
+        surface.setSize(1500, surface.height);
+        resourceLevelingEditor.redraw();
     };
 
     Ext.EventManager.onWindowResize(onWindowResize);
@@ -665,6 +787,15 @@ function launchApplication(){
 
 Ext.onReady(function() {
     Ext.QuickTips.init();
+
+    // Show splash screen while the stores are loading
+    var renderDiv = Ext.get('resource_level_editor_div');
+    var splashScreen = renderDiv.mask('Loading data');
+    var task = new Ext.util.DelayedTask(function() {
+        splashScreen.fadeOut({duration: 100, remove: true});			// fade out the body mask
+        splashScreen.next().fadeOut({duration: 100, remove: true});		// fade out the message
+    });
+
     var projectMainStore = Ext.create('PO.store.project.ProjectMainStore');
     var projectResourceLoadStore = Ext.create('PO.store.resource_management.ProjectResourceLoadStore');
     var costCenterResourceLoadStore = Ext.create('PO.store.resource_management.CostCenterResourceLoadStore');
@@ -674,29 +805,44 @@ Ext.onReady(function() {
         stores: [
             'projectMainStore',
             'projectResourceLoadStore',
-	    'costCenterResourceLoadStore'
+            'costCenterResourceLoadStore'
         ],
         listeners: {
             load: function() {
                 // Launch the actual application.
-		console.log('PO.controller.StoreLoadCoordinator: launching Application');
-                launchApplication();
+                console.log('PO.controller.StoreLoadCoordinator: launching Application');
+                task.delay(100);						// Fade out the splash screen
+                launchApplication();						// launch the actual application
             }
         }
     });
 
     // Load only open main projects that are not closed.
     projectMainStore.getProxy().extraParams = { 
-	format: "json",
-	query: "parent_id is NULL and project_type_id not in (select * from im_sub_categories(81)) @project_main_store_where;noquote@" 
+        format: "json",
+        query: "parent_id is NULL and project_type_id not in (select * from im_sub_categories(81)) @project_main_store_where;noquote@" 
     };
     projectMainStore.load({
-	callback: function() { console.log('PO.store.project.ProjectMainStore: loaded'); }
+        callback: function() { console.log('PO.store.project.ProjectMainStore: loaded'); }
     });
 
     projectResourceLoadStore.load({
-	callback: function() { console.log('PO.store.resource_management.ProjectResourceLoadStore: loaded'); }
+        callback: function() { 
+            console.log('PO.store.resource_management.ProjectResourceLoadStore: loaded'); 
+
+            // Now load the cost center load distribution.
+            costCenterResourceLoadStore.loadWithOffset(
+                projectResourceLoadStore,
+                {
+                    callback: function() { 
+                        console.log('PO.store.resource_management.CostCenterResourceLoadStore: loaded'); 
+                    }
+                }
+            );
+        }
     });
+
+
 
 });
 
