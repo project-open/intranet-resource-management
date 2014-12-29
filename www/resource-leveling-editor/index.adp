@@ -66,7 +66,7 @@ Ext.define('PO.store.resource_management.ProjectResourceLoadStore', {
     storeId:			'projectResourceLoadStore',
     model: 			'PO.model.resource_management.ProjectResourceLoadModel',
     remoteFilter:		true,			// Do not filter on the Sencha side
-    autoLoad:			true,
+    autoLoad:			false,
     pageSize:			100000,			// Load all projects, no matter what size(?)
     proxy: {
         type:			'rest',			// Standard ]po[ REST interface for loading
@@ -146,10 +146,9 @@ Ext.define('PO.view.resource_management.ResourceLevelingEditor', {
 
     projectPanel: null,					// Needs to be set during init
 
-    dndBasePoint: null,
-    dndBaseSprite: null,
-    dndShadowSprite: null,
-
+    dndBasePoint: null,					// Drag-and-drop starting point
+    dndBaseSprite: null,				// DnD sprite being draged
+    dndShadowSprite: null,				// DnD shadow generated for BaseSprite
 
     barHeight: 0,
     barStartHash: {},   				// Hash array from object_ids -> Start/end point
@@ -178,14 +177,18 @@ Ext.define('PO.view.resource_management.ResourceLevelingEditor', {
     projectGrid: null,					// Needs to be set during init
     costCenterGrid: null,				// Needs to be set during init
 
-
+    /**
+     * Starts the main editor panel as the right-hand side
+     * of a project grid and a cost center grid for the departments
+     * of the resources used in the projects.
+     */
     initComponent: function() {
         var me = this;
         this.callParent(arguments);
 
         me.dndBasePoint = null;				// Drag-and-drop starting point
-        me.dndBaseSprite = null;
-        me.dndShadowSprite = null;
+        me.dndBaseSprite = null;			// DnD sprite being draged
+        me.dndShadowSprite = null;			// DnD shadow generated for BaseSprite
 
         me.barHeight = 15;
         me.barStartHash = {};     			// Hash array from object_ids -> Start/end point
@@ -203,6 +206,14 @@ Ext.define('PO.view.resource_management.ResourceLevelingEditor', {
             'scope': this
         });
 
+	// Catch the moment when the "view" of the ProjectGrid 
+	// is ready in order to draw the GanttBars for the first time.
+	// The view seems to take a while...
+	me.projectGrid.on({
+	    'viewready': me.onProjectGridViewReady,
+	    'scope': this
+	});
+
         // Determine the maximum and minimum date for the horizontal axis
         me.axisEndTime = new Date('2000-01-01').getTime();
         me.axisStartTime = new Date('2099-12-31').getTime();
@@ -216,6 +227,13 @@ Ext.define('PO.view.resource_management.ResourceLevelingEditor', {
         me.axisStartDate = me.prevMonth(new Date(me.axisStartTime));
         me.axisEndDate = me.nextMonth(new Date(me.axisEndTime));
 
+    },
+
+    onProjectGridViewReady: function() {
+	var me = this;
+        console.log('PO.class.GanttDrawComponent.onProjectGridViewReady');
+	me.surface.setSize(1500, me.surface.height);
+        me.redraw();
     },
 
     /**
@@ -366,7 +384,7 @@ Ext.define('PO.view.resource_management.ResourceLevelingEditor', {
         var me = this;
         me.surface.removeAll();
 
-	me.surface.setSize(1500, me.surface.height);
+//	me.surface.setSize(1500, me.surface.height);
 
         // Draw the top axis
 //        me.drawAxis();
@@ -376,6 +394,8 @@ Ext.define('PO.view.resource_management.ResourceLevelingEditor', {
 
         // Iterate through all children of the root node and check if they are visible
 	projectStore.each(function(model) {
+
+            console.log('PO.ResourceLevelingEditor.redraw: each(' + model.get('project_name') + '): drawing bar');
 
             var viewNode = projectGridView.getNode(model);
             // hidden nodes/models don't have a viewNode, so we don't need to draw a bar.
@@ -393,7 +413,7 @@ Ext.define('PO.view.resource_management.ResourceLevelingEditor', {
      */
     drawBar: function(project, viewNode) {
         var me = this;
-//        if (me.debug) { console.log('PO.class.GanttDrawComponent.drawBar: Starting'); }
+        if (me.debug) { console.log('PO.class.GanttDrawComponent.drawBar: Starting'); }
 	var projectStore = me.projectResourceLoadStore;
 	var projectGridView = me.projectGrid.getView();   // The "view" for the GridPanel, containing HTML elements
         var surface = me.surface;
@@ -442,7 +462,7 @@ Ext.define('PO.view.resource_management.ResourceLevelingEditor', {
         me.barStartHash[id] = [x,y];                                  // Move the start of the bar 5px to the right
         me.barEndHash[id] = [x+w, y+h];                             // End of the bar is in the middle of the bar
 
-//        if (me.debug) { console.log('PO.class.GanttDrawComponent.drawBar: Finished'); }
+        if (me.debug) { console.log('PO.class.GanttDrawComponent.drawBar: Finished'); }
     },
 
     /**
@@ -659,6 +679,7 @@ Ext.onReady(function() {
         listeners: {
             load: function() {
                 // Launch the actual application.
+		console.log('PO.controller.StoreLoadCoordinator: launching Application');
                 launchApplication();
             }
         }
@@ -670,14 +691,13 @@ Ext.onReady(function() {
 	query: "parent_id is NULL and project_type_id not in (select * from im_sub_categories(81)) @project_main_store_where;noquote@" 
     };
     projectMainStore.load({
-	callback: function() {
-            console.log('PO.store.project.ProjectMainStore: loaded');
-        }
+	callback: function() { console.log('PO.store.project.ProjectMainStore: loaded'); }
     });
 
+    projectResourceLoadStore.load({
+	callback: function() { console.log('PO.store.resource_management.ProjectResourceLoadStore: loaded'); }
+    });
 
 });
-
-
 
 </script>
