@@ -6,7 +6,7 @@
 # http://www.project-open.com/ for licensing details.
 
 ad_page_contract {
-    Editor for projects
+    Returns information about 
 } {
     { start_date:array,optional }
     { end_date:array,optional }
@@ -40,7 +40,7 @@ set report_end_date [string range $report_end_date 0 9]
 
 # Cost_Centers hash cost_center_id -> hash(CC vars) + "availability_percent"
 array set cc_hash [im_resource_management_cost_centers -start_date $report_start_date -end_date $report_end_date]
-# ad_return_complaint 1 [array get cc_hash]
+# ad_return_complaint 1 "<pre>[join [array get cc_hash] "\n"]</pre>"
 
 # Initialize availalable resources per cost_center and day
 foreach cc_id [array names cc_hash] {
@@ -109,10 +109,11 @@ set ctr 0
 switch $granularity {
     "day" {
 	foreach cc_id [array names cc_hash] {
-
 	    array unset cc_values
 	    array set cc_values $cc_hash($cc_id)
 	    set cost_center_name $cc_values(cost_center_name)
+	    set assigned_resources_percent $cc_values(availability_percent)
+	    set assigned_resources [expr round($assigned_resources_percent) / 100.0]
 	    
 	    set days [list]
 	    for {set i [im_date_ansi_to_julian $report_start_date]} {$i <= [im_date_ansi_to_julian $report_end_date]} {incr i} {
@@ -126,6 +127,7 @@ switch $granularity {
 	    set cc_row_days [list "\"id\":$cc_id,\
 \"cost_center_id\":$cc_id,\
 \"cost_center_name\":\"$cost_center_name\",\
+\"assigned_resources\":\"$assigned_resources\",\
 \"available_days\":\[
 $days_list
 \]"]
@@ -181,6 +183,8 @@ $days_list
 	    array unset cc_values
 	    array set cc_values $cc_hash($cc_id)
 	    set cost_center_name $cc_values(cost_center_name)
+	    set assigned_resources_percent $cc_values(availability_percent)
+	    set assigned_resources [expr round($assigned_resources_percent) / 100.0]
 	    
 	    set weeks [list]
 	    foreach week_key $week_list {
@@ -194,6 +198,7 @@ $days_list
 	    set cc_row_weeks [list "\"id\":$cc_id,\
 \"cost_center_id\":$cc_id,\
 \"cost_center_name\":\"$cost_center_name\",\
+\"assigned_resources\":\"$assigned_resources\",\
 \"available_days\":\[
 $list
 \]"]

@@ -94,6 +94,7 @@ Ext.define('PO.model.resource_management.CostCenterResourceLoadModel', {
         'id',
         'cost_center_id',			// ID of the main cost_center
         'cost_center_name',			// The name of the cost_center
+	'assigned_resources',			// Number of full-time resources being a member of this CC
         'available_days',			// Array with J -> % assignments per day, starting with start_date
         'sprite_group'				// Sprite group representing the cost center bar
     ]
@@ -129,7 +130,8 @@ Ext.define('PO.store.resource_management.CostCenterResourceLoadStore', {
      * included projects, overriding the information stored in the 
      * ]po[ database.
      */
-    loadWithOffset: function(projectStore, callback) {
+    loadWithOffset: function(resourceLevelingEditor, projectStore, callback) {
+	var me = this;
         console.log('PO.store.resource_management.CostCenterResourceLoadStore.loadWithOffset: starting');
         console.log(this);
 
@@ -137,8 +139,8 @@ Ext.define('PO.store.resource_management.CostCenterResourceLoadStore', {
         proxy.extraParams = {
             format:             'json',
             granularity:	'@report_granularity@',				// 'week' or 'day'
-            report_start_date:	report_start_date.substring(0, 10),		// When to start
-            report_end_date:	report_end_date.substring(0,10)			// when to end
+            report_start_date:	resourceLevelingEditor.axisStartDate.toISOString().substring(0,10),		// When to start
+            report_end_date:	resourceLevelingEditor.axisEndDate.toISOString().substring(0,10)			// when to end
         };
 
 	// Write the simulation start- and end dates as parameters to the store
@@ -175,6 +177,8 @@ Ext.define('PO.view.resource_management.ResourceLevelingEditor', {
     // surface						// Inherited from draw.Component
 
     debug: 1,
+    granularity: '@report_granularity@',		// 'week' or 'day' currently
+    granularityWorkDays: 1,				// 1 for daily interval, 5 for weekly
 
     projectPanel: null,					// Needs to be set during init
 
@@ -271,6 +275,19 @@ Ext.define('PO.view.resource_management.ResourceLevelingEditor', {
         me.axisStartDate = me.prevMonth(new Date(me.axisStartTime));
         me.axisEndDate = me.nextMonth(new Date(me.axisEndTime));
 
+	// Granularity
+	switch(me.granularity) {
+	case 'week':
+	    me.granularityWorkDays = 5;
+	    break;
+	case 'day':
+	    me.granularityWorkDays = 1;
+	    break;
+	default:
+	    alert('Undefined granularity: '+me.granularity);
+	}
+
+
     },
 
     /**
@@ -282,6 +299,13 @@ Ext.define('PO.view.resource_management.ResourceLevelingEditor', {
         var me = this;
         console.log('PO.class.GanttDrawComponent.onProjectGridViewReady');
         me.surface.setSize(1500, me.surface.height);
+	
+	me.costCenterResourceLoadStore.loadWithOffset(me, me.projectResourceLoadStore, {
+	    callback: function() {
+		console.log('PO.store.resource_management.CostCenterResourceLoadStore: loaded with parameters');
+            }
+	});
+
         me.redraw();
     },
 
@@ -370,7 +394,6 @@ Ext.define('PO.view.resource_management.ResourceLevelingEditor', {
         }, true);
 
 //        if (me.debug) { console.log('PO.class.GanttDrawComponent.onMouseMove: '+point); }
-
     },
 
     onMouseUp: function(e) {
@@ -506,7 +529,7 @@ Ext.define('PO.view.resource_management.ResourceLevelingEditor', {
             stroke: 'blue',
             'stroke-width': 0.3,
             listeners: {						// Highlight the sprite on mouse-over
-                mouseover: function() { this.animate({duration: 500, to: {'stroke-width': 2.0}}); },
+                mouseover: function() { this.animate({duration: 500, to: {'stroke-width': 1.0}}); },
                 mouseout: function()  { this.animate({duration: 500, to: {'stroke-width': 0.3}}); }
             }
         }).show(true);
@@ -533,8 +556,8 @@ Ext.define('PO.view.resource_management.ResourceLevelingEditor', {
         var costCenterGridView = me.costCenterGrid.getView();			// The "view" for the GridPanel, containing HTML elements
         var surface = me.surface;
 
-        var start_date = '@report_start_date@'.substring(0,10);
-        var end_date = '@report_end_date@'.substring(0,10);
+	var start_date = me.axisStartDate.toISOString().substring(0,10);
+        var end_date = me.axisEndDate.toISOString().substring(0,10);
         var startTime = new Date(start_date).getTime();
         var endTime = new Date(end_date).getTime();
 
@@ -568,7 +591,7 @@ Ext.define('PO.view.resource_management.ResourceLevelingEditor', {
             stroke: 'blue',
             'stroke-width': 0.3,
             listeners: {						// Highlight the sprite on mouse-over
-                mouseover: function() { this.animate({duration: 500, to: {'stroke-width': 2.0}}); },
+                mouseover: function() { this.animate({duration: 500, to: {'stroke-width': 1.0}}); },
                 mouseout: function()  { this.animate({duration: 500, to: {'stroke-width': 0.3}}); }
             }
         }).show(true);
@@ -581,11 +604,43 @@ Ext.define('PO.view.resource_management.ResourceLevelingEditor', {
         me.barStartHash[id] = [x,y];					// Move the start of the bar 5px to the right
         me.barEndHash[id] = [x+w, y+h];					// End of the bar is in the middle of the bar
 
+	// -----------------------------------------------------------
+	// Draw availability percentage
+	//
+	var availability = costCenter.get('available_days');
+	var len = availability.length;
+	var weekStartDate = new Date(me.axisStartDate);
+	var weekStartX, weekEndX, weekY, weekEndDate;
+	weekStartX = me.date2x(weekStartDate);
+	weekY = Math.floor(y + availability[0]);
+	var path = "M"+weekStartX+" "+weekY;                            // Start point for path
+	// ToDo: Reset startDate to the start of the start of the respective week
+	for (var i = 0; i < len; i++) {
+	    weekEndDate = new Date(weekStartDate.getTime() + 1000.0 * 3600 * 24 * 7);
+	    // Convert start and end date of the interval to x coordinates
+	    weekStartX = me.date2x(weekStartDate);
+	    weekEndX = me.date2x(weekEndDate);
+
+	    var actualAvailableDaysPerInterval = availability[i];
+            var daysPerInterval = me.granularityWorkDays * costCenter.get('assigned_resources');
+	    var costCenterLoadPercentage = 100.0 * actualAvailableDaysPerInterval / daysPerInterval
+
+	    weekY = Math.floor(y + me.barHeight * (1 - costCenterLoadPercentage / 100.0));
+	    path = path + " L" + weekEndX + " " + weekY;
+	    // The former end of the week becomes the start for the next week
+	    weekStartDate = weekEndDate;
+	}
+
+        var spritePath = surface.add({
+	    type: 'path',
+	    stroke: 'blue',
+	    'stroke-width': 1,
+	    path: path
+        }).show(true);
+        spriteGroup.add(spritePath);
+
         if (me.debug) { console.log('PO.class.GanttDrawComponent.drawCostCenterBar: Finished'); }
     },
-
-
-
 
     /**
      * Convert a date object into the corresponding X coordinate.
@@ -691,10 +746,14 @@ function launchApplication(){
         store: 'costCenterResourceLoadStore',
         selModel: costCenterGridSelectionModel,
         columns: [{ 
-            text: 'Departments',  
+            text: 'Departments',
             dataIndex: 'cost_center_name',
             flex: 1
-        }],
+        },{
+            text: 'Resources',
+            dataIndex: 'assigned_resources',
+	    width: 70
+	}],
         shrinkWrap: true
     });
 
@@ -707,8 +766,8 @@ function launchApplication(){
             id: 'gradientId',
             angle: 66,
             stops: {
-                0: { color: '#ddf' },
-                100: { color: '#00A' }
+                0: { color: '#cdf' },
+                100: { color: '#ace' }
             }
         }, {
             id: 'gradientId2',
@@ -781,6 +840,7 @@ function launchApplication(){
     };
 
     Ext.EventManager.onWindowResize(onWindowResize);
+
 };
 
 
@@ -804,8 +864,7 @@ Ext.onReady(function() {
         debug: 0,
         stores: [
             'projectMainStore',
-            'projectResourceLoadStore',
-            'costCenterResourceLoadStore'
+            'projectResourceLoadStore'
         ],
         listeners: {
             load: function() {
@@ -829,20 +888,15 @@ Ext.onReady(function() {
     projectResourceLoadStore.load({
         callback: function() { 
             console.log('PO.store.resource_management.ProjectResourceLoadStore: loaded'); 
-
-            // Now load the cost center load distribution.
-            costCenterResourceLoadStore.loadWithOffset(
-                projectResourceLoadStore,
-                {
-                    callback: function() { 
-                        console.log('PO.store.resource_management.CostCenterResourceLoadStore: loaded'); 
-                    }
-                }
-            );
         }
     });
 
-
+    // Load CC load with default parameters in order to get the list of CCs.
+    costCenterResourceLoadStore.load({
+        callback: function() { 
+            console.log('PO.store.resource_management.CostCenterResourceLoadStore: loaded'); 
+        }
+    });
 
 });
 
