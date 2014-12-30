@@ -45,8 +45,8 @@ if {"" != $program_id} { append main_where "\t\tand main_p.program_id = :program
 set main_sql "
 	select	main_p.project_id as main_project_id,
 		main_p.project_name as main_project_name,
-		main_p.start_date as main_start_date,
-		main_p.end_date as main_end_date,
+		main_p.start_date::date as main_start_date,
+		main_p.end_date::date as main_end_date,
 		main_p.description as main_description,
 		main_p.percent_completed as main_percent_completed,
 		main_p.on_track_status_id as main_on_track_status_id,

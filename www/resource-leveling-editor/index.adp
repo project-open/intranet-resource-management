@@ -94,7 +94,7 @@ Ext.define('PO.model.resource_management.CostCenterResourceLoadModel', {
         'id',
         'cost_center_id',			// ID of the main cost_center
         'cost_center_name',			// The name of the cost_center
-	'assigned_resources',			// Number of full-time resources being a member of this CC
+        'assigned_resources',			// Number of full-time resources being a member of this CC
         'available_days',			// Array with J -> available days, starting with start_date
         'assigned_days',			// Array with J -> assigned days, starting with start_date
         'sprite_group'				// Sprite group representing the cost center bar
@@ -128,11 +128,11 @@ Ext.define('PO.store.resource_management.CostCenterResourceLoadStore', {
     /**
      * Custom load function that accepts a ProjectResourceLoadStore
      * as a parameter with the current start- and end dates of the
-     * included projects, overriding the information stored in the 
+     * included projects, overriding the information stored in the
      * ]po[ database.
      */
     loadWithOffset: function(resourceLevelingEditor, projectStore, callback) {
-	var me = this;
+        var me = this;
         console.log('PO.store.resource_management.CostCenterResourceLoadStore.loadWithOffset: starting');
         console.log(this);
 
@@ -144,8 +144,8 @@ Ext.define('PO.store.resource_management.CostCenterResourceLoadStore', {
             report_end_date:	resourceLevelingEditor.axisEndDate.toISOString().substring(0,10)			// when to end
         };
 
-	// Write the simulation start- and end dates as parameters to the store
-	// As a result we will get the resource load with moved projects
+        // Write the simulation start- and end dates as parameters to the store
+        // As a result we will get the resource load with moved projects
         projectStore.each(function(model) {
             var projectId = model.get('project_id');
             var startDate = model.get('start_date').substring(0,10);
@@ -243,25 +243,26 @@ Ext.define('PO.view.resource_management.ResourceLevelingEditor', {
             'scope': this
         });
 
-        // Catch the moment when the "view" of the ProjectGrid 
+        // Catch the moment when the "view" of the CostCenter grid
         // is ready in order to draw the GanttBars for the first time.
         // The view seems to take a while...
-/*
-        me.projectGrid.on({
-            'viewready': me.onProjectGridViewReady,
-            'scope': this
-        });
-	*/
         me.costCenterGrid.on({
             'viewready': me.onProjectGridViewReady,
+            'sortchange': me.onProjectGridSelectionChange,
             'scope': this
         });
 
-	// Redraw Cost Center load whenever the store has new data
-	me.costCenterResourceLoadStore.on({
-	    'load': me.onCostCenterResourceLoadStoreLoad,
-	    'scope': this
-	});
+        // Redraw Cost Center load whenever the store has new data
+        me.costCenterResourceLoadStore.on({
+            'load': me.onCostCenterResourceLoadStoreLoad,
+            'scope': this
+        });
+
+        me.projectGrid.on({
+            'selectionchange': me.onProjectGridSelectionChange,
+            'sortchange': me.onProjectGridSelectionChange,
+            'scope': this
+        });
 
         // Determine the maximum and minimum date for the horizontal axis
         me.axisEndTime = new Date('2000-01-01').getTime();
@@ -276,37 +277,45 @@ Ext.define('PO.view.resource_management.ResourceLevelingEditor', {
         me.axisStartDate = me.prevMonth(new Date(me.axisStartTime));
         me.axisEndDate = me.nextMonth(new Date(me.axisEndTime));
 
-	// Granularity
-	switch(me.granularity) {
-	case 'week':
-	    me.granularityWorkDays = 5;
-	    break;
-	case 'day':
-	    me.granularityWorkDays = 1;
-	    break;
-	default:
-	    alert('Undefined granularity: '+me.granularity);
-	}
+        // Granularity
+        switch(me.granularity) {
+        case 'week':
+            me.granularityWorkDays = 5;
+            break;
+        case 'day':
+            me.granularityWorkDays = 1;
+            break;
+        default:
+            alert('Undefined granularity: '+me.granularity);
+        }
 
 
     },
 
     /**
      * The list of projects is (finally...) ready to be displayed.
-     * We need to wait until this one-time event in in order to 
+     * We need to wait until this one-time event in in order to
      * set the width of the surface and to perform the first redraw().
      */
     onProjectGridViewReady: function() {
         var me = this;
         console.log('PO.class.GanttDrawComponent.onProjectGridViewReady');
         me.surface.setSize(1500, me.surface.height);
-	
-	me.costCenterResourceLoadStore.loadWithOffset(me, me.projectResourceLoadStore, {
-	    callback: function() {
-		console.log('PO.store.resource_management.CostCenterResourceLoadStore: loaded with parameters');
+        
+        me.costCenterResourceLoadStore.loadWithOffset(me, me.projectResourceLoadStore, {
+            callback: function() {
+                console.log('PO.store.resource_management.CostCenterResourceLoadStore: loaded with parameters');
             }
-	});
+        });
 
+        var selModel = me.projectGrid.getSelectionModel();
+        selModel.selectAll(true);
+        me.redraw();
+    },
+
+    onProjectGridSelectionChange: function() {
+        var me = this;
+        console.log('PO.class.GanttDrawComponent.onProjectGridSelectionChange');
         me.redraw();
     },
 
@@ -315,9 +324,9 @@ Ext.define('PO.view.resource_management.ResourceLevelingEditor', {
      * Redraw the CC bars
      */
     onCostCenterResourceLoadStoreLoad: function() {
-	var me = this;
-	console.log('PO.class.GanttDrawComponent.onCostCenterResourceLoadStoreLoad');
-	me.redraw();
+        var me = this;
+        console.log('PO.class.GanttDrawComponent.onCostCenterResourceLoadStoreLoad');
+        me.redraw();
     },
 
     /**
@@ -386,7 +395,7 @@ Ext.define('PO.view.resource_management.ResourceLevelingEditor', {
         var me = this;
         if (me.dndBasePoint == null) { return; }				// Only if we are dragging
         var point = me.getMousePoint(e);
-        
+
         me.dndShadowSprite.setAttributes({
             translate: {
                 x: point[0] - me.dndBasePoint[0],
@@ -447,7 +456,7 @@ Ext.define('PO.view.resource_management.ResourceLevelingEditor', {
 
     /**
      * Checks for mouse inside the BBox
-     */  
+     */
     isSpriteInPoint: function(x, y, sprite, i) {
         var spriteType = sprite.type;
         var bbox = sprite.getBBox();
@@ -464,25 +473,27 @@ Ext.define('PO.view.resource_management.ResourceLevelingEditor', {
         console.log('PO.ResourceLevelingEditor.redraw: Starting');
         var me = this;
         me.surface.removeAll();
-	// me.drawAxis();					// Draw the top axis
+	me.drawAxis();					// Draw the top axis
 
-	// Draw project bars
+        // Draw project bars
         var projectStore = me.projectResourceLoadStore;
         var projectGridView = me.projectGrid.getView();		// The "view" for the GridPanel, containing HTML elements
+        var projectSelModel = me.projectGrid.getSelectionModel();
         projectStore.each(function(model) {
             var viewNode = projectGridView.getNode(model);	// DIV with project name on the ProjectGrid for Y coo
             if (viewNode == null) { return; }			// hidden nodes/models don't have a viewNode
-            // if (!model.isVisible()) { return; }		// ToDo: Don't draw if project isn't selected
+            if (!projectSelModel.isSelected(model)) {
+                return;
+            }
             me.drawProjectBar(model, viewNode);
         });
 
-	// Draw CostCenter bars
+        // Draw CostCenter bars
         var costCenterStore = me.costCenterResourceLoadStore;
         var costCenterGridView = me.costCenterGrid.getView();	// The "view" for the GridPanel, containing HTML elements
         costCenterStore.each(function(model) {
             var viewNode = costCenterGridView.getNode(model);	// DIV with costCenter name on the CostCenterGrid for Y coo
             if (viewNode == null) { return; }			// hidden nodes/models don't have a viewNode
-            // if (!model.isVisible()) { return; }		// ToDo: Don't draw if costCenter isn't selected
             me.drawCostCenterBar(model, viewNode);
         });
 
@@ -547,6 +558,90 @@ Ext.define('PO.view.resource_management.ResourceLevelingEditor', {
     },
 
 
+    /**
+     * Draw a date axis on the top of the diagram
+     */
+    drawAxis: function() {
+        var me = this;
+        if (me.debug) { console.log('PO.class.GanttDrawComponent.drawAxis: Starting'); }
+
+	// Draw Yearly blocks
+	var startYear = new Date(me.axisStartTime).getFullYear();
+	var endYear = new Date(me.axisEndTime).getFullYear();
+	for (var year = startYear; year <= endYear; year++) {
+            var x = me.date2x(new Date(year+"-01-01"));
+            var xEnd = me.date2x(new Date(year+"-12-31"));
+            var w = xEnd - x;
+            var y = 0;
+            var h = me.barHeight; 							// Height of the bars
+	    
+            var axisBar = me.surface.add({
+		type: 'rect',
+		x: x,
+		y: y,
+		width: w,
+		height: h,
+		fill: '#cdf',               // '#ace'
+		stroke: 'grey'
+            }).show(true);
+
+            var axisText = me.surface.add({
+		type: 'text',
+		text: ""+year,
+		x: x + 2,
+		y: y + (me.barHeight / 2),
+		fill: '#000',
+		font: "10px Arial"
+            }).show(true);
+	}
+
+	// Draw Yearly blocks
+	var startMonth = new Date(me.axisStartTime).getMonth();
+	var endMonth = new Date(me.axisEndTime).getMonth();
+	var yea = startYear;
+	var mon = startMonth;
+	while (yea * 100 + mon <= endYear * 100 + endMonth) {
+
+	    var xEndMon = mon+1;
+	    var xEndYea = yea;
+	    if (xEndMon > 11) { xEndMon = 0; xEndYea = xEndYea + 1; }
+
+            var x = me.date2x(new Date(yea+"-"+(mon+1)+"-01"));
+            var xEnd = me.date2x(new Date(xEndYea+"-"+(xEndMon+1)+"-01"));
+            var w = xEnd - x;
+            var y = me.barHeight;
+            var h = me.barHeight; 							// Height of the bars
+	    
+            var axisBar = me.surface.add({
+		type: 'rect',
+		x: x,
+		y: y,
+		width: w,
+		height: h,
+		fill: '#cdf',               // '#ace'
+		stroke: 'grey'
+            }).show(true);
+
+            var axisText = me.surface.add({
+		type: 'text',
+		text: ""+(mon+1),
+		x: x + 2,
+		y: y + (me.barHeight / 2),
+		fill: '#000',
+		font: "9px Arial"
+            }).show(true);
+
+	    mon = mon + 1;
+	    if (mon > 11) {
+		mon = 0;
+		yea = yea + 1;
+	    }
+	}
+
+        if (me.debug) { console.log('PO.class.GanttDrawComponent.drawAxis: Finished'); }
+    },
+
+
 
     /**
      * Draw a single bar for a cost center
@@ -557,7 +652,7 @@ Ext.define('PO.view.resource_management.ResourceLevelingEditor', {
         var costCenterGridView = me.costCenterGrid.getView();			// The "view" for the GridPanel, containing HTML elements
         var surface = me.surface;
 
-	var start_date = me.axisStartDate.toISOString().substring(0,10);
+        var start_date = me.axisStartDate.toISOString().substring(0,10);
         var end_date = me.axisEndDate.toISOString().substring(0,10);
         var startTime = new Date(start_date).getTime();
         var endTime = new Date(end_date).getTime();
@@ -568,7 +663,7 @@ Ext.define('PO.view.resource_management.ResourceLevelingEditor', {
             autoDestroy: true
         });
 
-	// Calculate the Y position for the bar, depending on 
+        // Calculate the Y position for the bar, depending on
         var costCenterPanelY = me.costCenterGrid.getBox().top;
         var projectPanelY = me.projectGrid.getBox().top;
         var surfacePanelY = me.getBox().top;
@@ -605,75 +700,75 @@ Ext.define('PO.view.resource_management.ResourceLevelingEditor', {
         me.barStartHash[id] = [x,y];					// Move the start of the bar 5px to the right
         me.barEndHash[id] = [x+w, y+h];					// End of the bar is in the middle of the bar
 
-	// -----------------------------------------------------------
-	// Draw availability percentage
-	//
-	var availableDays = costCenter.get('available_days');
-	var len = availableDays.length;
-	var weekStartDate = new Date(me.axisStartDate);
-	var weekStartX, weekEndX, weekY, weekEndDate;
-	weekStartX = me.date2x(weekStartDate);
-	weekY = Math.floor(y + availableDays[0]);
-	var path = "M"+weekStartX+" "+weekY;                            // Start point for path
-	// ToDo: Reset startDate to the start of the start of the respective week
-	for (var i = 0; i < len; i++) {
-	    weekEndDate = new Date(weekStartDate.getTime() + 1000.0 * 3600 * 24 * 7);
-	    // Convert start and end date of the interval to x coordinates
-	    weekStartX = me.date2x(weekStartDate);
-	    weekEndX = me.date2x(weekEndDate);
+        // -----------------------------------------------------------
+        // Draw availability percentage
+        //
+        var availableDays = costCenter.get('available_days');
+        var len = availableDays.length;
+        var weekStartDate = new Date(me.axisStartDate);
+        var weekStartX, weekEndX, weekY, weekEndDate;
+        weekStartX = me.date2x(weekStartDate);
+        weekY = Math.floor(y + availableDays[0]);
+        var path = "M"+weekStartX+" "+weekY;                            // Start point for path
+        // ToDo: Reset startDate to the start of the start of the respective week
+        for (var i = 0; i < len; i++) {
+            weekEndDate = new Date(weekStartDate.getTime() + 1000.0 * 3600 * 24 * 7);
+            // Convert start and end date of the interval to x coordinates
+            weekStartX = me.date2x(weekStartDate);
+            weekEndX = me.date2x(weekEndDate);
 
-	    var actualAvailableDaysPerInterval = availableDays[i];
+            var actualAvailableDaysPerInterval = availableDays[i];
             var daysPerInterval = me.granularityWorkDays * costCenter.get('assigned_resources');
-	    var costCenterLoadPercentage = 100.0 * actualAvailableDaysPerInterval / daysPerInterval
+            var costCenterLoadPercentage = 100.0 * actualAvailableDaysPerInterval / daysPerInterval
 
-	    weekY = Math.floor(y + me.barHeight * (1 - costCenterLoadPercentage / 100.0));
-	    path = path + " L" + weekEndX + " " + weekY;
-	    // The former end of the week becomes the start for the next week
-	    weekStartDate = weekEndDate;
-	}
+            weekY = Math.floor(y + me.barHeight * (1 - costCenterLoadPercentage / 100.0));
+            path = path + " L" + weekEndX + " " + weekY;
+            // The former end of the week becomes the start for the next week
+            weekStartDate = weekEndDate;
+        }
 
         var spritePath = surface.add({
-	    type: 'path',
-	    stroke: 'blue',
-	    'stroke-width': 1,
-	    path: path
+            type: 'path',
+            stroke: 'blue',
+            'stroke-width': 1,
+            path: path
         }).show(true);
         spriteGroup.add(spritePath);
 
 
 
-	// -----------------------------------------------------------
-	// Draw assignment percentage
-	//
-	var assignedDays = costCenter.get('assigned_days');
-	var len = assignedDays.length;
-	var weekStartDate = new Date(me.axisStartDate);
-	var weekStartX, weekEndX, weekY, weekEndDate;
-	weekStartX = me.date2x(weekStartDate);
-	weekY = Math.floor(y + assignedDays[0]);
-	var path = "M"+weekStartX+" "+weekY;                            // Start point for path
-	// ToDo: Reset startDate to the start of the start of the respective week
-	for (var i = 0; i < len; i++) {
-	    weekEndDate = new Date(weekStartDate.getTime() + 1000.0 * 3600 * 24 * 7);
-	    // Convert start and end date of the interval to x coordinates
-	    weekStartX = me.date2x(weekStartDate);
-	    weekEndX = me.date2x(weekEndDate);
+        // -----------------------------------------------------------
+        // Draw assignment percentage
+        //
+        var assignedDays = costCenter.get('assigned_days');
+        var len = assignedDays.length;
+        var weekStartDate = new Date(me.axisStartDate);
+        var weekStartX, weekEndX, weekY, weekEndDate;
+        weekStartX = me.date2x(weekStartDate);
+        weekY = Math.floor(y + assignedDays[0]);
+        var path = "M"+weekStartX+" "+weekY;                            // Start point for path
+        // ToDo: Reset startDate to the start of the start of the respective week
+        for (var i = 0; i < len; i++) {
+            weekEndDate = new Date(weekStartDate.getTime() + 1000.0 * 3600 * 24 * 7);
+            // Convert start and end date of the interval to x coordinates
+            weekStartX = me.date2x(weekStartDate);
+            weekEndX = me.date2x(weekEndDate);
 
-	    var actualAssignedDaysPerInterval = assignedDays[i];
+            var actualAssignedDaysPerInterval = assignedDays[i];
             var daysPerInterval = me.granularityWorkDays * costCenter.get('assigned_resources');
-	    var costCenterLoadPercentage = 100.0 * actualAssignedDaysPerInterval / daysPerInterval
+            var costCenterLoadPercentage = 100.0 * actualAssignedDaysPerInterval / daysPerInterval
 
-	    weekY = Math.floor(y + me.barHeight * (1 - costCenterLoadPercentage / 100.0));
-	    path = path + " L" + weekEndX + " " + weekY;
-	    // The former end of the week becomes the start for the next week
-	    weekStartDate = weekEndDate;
-	}
+            weekY = Math.floor(y + me.barHeight * (1 - costCenterLoadPercentage / 100.0));
+            path = path + " L" + weekEndX + " " + weekY;
+            // The former end of the week becomes the start for the next week
+            weekStartDate = weekEndDate;
+        }
 
         var spritePath = surface.add({
-	    type: 'path',
-	    stroke: 'red',
-	    'stroke-width': 1,
-	    path: path
+            type: 'path',
+            stroke: 'red',
+            'stroke-width': 1,
+            path: path
         }).show(true);
         spriteGroup.add(spritePath);
 
@@ -743,9 +838,9 @@ Ext.define('PO.view.resource_management.ResourceLevelingEditor', {
 
 /**
  * Create a diagram and draw bars
- */  
+ */
 function launchApplication(){
-    
+
     var projectMainStore = Ext.StoreManager.get('projectMainStore');
     var projectResourceLoadStore = Ext.StoreManager.get('projectResourceLoadStore');
     var costCenterResourceLoadStore = Ext.StoreManager.get('costCenterResourceLoadStore');
@@ -763,19 +858,28 @@ function launchApplication(){
     var projectGridHeight = listProjectsAddOnHeight + listCellHeight * numProjects;
     var projectGridSelectionModel = Ext.create('Ext.selection.CheckboxModel');
     var projectGrid = Ext.create('Ext.grid.Panel', {
-	title: false,
+        title: false,
         region:'center',
-	store: 'projectResourceLoadStore',
-	height: projectGridHeight,
+        store: 'projectResourceLoadStore',
+        height: projectGridHeight,
+	scroll: false,
         selModel: projectGridSelectionModel,
-        columns: [{ 
-            text: 'Projects',  
+        columns: [{
+            text: 'Projects',
             dataIndex: 'project_name',
             flex: 1
+        },{
+            text: 'Start',
+            dataIndex: 'start_date',
+            width: 80
+        },{
+            text: 'End',
+            dataIndex: 'end_date',
+            width: 80,
+	    hidden: true
         }],
         shrinkWrap: true
     });
-
 
     var costCenterGridHeight = listCostCenterAddOnHeight + listCellHeight * numDepts;
     var costCenterGridSelectionModel = Ext.create('Ext.selection.CheckboxModel');
@@ -784,16 +888,16 @@ function launchApplication(){
         region:'south',
         height: costCenterGridHeight,
         store: 'costCenterResourceLoadStore',
-        selModel: costCenterGridSelectionModel,
-        columns: [{ 
+        // selModel: costCenterGridSelectionModel,                     // We don't need to select departments
+        columns: [{
             text: 'Departments',
             dataIndex: 'cost_center_name',
             flex: 1
         },{
             text: 'Resources',
             dataIndex: 'assigned_resources',
-	    width: 70
-	}],
+            width: 70
+        }],
         shrinkWrap: true
     });
 
@@ -835,7 +939,7 @@ function launchApplication(){
 
 
     /*
-     * Main Panel that contains the three other panels 
+     * Main Panel that contains the three other panels
      * (projects, departments and gantt bars)
      */
     var borderPanelHeight = (listProjectsAddOnHeight + listCostCenterAddOnHeight) + listCellHeight * numProjectsDepts;
@@ -859,7 +963,7 @@ function launchApplication(){
                 width: 300,
                 split: true,
                 items: [
-                    projectGrid, 
+                    projectGrid,
                     costCenterGrid
                 ]
             },
@@ -917,24 +1021,24 @@ Ext.onReady(function() {
     });
 
     // Load only open main projects that are not closed.
-    projectMainStore.getProxy().extraParams = { 
+    projectMainStore.getProxy().extraParams = {
         format: "json",
-        query: "parent_id is NULL and project_type_id not in (select * from im_sub_categories(81)) @project_main_store_where;noquote@" 
+        query: "parent_id is NULL and project_type_id not in (select * from im_sub_categories(81)) @project_main_store_where;noquote@"
     };
     projectMainStore.load({
         callback: function() { console.log('PO.store.project.ProjectMainStore: loaded'); }
     });
 
     projectResourceLoadStore.load({
-        callback: function() { 
-            console.log('PO.store.resource_management.ProjectResourceLoadStore: loaded'); 
+        callback: function() {
+            console.log('PO.store.resource_management.ProjectResourceLoadStore: loaded');
         }
     });
 
     // Load CC load with default parameters in order to get the list of CCs.
     costCenterResourceLoadStore.load({
-        callback: function() { 
-            console.log('PO.store.resource_management.CostCenterResourceLoadStore: loaded'); 
+        callback: function() {
+            console.log('PO.store.resource_management.CostCenterResourceLoadStore: loaded');
         }
     });
 
