@@ -193,10 +193,12 @@ Ext.define('PO.view.resource_management.ResourceLevelingEditor', {
     taskModelHash: {},
 
     // Start of the date axis
-    axisStartTime: 0,
+    axisStartDate: 0,
+    axisEndDate: 0,
+
     axisStartX: 0,
-    axisEndTime: 0,
-    axisEndX: 290,					// End of the date axis
+    axisEndX: 700,	// ToDo: Adapt to screen width				// End of the date axis
+
     axisHeight: 20,					// Height of each of the two axis levels
     axisScale: 'month',					// Default scale for the time axis
 
@@ -264,18 +266,9 @@ Ext.define('PO.view.resource_management.ResourceLevelingEditor', {
             'scope': this
         });
 
-        // Determine the maximum and minimum date for the horizontal axis
-        me.axisEndTime = new Date('2000-01-01').getTime();
-        me.axisStartTime = new Date('2099-12-31').getTime();
-        me.projectResourceLoadStore.each(function(model) {
-            var startTime = new Date(model.get('start_date')).getTime();
-            var endTime = new Date(model.get('end_date')).getTime();
-            if (startTime < me.axisStartTime) { me.axisStartTime = startTime; }
-            if (endTime > me.axisEndTime) { me.axisEndTime = endTime; }
-        });
+        me.axisStartDate = me.prevMonth(me.reportStartDate);
+        me.axisEndDate = me.nextMonth(me.reportEndDate);
 
-        me.axisStartDate = me.prevMonth(new Date(me.axisStartTime));
-        me.axisEndDate = me.nextMonth(new Date(me.axisEndTime));
 
         // Granularity
         switch(me.granularity) {
@@ -339,7 +332,7 @@ Ext.define('PO.view.resource_management.ResourceLevelingEditor', {
         console.log('PO.class.GanttDrawComponent.onProjectMove: '+projectModel.get('id') + ', ' + xDiff);
 
         var bBox = me.dndBaseSprite.getBBox();
-        var diffTime = Math.floor(1.0 * xDiff * (me.axisEndTime - me.axisStartTime) / (me.axisEndX - me.axisStartX));
+        var diffTime = Math.floor(1.0 * xDiff * (me.axisEndDate.getTime() - me.axisStartDate.getTime()) / (me.axisEndX - me.axisStartX));
 
         var startTime = new Date(projectModel.get('start_date')).getTime();
         var endTime = new Date(projectModel.get('end_date')).getTime();
@@ -526,7 +519,7 @@ Ext.define('PO.view.resource_management.ResourceLevelingEditor', {
         var projectY = projectGridView.getNode(project).getBoundingClientRect().top;
         var x = me.date2x(startTime);
         var y = projectY - panelY;
-        var w = Math.floor( me.ganttWidth * (endTime - startTime) / (me.axisEndTime - me.axisStartTime));
+        var w = Math.floor( me.ganttWidth * (endTime - startTime) / (me.axisEndDate.getTime() - me.axisStartDate.getTime()));
         var h = me.barHeight; 							// Height of the bars
         var d = Math.floor(h / 2.0) + 1;    				// Size of the indent of the super-project bar
 
@@ -566,8 +559,8 @@ Ext.define('PO.view.resource_management.ResourceLevelingEditor', {
         if (me.debug) { console.log('PO.class.GanttDrawComponent.drawAxis: Starting'); }
 
 	// Draw Yearly blocks
-	var startYear = new Date(me.axisStartTime).getFullYear();
-	var endYear = new Date(me.axisEndTime).getFullYear();
+	var startYear = me.axisStartDate.getFullYear();
+	var endYear = me.axisEndDate.getFullYear();
 	for (var year = startYear; year <= endYear; year++) {
             var x = me.date2x(new Date(year+"-01-01"));
             var xEnd = me.date2x(new Date(year+"-12-31"));
@@ -596,8 +589,8 @@ Ext.define('PO.view.resource_management.ResourceLevelingEditor', {
 	}
 
 	// Draw Yearly blocks
-	var startMonth = new Date(me.axisStartTime).getMonth();
-	var endMonth = new Date(me.axisEndTime).getMonth();
+	var startMonth = me.axisStartDate.getMonth();
+	var endMonth = me.axisEndDate.getMonth();
 	var yea = startYear;
 	var mon = startMonth;
 	while (yea * 100 + mon <= endYear * 100 + endMonth) {
@@ -672,7 +665,7 @@ Ext.define('PO.view.resource_management.ResourceLevelingEditor', {
         var y = (costCenterPanelY - surfacePanelY) + (costCenterDivY - costCenterPanelY) + 5;
 
         var x = me.date2x(startTime);
-        var w = Math.floor( me.ganttWidth * (endTime - startTime) / (me.axisEndTime - me.axisStartTime));
+        var w = Math.floor( me.ganttWidth * (endTime - startTime) / (me.axisEndDate.getTime() - me.axisStartDate.getTime()));
         var h = me.barHeight; 							// Height of the bars
         var d = Math.floor(h / 2.0) + 1;    				// Size of the indent of the super-costCenter bar
 
@@ -800,7 +793,7 @@ Ext.define('PO.view.resource_management.ResourceLevelingEditor', {
         }
 
         var axisWidth = me.axisEndX - me.axisStartX;
-        var x = me.axisStartX + Math.floor(1.0 * axisWidth * (1.0 * dateMilliJulian - me.axisStartTime) / (1.0 * me.axisEndTime - me.axisStartTime));
+        var x = me.axisStartX + Math.floor(1.0 * axisWidth * (1.0 * dateMilliJulian - me.axisStartDate.getTime()) / (1.0 * me.axisEndDate.getTime() - me.axisStartDate.getTime()));
         if (x < 0) { x = 0; }
 
         return x;
