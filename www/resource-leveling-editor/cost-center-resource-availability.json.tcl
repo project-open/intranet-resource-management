@@ -63,11 +63,14 @@ foreach cc_id [array names cc_hash] {
 	}
 
 	set key "$cc_id-$i"
-	set cc_day_hash($key) $available_days
+	set available_day_hash($key) $available_days
     }
 }
 
+# ---------------------------------------------------------------
 # Subtract vacations from available days
+# ---------------------------------------------------------------
+
 # Absences hash absence_id -> hash(absence vars)
 array set absence_hash [im_resource_management_user_absences -start_date $report_start_date -end_date $report_end_date]
 # ad_return_complaint 1 [array get absence_hash]
@@ -86,7 +89,7 @@ foreach aid [array names absence_hash] {
     for {set i [im_date_ansi_to_julian $absence_start_date]} {$i <= $end_julian} {incr i} {
 	set key "$department_id-$i"
 	set available_days 0.0
-	if {[info exists cc_day_hash($key)]} { set available_days $cc_day_hash($key) }
+	if {[info exists available_day_hash($key)]} { set available_days $available_day_hash($key) }
 
 	array set date_comps [util_memoize [list im_date_julian_to_components $i]]
 	set dow $date_comps(day_of_week)
@@ -94,10 +97,89 @@ foreach aid [array names absence_hash] {
 	    set available_days [expr $available_days - (1.0 * $duration_days / $absence_workdays)]
 	}
 
-	set cc_day_hash($key) $available_days	
+	set available_day_hash($key) $available_days	
     }
 }
 
+
+# ---------------------------------------------------------------
+# Calculate the required project resources during the interval
+# with the modified project start- and end dates
+# ---------------------------------------------------------------
+
+# Store the julian start- and end dates for the main projects
+foreach pid [array names start_date] {
+    set start_ansi $start_date($pid);
+    set start_julian [im_date_ansi_to_julian $start_ansi]
+    set end_ansi $end_date($pid);
+    set end_julian [im_date_ansi_to_julian $end_ansi]
+
+    set start_julian_hash($pid) $start_julian
+    set end_julian_hash($pid) $end_julian
+}
+
+# Store employee department information in hash
+set default_cost_center_id [im_cost_center_company]
+set employee_sql "
+	select	u.user_id,
+		coalesce(e.department_id, :default_cost_center_id) as department_id
+	from	users u
+		LEFT OUTER JOIN im_employees e ON (u.user_id = e.employee_id)
+"
+db_foreach emp $employee_sql {
+    set employe_department_hash($user_id) $department_id
+}
+
+set pids [array names start_date]
+if {{} == $pids} { set pids [list 0] }
+set percentage_sql "
+		select
+			parent.project_id as parent_project_id,
+			to_char(parent.start_date, 'J') as parent_start_julian,
+			to_char(parent.end_date, 'J') as parent_end_julian,
+			u.user_id,
+			child.project_id,
+			to_char(child.start_date, 'J') as child_start_julian,
+			to_char(child.end_date, 'J') as child_end_julian,
+			coalesce(round(m.percentage), 0) as percentage
+		from
+			im_projects parent,
+			im_projects child,
+			acs_rels r,				-- no left outer join - show only assigned users
+			im_biz_object_members m,
+			users u
+		where
+			parent.project_id in ([join $pids ","]) and
+			parent.parent_id is null and
+			parent.end_date >= to_date(:report_start_date, 'YYYY-MM-DD') and
+			parent.start_date <= to_date(:report_end_date, 'YYYY-MM-DD') and
+			child.tree_sortkey between parent.tree_sortkey and tree_right(parent.tree_sortkey) and
+			r.rel_id = m.rel_id and
+			r.object_id_one = child.project_id and
+			r.object_id_two = u.user_id
+"
+db_foreach projects $percentage_sql {
+    set pid_start_julian $start_julian_hash($parent_project_id)
+    set pid_end_julian $end_julian_hash($parent_project_id)
+    set parent_date_shift [expr $pid_start_julian - $parent_start_julian]
+    # ToDo: incorporate if the project has been dragged to be longer
+
+    set child_start_julian [expr $child_start_julian + $parent_date_shift]
+    set child_end_julian [expr $child_end_julian + $parent_date_shift]
+    set department_id $employe_department_hash($user_id)
+
+    for {set j $child_start_julian} {$j < $child_end_julian} {incr j} {
+	set key "$department_id-$j"
+	set perc 0.0
+	if {[info exists assigned_day_hash($key)]} { set perc $assigned_day_hash($key) }
+	set perc [expr $perc + $percentage / 100.0]
+
+	array set date_comps [util_memoize [list im_date_julian_to_components $j]]
+	set dow $date_comps(day_of_week)
+	if {0 != $dow && 6 != $dow && 7 != $dow} { set perc 0.0 }
+	set assigned_day_hash($key) $perc
+    }
+}
 
 # ---------------------------------------------------------------
 # Format result as JSON
@@ -119,7 +201,7 @@ switch $granularity {
 	    for {set i [im_date_ansi_to_julian $report_start_date]} {$i <= [im_date_ansi_to_julian $report_end_date]} {incr i} {
 		set key "$cc_id-$i"
 		set available_days 0.0
-		if {[info exists cc_day_hash($key)]} { set available_days $cc_day_hash($key) }
+		if {[info exists available_day_hash($key)]} { set available_days $available_day_hash($key) }
 		lappend days $available_days
 	    }
 	    
@@ -155,7 +237,6 @@ $days_list
 		lappend week_list $week_key
 	    }
 	}
-
 	
 	# Summarize the daily hash into a weekly hash
 	foreach cc_id [array names cc_hash] {	    
@@ -165,19 +246,31 @@ $days_list
 		set week_of_year $date_comps(week_of_year)
 
 		set day_key "$cc_id-$i"
-		set available_days 0
-		if {[info exists cc_day_hash($day_key)]} { set available_days $cc_day_hash($day_key) }
-
 		set week_key "$cc_id-$year-$week_of_year"
+
+		# Aggregate available days per week
+		set available_days 0
+		if {[info exists available_day_hash($day_key)]} { set available_days $available_day_hash($day_key) }
 		set available_week_days 0
-		if {[info exists cc_week_hash($week_key)]} { set available_week_days $cc_week_hash($week_key) }
+		if {[info exists available_week_hash($week_key)]} { set available_week_days $available_week_hash($week_key) }
 		set available_week_days [expr $available_week_days + $available_days]
 		if {$available_week_days > 0.0} {
-		    set cc_week_hash($week_key) $available_week_days
+		    set available_week_hash($week_key) $available_week_days
 		}
+
+		# Aggregate assigned days per week
+		set assigned_days 0
+		if {[info exists assigned_day_hash($day_key)]} { set assigned_days $assigned_day_hash($day_key) }
+		set assigned_week_days 0
+		if {[info exists assigned_week_hash($week_key)]} { set assigned_week_days $assigned_week_hash($week_key) }
+		set assigned_week_days [expr $assigned_week_days + $assigned_days]
+		if {$assigned_week_days > 0.0} {
+		    set assigned_week_hash($week_key) $assigned_week_days
+		}
+
 	    }
 	}
-	# ad_return_complaint 1 [array get cc_week_hash]
+	# ad_return_complaint 1 [array get available_week_hash]
 
 	foreach cc_id [array names cc_hash] {
 	    array unset cc_values
@@ -186,22 +279,31 @@ $days_list
 	    set assigned_resources_percent $cc_values(availability_percent)
 	    set assigned_resources [expr round($assigned_resources_percent) / 100.0]
 	    
-	    set weeks [list]
+	    set available_weeks [list]
+	    set assigned_weeks [list]
 	    foreach week_key $week_list {
 		set key "$cc_id-$week_key"
+
+		# Format available days
 		set available_days 0.0
-		if {[info exists cc_week_hash($key)]} { set available_days $cc_week_hash($key) }
-		lappend weeks [expr round(1000.0 * $available_days) / 1000.0]
+		if {[info exists available_week_hash($key)]} { set available_days $available_week_hash($key) }
+		lappend available_weeks [expr round(1000.0 * $available_days) / 1000.0]
+
+		# Format assigned days
+		set assigned_days 0.0
+		if {[info exists assigned_week_hash($key)]} { set assigned_days $assigned_week_hash($key) }
+		lappend assigned_weeks [expr round(1000.0 * $assigned_days) / 1000.0]
 	    }
 	    
-	    set list [join $weeks ", "]
+	    set available_list [join $available_weeks ", "]
+	    set assigned_list [join $assigned_weeks ", "]
 	    set cc_row_weeks [list "\"id\":$cc_id,\
 \"cost_center_id\":$cc_id,\
 \"cost_center_name\":\"$cost_center_name\",\
-\"assigned_resources\":\"$assigned_resources\",\
-\"available_days\":\[
-$list
-\]"]
+\"assigned_resources\":\"$assigned_resources\",
+\"available_days\":\[$available_list\],
+\"assigned_days\":\[$assigned_list\]
+"]
 
 	    set cc_row "{[join $cc_row_weeks ", "]}"
 	    lappend json_list $cc_row

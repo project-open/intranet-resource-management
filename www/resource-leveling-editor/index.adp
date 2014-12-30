@@ -95,7 +95,8 @@ Ext.define('PO.model.resource_management.CostCenterResourceLoadModel', {
         'cost_center_id',			// ID of the main cost_center
         'cost_center_name',			// The name of the cost_center
 	'assigned_resources',			// Number of full-time resources being a member of this CC
-        'available_days',			// Array with J -> % assignments per day, starting with start_date
+        'available_days',			// Array with J -> available days, starting with start_date
+        'assigned_days',			// Array with J -> assigned days, starting with start_date
         'sprite_group'				// Sprite group representing the cost center bar
     ]
 });
@@ -607,12 +608,12 @@ Ext.define('PO.view.resource_management.ResourceLevelingEditor', {
 	// -----------------------------------------------------------
 	// Draw availability percentage
 	//
-	var availability = costCenter.get('available_days');
-	var len = availability.length;
+	var availableDays = costCenter.get('available_days');
+	var len = availableDays.length;
 	var weekStartDate = new Date(me.axisStartDate);
 	var weekStartX, weekEndX, weekY, weekEndDate;
 	weekStartX = me.date2x(weekStartDate);
-	weekY = Math.floor(y + availability[0]);
+	weekY = Math.floor(y + availableDays[0]);
 	var path = "M"+weekStartX+" "+weekY;                            // Start point for path
 	// ToDo: Reset startDate to the start of the start of the respective week
 	for (var i = 0; i < len; i++) {
@@ -621,7 +622,7 @@ Ext.define('PO.view.resource_management.ResourceLevelingEditor', {
 	    weekStartX = me.date2x(weekStartDate);
 	    weekEndX = me.date2x(weekEndDate);
 
-	    var actualAvailableDaysPerInterval = availability[i];
+	    var actualAvailableDaysPerInterval = availableDays[i];
             var daysPerInterval = me.granularityWorkDays * costCenter.get('assigned_resources');
 	    var costCenterLoadPercentage = 100.0 * actualAvailableDaysPerInterval / daysPerInterval
 
@@ -638,6 +639,45 @@ Ext.define('PO.view.resource_management.ResourceLevelingEditor', {
 	    path: path
         }).show(true);
         spriteGroup.add(spritePath);
+
+
+
+	// -----------------------------------------------------------
+	// Draw assignment percentage
+	//
+	var assignedDays = costCenter.get('assigned_days');
+	var len = assignedDays.length;
+	var weekStartDate = new Date(me.axisStartDate);
+	var weekStartX, weekEndX, weekY, weekEndDate;
+	weekStartX = me.date2x(weekStartDate);
+	weekY = Math.floor(y + assignedDays[0]);
+	var path = "M"+weekStartX+" "+weekY;                            // Start point for path
+	// ToDo: Reset startDate to the start of the start of the respective week
+	for (var i = 0; i < len; i++) {
+	    weekEndDate = new Date(weekStartDate.getTime() + 1000.0 * 3600 * 24 * 7);
+	    // Convert start and end date of the interval to x coordinates
+	    weekStartX = me.date2x(weekStartDate);
+	    weekEndX = me.date2x(weekEndDate);
+
+	    var actualAssignedDaysPerInterval = assignedDays[i];
+            var daysPerInterval = me.granularityWorkDays * costCenter.get('assigned_resources');
+	    var costCenterLoadPercentage = 100.0 * actualAssignedDaysPerInterval / daysPerInterval
+
+	    weekY = Math.floor(y + me.barHeight * (1 - costCenterLoadPercentage / 100.0));
+	    path = path + " L" + weekEndX + " " + weekY;
+	    // The former end of the week becomes the start for the next week
+	    weekStartDate = weekEndDate;
+	}
+
+        var spritePath = surface.add({
+	    type: 'path',
+	    stroke: 'red',
+	    'stroke-width': 1,
+	    path: path
+        }).show(true);
+        spriteGroup.add(spritePath);
+
+
 
         if (me.debug) { console.log('PO.class.GanttDrawComponent.drawCostCenterBar: Finished'); }
     },
