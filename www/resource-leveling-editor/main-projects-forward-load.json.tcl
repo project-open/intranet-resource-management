@@ -88,7 +88,7 @@ db_foreach main_p $sql {
 	set key "$main_project_id-$j"
 	set val 0.0
 	if {[info exists percentage_day_hash($key)]} { set val $percentage_day_hash($key) }
-	set val [expr $val + $percentage]
+	set val [expr $val + ($percentage / 100.0)]
 	set percentage_day_hash($key) $val
 
 	# Weeks
@@ -98,7 +98,7 @@ db_foreach main_p $sql {
 	set key_week "$main_project_id-$year-$week_of_year"
 	set val 0.0
 	if {[info exists percentage_week_hash($key_week)]} { set val $percentage_week_hash($key_week) }
-        set val [expr $val + $percentage]
+        set val [expr $val + ($percentage / 100.0)]
         set percentage_week_hash($key_week) $val
     }
 }
@@ -118,12 +118,14 @@ foreach pid [qsort [array names main_project_start_j_hash]] {
 
     array unset week_hash
     set vals [list]
+    set max_val 0
     for {set j $start_j} {$j <= $end_j} {incr j} {
 	# day
 	set key_day "$pid-$j"
 	set perc 0
 	if {[info exists percentage_day_hash($key_day)]} { set perc $percentage_day_hash($key_day) }
 	lappend vals $perc
+	if {$perc > $max_val} { set max_val $perc }
 
 
 	# Aggregate values per week
@@ -143,8 +145,11 @@ foreach pid [qsort [array names main_project_start_j_hash]] {
 
     if {"week" == $granularity} {
 	set vals [list]
+	set max_val 0
 	foreach key_week [qsort [array names week_hash]] {
-	    lappend vals $percentage_week_hash($key_week)
+	    set perc $percentage_week_hash($key_week)
+	    lappend vals [expr round($perc * 100.0) / 100.0]
+	    if {$perc > $max_val} { set max_val $perc }
 	}
     }
 
@@ -156,7 +161,8 @@ foreach pid [qsort [array names main_project_start_j_hash]] {
 \"end_date\":\"$end_date\",\
 \"start_j\":$start_j,\
 \"end_j\":$end_j,\
-\"perc\":\[
+\"max_assigned_days\":$max_val,\
+\"assigned_days\":\[
 $percs
 \]"]
 

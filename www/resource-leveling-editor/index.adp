@@ -49,7 +49,8 @@ Ext.define('PO.model.resource_management.ProjectResourceLoadModel', {
         'percent_completed',			// 0 - 100: Defines what has already been done.
         'on_track_status_id',			// 66=green, 67=yellow, 68=red
         'description',
-        'perc',					// Array with J -> % assignments per day, starting with start_date
+        'assigned_days',			// Array with J -> % assignments per day, starting with start_date
+        'max_assigned_days',			// Maximum of assignment for a single unit (day or week)
         'sprite_group',				// Sprite group representing the project bar
         { name: 'end_date_date',		// end_date as Date, required by Chart
           convert: function(value, record) {
@@ -547,6 +548,46 @@ Ext.define('PO.view.resource_management.ResourceLevelingEditor', {
         me.barStartHash[id] = [x,y];					// Move the start of the bar 5px to the right
         me.barEndHash[id] = [x+w, y+h];					// End of the bar is in the middle of the bar
 
+
+        // -----------------------------------------------------------
+        // Draw assigned resources bar
+        //
+        var assignedDays = project.get('assigned_days');
+        var maxAssignedDays = project.get('max_assigned_days');
+        var len = assignedDays.length;
+        var weekStartDate = new Date(project.get('start_date'));
+        var weekStartX = me.date2x(weekStartDate);
+        var weekEndX, weekEndDate;
+
+        var actualAssignedDaysPerInterval = assignedDays[0];
+        var costCenterLoadPercentage = 100.0 * actualAssignedDaysPerInterval / maxAssignedDays
+        var weekY = Math.floor(y + me.barHeight * (1 - costCenterLoadPercentage / 100.0));
+
+        var path = "M"+weekStartX+" "+weekY;                            // Start point for path
+        // ToDo: Reset startDate to the start of the start of the respective week
+        for (var i = 0; i < len; i++) {
+            weekEndDate = new Date(weekStartDate.getTime() + 1000.0 * 3600 * 24 * 7);
+            // Convert start and end date of the interval to x coordinates
+            weekStartX = me.date2x(weekStartDate);
+            weekEndX = me.date2x(weekEndDate);
+
+            actualAssignedDaysPerInterval = assignedDays[i];
+            costCenterLoadPercentage = 100.0 * actualAssignedDaysPerInterval / maxAssignedDays
+            weekY = Math.floor(y + me.barHeight * (1 - costCenterLoadPercentage / 100.0));
+
+            path = path + " L" + weekEndX + " " + weekY;
+            // The former end of the week becomes the start for the next week
+            weekStartDate = weekEndDate;
+        }
+
+        var spritePath = surface.add({
+            type: 'path',
+            stroke: 'blue',
+            'stroke-width': 1,
+            path: path
+        }).show(true);
+        spriteGroup.add(spritePath);
+
         if (me.debug) { console.log('PO.class.GanttDrawComponent.drawProjectBar: Finished'); }
     },
 
@@ -557,13 +598,25 @@ Ext.define('PO.view.resource_management.ResourceLevelingEditor', {
     drawAxis: function() {
         var me = this;
         if (me.debug) { console.log('PO.class.GanttDrawComponent.drawAxis: Starting'); }
+	me.drawAxisYear();
+	me.drawAxisMonth();
+        if (me.debug) { console.log('PO.class.GanttDrawComponent.drawAxis: Finished'); }
+    },
+
+
+    /**
+     * Draw a date axis on the top of the diagram
+     */
+    drawAxisYear: function() {
+        var me = this;
+        if (me.debug) { console.log('PO.class.GanttDrawComponent.drawAxisYear: Starting'); }
 
 	// Draw Yearly blocks
 	var startYear = me.axisStartDate.getFullYear();
 	var endYear = me.axisEndDate.getFullYear();
 	for (var year = startYear; year <= endYear; year++) {
             var x = me.date2x(new Date(year+"-01-01"));
-            var xEnd = me.date2x(new Date(year+"-12-31"));
+            var xEnd = me.date2x(new Date((year+1)+"-01-01"));
             var w = xEnd - x;
             var y = 0;
             var h = me.barHeight; 							// Height of the bars
@@ -588,7 +641,21 @@ Ext.define('PO.view.resource_management.ResourceLevelingEditor', {
             }).show(true);
 	}
 
-	// Draw Yearly blocks
+        if (me.debug) { console.log('PO.class.GanttDrawComponent.drawAxisYear: Finished'); }
+    },
+
+
+
+    /**
+     * Draw a date axis on the top of the diagram
+     */
+    drawAxisMonth: function() {
+        var me = this;
+        if (me.debug) { console.log('PO.class.GanttDrawComponent.drawAxisMonth: Starting'); }
+
+	// Draw monthly blocks
+	var startYear = me.axisStartDate.getFullYear();
+	var endYear = me.axisEndDate.getFullYear();
 	var startMonth = me.axisStartDate.getMonth();
 	var endMonth = me.axisEndDate.getMonth();
 	var yea = startYear;
