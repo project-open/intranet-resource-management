@@ -953,8 +953,10 @@ function launchApplication(){
     var projectGridHeight = listProjectsAddOnHeight + listCellHeight * numProjects;
     var projectGridSelectionModel = Ext.create('Ext.selection.CheckboxModel');
     var projectGrid = Ext.create('Ext.grid.Panel', {
-        title: false,
-        region:'center',
+        title: 'Project Grid',
+        region: 'west',
+	width: 400,
+	height: 400,
         store: 'projectResourceLoadStore',
         height: projectGridHeight,
 	scroll: false,
@@ -979,9 +981,11 @@ function launchApplication(){
     var costCenterGridHeight = listCostCenterAddOnHeight + listCellHeight * numDepts;
     var costCenterGridSelectionModel = Ext.create('Ext.selection.CheckboxModel');
     var costCenterGrid = Ext.create('Ext.grid.Panel', {
-        title: '',
-        region:'south',
-        height: costCenterGridHeight,
+        title: 'Department Grid',
+	width: 400,
+	height: 400,
+//        height: costCenterGridHeight,
+        region: 'west',
         store: 'costCenterResourceLoadStore',
         // selModel: costCenterGridSelectionModel,                     // We don't need to select departments
         columns: [{
@@ -999,7 +1003,10 @@ function launchApplication(){
 
     // Drawing area for for Gantt Bars
     var resourceLevelingEditorProjectPanel = Ext.create('PO.view.resource_management.ResourceLevelingEditorProjectPanel', {
-        region: 'north',
+	title: 'Projects Gant',
+	width: 400,
+	height: 400,
+        region: 'center',
         viewBox: false,
         gradients: [{
             id: 'gradientId',
@@ -1028,7 +1035,10 @@ function launchApplication(){
 
     // Drawing area for for Gantt Bars
     var resourceLevelingEditorCostCenterPanel = Ext.create('PO.view.resource_management.ResourceLevelingEditorCostCenterPanel', {
-        region: 'south',
+	title: 'Department Gantt',
+        width: 400,
+        height: 400,
+        region: 'center',
         viewBox: false,
         gradients: [{
             id: 'gradientId',
@@ -1072,25 +1082,28 @@ function launchApplication(){
             bodyPadding: 0
         },
         items: [{
-            region: 'west',
+	    title: 'Project Panel + Gantt',
+            region: 'north',
             xtype: 'panel',
             layout: 'border',
             shrinkWrap: true,
-            width: 300,
-            split: true,
+            width: 800,
+	    height: 300,
             items: [
                 projectGrid,
-                costCenterGrid
+                resourceLevelingEditorProjectPanel
             ]
         }, {
-            region: 'center',
+	    title: 'Department Panel + Gantt',
+            region: 'south',
             xtype: 'panel',
             layout: 'border',
             shrinkWrap: true,
-            width: 300,
-            split: true,
+            width: 800,
+	    height: 300,
             items: [
-                resourceLevelingEditorProjectPanel
+                costCenterGrid,
+                resourceLevelingEditorCostCenterPanel
             ]
         }],
         renderTo: renderDiv
