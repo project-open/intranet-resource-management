@@ -51,6 +51,8 @@ Ext.define('PO.model.resource_management.ProjectResourceLoadModel', {
         'description',
         'assigned_days',			// Array with J -> % assignments per day, starting with start_date
         'max_assigned_days',			// Maximum of assignment for a single unit (day or week)
+
+	'projectGridSelected',			// Did the user check the project in the ProjectGrid?
         'sprite_group',				// Sprite group representing the project bar
         { name: 'end_date_date',		// end_date as Date, required by Chart
           convert: function(value, record) {
@@ -148,6 +150,11 @@ Ext.define('PO.store.resource_management.CostCenterResourceLoadStore', {
         // Write the simulation start- and end dates as parameters to the store
         // As a result we will get the resource load with moved projects
         projectStore.each(function(model) {
+	    var enabled = model.get('projectGridSelected');
+	    if (0 === enabled) { 
+		return; 
+	    }
+
             var projectId = model.get('project_id');
             var startDate = model.get('start_date').substring(0,10);
             var endDate = model.get('end_date').substring(0,10);
@@ -237,21 +244,6 @@ Ext.define('PO.view.resource_management.AbstractGanttEditor', {
             'mouseup': me.onMouseUp,
             'mouseleave': me.onMouseUp,
             'mousemove': me.onMouseMove,
-            'scope': this
-        });
-
-        // Catch the moment when the "view" of the CostCenter grid
-        // is ready in order to draw the GanttBars for the first time.
-        // The view seems to take a while...
-        me.objectPanel.on({
-            'selectionchange': me.redraw,
-            'sortchange': me.redraw,
-            'scope': this
-        });
-
-        // Redraw Cost Center load whenever the store has new data
-        me.objectStore.on({
-            'load': me.redraw,
             'scope': this
         });
 
@@ -571,6 +563,8 @@ Ext.define('PO.view.resource_management.ResourceLevelingEditorProjectPanel', {
     extend: 'PO.view.resource_management.AbstractGanttEditor',
     requires: ['PO.view.resource_management.AbstractGanttEditor'],
 
+    costCenterResourceLoadStore: null,		// Reference to cost center store, set during init
+
     /**
      * Starts the main editor panel as the right-hand side
      * of a project grid and a cost center grid for the departments
@@ -591,6 +585,7 @@ Ext.define('PO.view.resource_management.ResourceLevelingEditorProjectPanel', {
         // The view seems to take a while...
         me.objectPanel.on({
             'viewready': me.onProjectGridViewReady,
+            'selectionchange': me.onProjectGridSelectionChange,
             'sortchange': me.onProjectGridSelectionChange,
             'scope': this
         });
@@ -612,9 +607,21 @@ Ext.define('PO.view.resource_management.ResourceLevelingEditorProjectPanel', {
         me.redraw();
     },
 
-    onProjectGridSelectionChange: function() {
+    onProjectGridSelectionChange: function(selModel, models, eOpts) {
         var me = this;
         console.log('PO.view.resource_management.ResourceLevelingEditorProjectPanel.onProjectGridSelectionChange');
+
+        me.objectStore.each(function(model) {
+	    if (selModel.isSelected(model)) {
+		model.set('projectGridSelected', 1);
+	    } else {
+		model.set('projectGridSelected', 0);
+	    }	    
+	})
+
+	// Reload the Cost Center Resource Load Store with the new selected/changed projects
+	me.costCenterResourceLoadStore.loadWithProjectData(me.objectStore);
+
         me.redraw();
     },
 
@@ -795,7 +802,24 @@ Ext.define('PO.view.resource_management.ResourceLevelingEditorCostCenterPanel', 
             'sortchange': me.onCostCenterGridSelectionChange,
             'scope': this
         });
+
+        // Redraw Cost Center load whenever the store has new data
+        me.objectStore.on({
+            'load': me.onCostCenterResourceLoadStoreChange,
+            'scope': this
+        });
+
     },
+
+    /**
+     * The data in the CC store have changed - redraw
+     */
+    onCostCenterResourceLoadStoreChange: function() {
+        var me = this;
+        console.log('PO.view.resource_management.ResourceLevelingEditorCostCenterPanel.onCostCenterResourceLoadStoreChange');
+        me.redraw();
+    },
+
 
     /**
      * The list of cost centers is (finally...) ready to be displayed.
@@ -1055,38 +1079,6 @@ function launchApplication(){
         shrinkWrap: true
     });
 
-
-    // Drawing area for for Gantt Bars
-    var resourceLevelingEditorProjectPanel = Ext.create('PO.view.resource_management.ResourceLevelingEditorProjectPanel', {
-        title: false,
-//        height: projectGridHeight,
-        region: 'center',
-        viewBox: false,
-        gradients: [{
-            id: 'gradientId',
-            angle: 66,
-            stops: {
-                0: { color: '#cdf' },
-                100: { color: '#ace' }
-            }
-        }, {
-            id: 'gradientId2',
-            angle: 0,
-            stops: {
-                0: { color: '#590' },
-                20: { color: '#599' },
-                100: { color: '#ddd' }
-            }
-        }],
-        overflowX: 'scroll',				// Allows for horizontal scrolling, but not vertical
-        scrollFlags: {x: true},
-        objectStore: projectResourceLoadStore,
-        objectPanel: projectGrid,
-        reportStartDate: new Date('@report_start_date@'),
-        reportEndDate: new Date('@report_end_date@')
-    });
-
-
     // Drawing area for for Gantt Bars
     var resourceLevelingEditorCostCenterPanel = Ext.create('PO.view.resource_management.ResourceLevelingEditorCostCenterPanel', {
         title: false,
@@ -1116,6 +1108,40 @@ function launchApplication(){
         reportStartDate: new Date('@report_start_date@'),
         reportEndDate: new Date('@report_end_date@')
     });
+
+    // Drawing area for for Gantt Bars
+    var resourceLevelingEditorProjectPanel = Ext.create('PO.view.resource_management.ResourceLevelingEditorProjectPanel', {
+        title: false,
+//        height: projectGridHeight,
+        region: 'center',
+        viewBox: false,
+        gradients: [{
+            id: 'gradientId',
+            angle: 66,
+            stops: {
+                0: { color: '#cdf' },
+                100: { color: '#ace' }
+            }
+        }, {
+            id: 'gradientId2',
+            angle: 0,
+            stops: {
+                0: { color: '#590' },
+                20: { color: '#599' },
+                100: { color: '#ddd' }
+            }
+        }],
+        overflowX: 'scroll',				// Allows for horizontal scrolling, but not vertical
+        scrollFlags: {x: true},
+        objectStore: projectResourceLoadStore,
+        objectPanel: projectGrid,
+        reportStartDate: new Date('@report_start_date@'),
+        reportEndDate: new Date('@report_end_date@'),
+
+	// Reference to the CostCenter store
+	costCenterResourceLoadStore: costCenterResourceLoadStore
+    });
+
 
     /*
      * Main Panel that contains the three other panels
@@ -1192,14 +1218,18 @@ Ext.onReady(function() {
 
     var coo = Ext.create('PO.controller.StoreLoadCoordinator', {
         debug: 0,
+	launched: false,
         stores: [
             'projectResourceLoadStore',
             'costCenterResourceLoadStore'
         ],
         listeners: {
             load: function() {
+
+		if (this.launched) { return; }
                 // Launch the actual application.
                 console.log('PO.controller.StoreLoadCoordinator: launching Application');
+		this.launched = true;
                 task.delay(100);						// Fade out the splash screen
                 launchApplication();						// launch the actual application
             }
@@ -1210,7 +1240,7 @@ Ext.onReady(function() {
         callback: function() {
             console.log('PO.controller.StoreLoadCoordinator.projectResourceLoadStore: loaded');
             // Now load the cost center load for the current 
-            costCenterResourceLoadStore.loadWithProjectData(projectResourceLoadStore)
+            costCenterResourceLoadStore.loadWithProjectData(projectResourceLoadStore);
         }
     });
 
