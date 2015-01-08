@@ -132,17 +132,17 @@ Ext.define('PO.store.resource_management.CostCenterResourceLoadStore', {
      * included projects, overriding the information stored in the
      * ]po[ database.
      */
-    loadWithOffset: function(resourceLevelingEditor, projectStore, callback) {
+    loadWithProjectData: function(projectStore, callback) {
         var me = this;
-        console.log('PO.store.resource_management.CostCenterResourceLoadStore.loadWithOffset: starting');
+        console.log('PO.store.resource_management.CostCenterResourceLoadStore.loadWithProjectData: starting');
         console.log(this);
 
         var proxy = this.getProxy();
         proxy.extraParams = {
             format:             'json',
             granularity:	'@report_granularity@',				// 'week' or 'day'
-            report_start_date:	resourceLevelingEditor.axisStartDate.toISOString().substring(0,10),		// When to start
-            report_end_date:	resourceLevelingEditor.axisEndDate.toISOString().substring(0,10)			// when to end
+            report_start_date:	'@report_start_date@'.substring(0,10),		// When to start
+            report_end_date:	'@report_end_date@'.substring(0,10)		// when to end
         };
 
         // Write the simulation start- and end dates as parameters to the store
@@ -156,7 +156,7 @@ Ext.define('PO.store.resource_management.CostCenterResourceLoadStore', {
         });
 
         this.load(callback);
-        console.log('PO.store.resource_management.CostCenterResourceLoadStore.loadWithOffset: finished');
+        console.log('PO.store.resource_management.CostCenterResourceLoadStore.loadWithProjectData: finished');
     }
 });
 
@@ -207,6 +207,9 @@ Ext.define('PO.view.resource_management.AbstractGanttEditor', {
     axisHeight: 20,					// Height of each of the two axis levels
     axisScale: 'month',					// Default scale for the time axis
 
+    granularity: '@report_granularity@',		// 'week' or 'day' currently
+    granularityWorkDays: 1,				// 1 for daily interval, 5 for weekly
+
     /**
      * Starts the main editor panel as the right-hand side
      * of a project grid and a cost center grid for the departments
@@ -251,6 +254,18 @@ Ext.define('PO.view.resource_management.AbstractGanttEditor', {
             'load': me.redraw,
             'scope': this
         });
+
+        // Granularity
+        switch(me.granularity) {
+        case 'week':
+            me.granularityWorkDays = 5;
+            break;
+        case 'day':
+            me.granularityWorkDays = 1;
+            break;
+        default:
+            alert('Undefined granularity: '+me.granularity);
+        }
     },
 
     /**
@@ -557,9 +572,6 @@ Ext.define('PO.view.resource_management.ResourceLevelingEditorProjectPanel', {
     extend: 'PO.view.resource_management.AbstractGanttEditor',
     requires: ['PO.view.resource_management.AbstractGanttEditor'],
 
-    granularity: '@report_granularity@',		// 'week' or 'day' currently
-    granularityWorkDays: 1,				// 1 for daily interval, 5 for weekly
-
     /**
      * Starts the main editor panel as the right-hand side
      * of a project grid and a cost center grid for the departments
@@ -574,18 +586,6 @@ Ext.define('PO.view.resource_management.ResourceLevelingEditorProjectPanel', {
             'objectdnd': me.onProjectMove,
             'scope': this
         });
-
-        // Granularity
-        switch(me.granularity) {
-        case 'week':
-            me.granularityWorkDays = 5;
-            break;
-        case 'day':
-            me.granularityWorkDays = 1;
-            break;
-        default:
-            alert('Undefined granularity: '+me.granularity);
-        }
     },
 
     /**
@@ -747,10 +747,6 @@ Ext.define('PO.view.resource_management.ResourceLevelingEditorCostCenterPanel', 
     extend: 'PO.view.resource_management.AbstractGanttEditor',
     requires: ['PO.view.resource_management.AbstractGanttEditor'],
 
-
-    granularity: '@report_granularity@',		// 'week' or 'day' currently
-    granularityWorkDays: 1,				// 1 for daily interval, 5 for weekly
-
     /**
      * Starts the main editor panel as the right-hand side
      * of a project grid and a cost center grid for the departments
@@ -759,18 +755,6 @@ Ext.define('PO.view.resource_management.ResourceLevelingEditorCostCenterPanel', 
     initComponent: function() {
         var me = this;
         this.callParent(arguments);
-
-        // Granularity
-        switch(me.granularity) {
-        case 'week':
-            me.granularityWorkDays = 5;
-            break;
-        case 'day':
-            me.granularityWorkDays = 1;
-            break;
-        default:
-            alert('Undefined granularity: '+me.granularity);
-        }
     },
 
     /**
@@ -788,7 +772,7 @@ Ext.define('PO.view.resource_management.ResourceLevelingEditorCostCenterPanel', 
         // Draw CostCenter bars
         var costCenterStore = me.objectStore;
         var costCenterGridView = me.objectPanel.getView();	// The "view" for the GridPanel, containing HTML elements
-        objectStore.each(function(model) {
+        me.objectStore.each(function(model) {
             var viewNode = costCenterGridView.getNode(model);	// DIV with costCenter name on the CostCenterGrid for Y coo
             if (viewNode == null) { return; }			// hidden nodes/models don't have a viewNode
             me.drawCostCenterBar(model, viewNode);
@@ -943,23 +927,35 @@ function launchApplication(){
     var costCenterResourceLoadStore = Ext.StoreManager.get('costCenterResourceLoadStore');
 
     var numProjects = projectResourceLoadStore.getCount();
-    var numDepts = costCenterResourceLoadStore.getCount();
-    var numProjectsDepts = numProjects + numDepts;
+    var numCostCenters = costCenterResourceLoadStore.getCount();
+    var numProjectsPlusCostCenters = numProjects + numCostCenters;
 
-    // Project Grid
+    var gridWidth = 300;
+
+    // Height of grids and Gantt Panels
     var listCellHeight = 27;
-    var listProjectsAddOnHeight = 60;
-    var listCostCenterAddOnHeight = 55;
-    var projectGridHeight = listProjectsAddOnHeight + listCellHeight * numProjects;
+    var listProjectsAddOnHeight = 11;
+    var listCostCenterAddOnHeight = 11;
+    var projectGridHeight = listProjectsAddOnHeight + listCellHeight * (1 + numProjects);
+    var costCenterGridHeight = listCostCenterAddOnHeight + listCellHeight * (1 + numCostCenters);
+
     var projectGridSelectionModel = Ext.create('Ext.selection.CheckboxModel');
     var projectGrid = Ext.create('Ext.grid.Panel', {
-        title: 'Project Grid',
+        title: false,
         region: 'west',
-	width: 400,
-	height: 400,
+	width: gridWidth,
+//	height: projectGridHeight,
         store: 'projectResourceLoadStore',
-        height: projectGridHeight,
-	scroll: false,
+/*
+	autoScroll: true,
+	overflowX: 'scroll',
+	overflowY: 'scroll',
+*/
+	autoScroll: true,
+	overflowX: false,
+	overflowY: false,
+
+
         selModel: projectGridSelectionModel,
         columns: [{
             text: 'Projects',
@@ -968,7 +964,7 @@ function launchApplication(){
         },{
             text: 'Start',
             dataIndex: 'start_date',
-            width: 80
+            width: 100
         },{
             text: 'End',
             dataIndex: 'end_date',
@@ -978,15 +974,16 @@ function launchApplication(){
         shrinkWrap: true
     });
 
-    var costCenterGridHeight = listCostCenterAddOnHeight + listCellHeight * numDepts;
     var costCenterGridSelectionModel = Ext.create('Ext.selection.CheckboxModel');
     var costCenterGrid = Ext.create('Ext.grid.Panel', {
-        title: 'Department Grid',
-	width: 400,
-	height: 400,
+        title: false,
+	width: gridWidth,
 //        height: costCenterGridHeight,
         region: 'west',
         store: 'costCenterResourceLoadStore',
+	autoScroll: true,
+	overflowX: false,
+	overflowY: false,
         // selModel: costCenterGridSelectionModel,                     // We don't need to select departments
         columns: [{
             text: 'Departments',
@@ -1003,9 +1000,8 @@ function launchApplication(){
 
     // Drawing area for for Gantt Bars
     var resourceLevelingEditorProjectPanel = Ext.create('PO.view.resource_management.ResourceLevelingEditorProjectPanel', {
-	title: 'Projects Gant',
-	width: 400,
-	height: 400,
+	title: false,
+//        height: projectGridHeight,
         region: 'center',
         viewBox: false,
         gradients: [{
@@ -1035,9 +1031,8 @@ function launchApplication(){
 
     // Drawing area for for Gantt Bars
     var resourceLevelingEditorCostCenterPanel = Ext.create('PO.view.resource_management.ResourceLevelingEditorCostCenterPanel', {
-	title: 'Department Gantt',
-        width: 400,
-        height: 400,
+	title: false,
+//        height: costCenterGridHeight,
         region: 'center',
         viewBox: false,
         gradients: [{
@@ -1059,7 +1054,9 @@ function launchApplication(){
         overflowX: 'scroll',				// Allows for horizontal scrolling, but not vertical
         scrollFlags: {x: true},
 
-        objectStore: costCenterResourceLoadStore,
+//        objectStore: costCenterResourceLoadStore,
+	objectStore: projectResourceLoadStore,
+
 	objectPanel: costCenterGrid,
         reportStartDate: new Date('@report_start_date@'),
         reportEndDate: new Date('@report_end_date@')
@@ -1069,7 +1066,7 @@ function launchApplication(){
      * Main Panel that contains the three other panels
      * (projects, departments and gantt bars)
      */
-    var borderPanelHeight = (listProjectsAddOnHeight + listCostCenterAddOnHeight) + listCellHeight * numProjectsDepts;
+    var borderPanelHeight = costCenterGridHeight + projectGridHeight;
     var borderPanelWidth = Ext.getBody().getViewSize().width - 350;
     var borderPanel = Ext.create('Ext.panel.Panel', {
         width: borderPanelWidth,
@@ -1077,30 +1074,28 @@ function launchApplication(){
         title: false,
         layout: 'border',
         defaults: {
-            collapsible: true,
+            collapsible: false,
             split: true,
             bodyPadding: 0
         },
         items: [{
-	    title: 'Project Panel + Gantt',
+	    title: false,
             region: 'north',
+            height: projectGridHeight,
             xtype: 'panel',
             layout: 'border',
             shrinkWrap: true,
-            width: 800,
-	    height: 300,
             items: [
                 projectGrid,
                 resourceLevelingEditorProjectPanel
             ]
         }, {
-	    title: 'Department Panel + Gantt',
-            region: 'south',
+	    title: false,
+            region: 'center',
+	    height: costCenterGridHeight,
             xtype: 'panel',
             layout: 'border',
             shrinkWrap: true,
-            width: 800,
-	    height: 300,
             items: [
                 costCenterGrid,
                 resourceLevelingEditorCostCenterPanel
@@ -1111,10 +1106,9 @@ function launchApplication(){
 
     var onWindowResize = function () {
         // ToDo: Try to find out if there is another onWindowResize Event waiting
-        var borderPanelHeight = (listProjectsAddOnHeight + listCostCenterAddOnHeight) + listCellHeight * numProjectsDepts;
-        var width = Ext.getBody().getViewSize().width - 350;
-        borderPanel.setSize(width, borderPanelHeight);
-
+//        var borderPanelHeight = (listProjectsAddOnHeight + listCostCenterAddOnHeight) + listCellHeight * numProjectsPlusCostCenters;
+//        var width = Ext.getBody().getViewSize().width - 350;
+//        borderPanel.setSize(width, borderPanelHeight);
 //        var surface = resourceLevelingEditorProjectPanel.surface;
 //        surface.setSize(1500, surface.height);
 
@@ -1145,7 +1139,8 @@ Ext.onReady(function() {
     var coo = Ext.create('PO.controller.StoreLoadCoordinator', {
         debug: 0,
         stores: [
-            'projectResourceLoadStore'
+            'projectResourceLoadStore',
+            'costCenterResourceLoadStore'
         ],
         listeners: {
             load: function() {
@@ -1160,13 +1155,9 @@ Ext.onReady(function() {
     projectResourceLoadStore.load({
         callback: function() {
             console.log('PO.store.resource_management.ProjectResourceLoadStore: loaded');
-        }
-    });
 
-    // Load CC load with default parameters in order to get the list of CCs.
-    costCenterResourceLoadStore.load({
-        callback: function() {
-            console.log('PO.store.resource_management.CostCenterResourceLoadStore: loaded');
+	    // Now load the cost center load for the current 
+	    costCenterResourceLoadStore.loadWithProjectData(projectResourceLoadStore)
         }
     });
 
