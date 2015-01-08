@@ -586,7 +586,39 @@ Ext.define('PO.view.resource_management.ResourceLevelingEditorProjectPanel', {
             'objectdnd': me.onProjectMove,
             'scope': this
         });
+	
+	// Catch the moment when the "view" of the Project grid
+        // is ready in order to draw the GanttBars for the first time.
+        // The view seems to take a while...
+        me.objectPanel.on({
+            'viewready': me.onProjectGridViewReady,
+            'sortchange': me.onProjectGridSelectionChange,
+            'scope': this
+        });
+
     },
+
+
+    /**
+     * The list of projects is (finally...) ready to be displayed.
+     * We need to wait until this one-time event in in order to
+     * set the width of the surface and to perform the first redraw().
+     */
+    onProjectGridViewReady: function() {
+        var me = this;
+        console.log('PO.class.GanttDrawComponent.onProjectGridViewReady');
+        me.surface.setSize(1500, me.surface.height);
+        var selModel = me.objectPanel.getSelectionModel();
+        selModel.selectAll(true);
+        me.redraw();
+    },
+
+    onProjectGridSelectionChange: function() {
+        var me = this;
+        console.log('PO.class.GanttDrawComponent.onProjectGridSelectionChange');
+        me.redraw();
+    },
+
 
     /**
      * Move the project forward or backward in time.
@@ -627,10 +659,10 @@ Ext.define('PO.view.resource_management.ResourceLevelingEditorProjectPanel', {
 	me.drawAxis();					// Draw the top axis
 
         // Draw project bars
-        var projectGridView = me.objectPanel.getView();		// The "view" for the GridPanel, containing HTML elements
+        var objectPanelView = me.objectPanel.getView();		// The "view" for the GridPanel, containing HTML elements
         var projectSelModel = me.objectPanel.getSelectionModel();
         me.objectStore.each(function(model) {
-            var viewNode = projectGridView.getNode(model);	// DIV with project name on the ProjectGrid for Y coo
+            var viewNode = objectPanelView.getNode(model);	// DIV with project name on the ProjectGrid for Y coo
             if (viewNode == null) { return; }			// hidden nodes/models don't have a viewNode
             if (!projectSelModel.isSelected(model)) {
                 return;
@@ -648,9 +680,9 @@ Ext.define('PO.view.resource_management.ResourceLevelingEditorProjectPanel', {
     drawProjectBar: function(project, viewNode) {
         var me = this;
         if (me.debug) { console.log('PO.class.GanttDrawComponent.drawProjectBar: Starting'); }
-        var projectGridView = me.projectGrid.getView();			// The "view" for the GridPanel, containing HTML elements
+        var objectPanelView = me.objectPanel.getView();			// The "view" for the GridPanel, containing HTML elements
         var surface = me.surface;
-        var panelY = me.projectGrid.getY() - 30;
+        var panelY = me.objectPanel.getY() - 30;
 
         var project_name = project.get('project_name');
         var start_date = project.get('start_date').substring(0,10);
@@ -664,7 +696,7 @@ Ext.define('PO.view.resource_management.ResourceLevelingEditorProjectPanel', {
             autoDestroy: true
         });
 
-        var projectY = projectGridView.getNode(project).getBoundingClientRect().top;
+        var projectY = objectPanelView.getNode(project).getBoundingClientRect().top;
         var x = me.date2x(startTime);
         var y = projectY - panelY;
         var w = Math.floor( me.ganttSurfaceWidth * (endTime - startTime) / (me.axisEndDate.getTime() - me.axisStartDate.getTime()));
@@ -803,7 +835,7 @@ Ext.define('PO.view.resource_management.ResourceLevelingEditorCostCenterPanel', 
 
         // Calculate the Y position for the bar, depending on
         var costCenterPanelY = me.costCenterGrid.getBox().top;
-        var projectPanelY = me.projectGrid.getBox().top;
+        var projectPanelY = me.objectPanel.getBox().top;
         var surfacePanelY = me.getBox().top;
         var costCenterDivY = costCenterGridView.getNode(costCenter).getBoundingClientRect().top;
 
