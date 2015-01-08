@@ -185,7 +185,7 @@ Ext.define('PO.view.resource_management.AbstractGanttEditor', {
     debug: 1,
 
     objectPanel: null,					// Set during init: Reference to grid or tree panel at the left
-    objectStore: null,				        // Set during init: Reference to store (tree or flat)
+    objectStore: null,					// Set during init: Reference to store (tree or flat)
 
     // Drag-and-drop state variables
     dndBasePoint: null,					// Drag-and-drop starting point
@@ -203,7 +203,7 @@ Ext.define('PO.view.resource_management.AbstractGanttEditor', {
     axisStartDate: null,
     axisEndDate: null,
     axisStartX: 0,
-    axisEndX: 0,	                                // End of the axis. ToDo: Adapt to screen width
+    axisEndX: 0,					// End of the axis. ToDo: Adapt to screen width
     axisHeight: 20,					// Height of each of the two axis levels
     axisScale: 'month',					// Default scale for the time axis
 
@@ -223,13 +223,13 @@ Ext.define('PO.view.resource_management.AbstractGanttEditor', {
         me.dndBaseSprite = null;			// DnD sprite being draged
         me.dndShadowSprite = null;			// DnD shadow generated for BaseSprite
 
-	me.axisStartX = 0;
-	me.axisEndX = me.ganttSurfaceWidth;
+        me.axisStartX = 0;
+        me.axisEndX = me.ganttSurfaceWidth;
         me.axisStartDate = me.prevMonth(me.reportStartDate);
         me.axisEndDate = me.nextMonth(me.reportEndDate);
 
-	// New Event: Drag-and-Drop for a Gantt bar
-	this.addEvents('objectdnd');
+        // New Event: Drag-and-Drop for a Gantt bar
+        this.addEvents('objectdnd');
 
         // Drag & Drop on the "surface"
         me.on({
@@ -287,7 +287,7 @@ Ext.define('PO.view.resource_management.AbstractGanttEditor', {
 
         // Now using offsetX/offsetY instead of getXY()
         var baseSprite = me.getSpriteForPoint(point);
-        console.log('PO.class.GanttDrawComponent.onMouseDown: '+point+' -> ' + baseSprite);
+        console.log('PO.view.resource_management.AbstractGanttEditor.onMouseDown: '+point+' -> ' + baseSprite);
         if (baseSprite == null) { return; }
 
         var bBox = baseSprite.getBBox();
@@ -333,10 +333,9 @@ Ext.define('PO.view.resource_management.AbstractGanttEditor', {
         var me = this;
         if (me.dndBasePoint == null) { return; }
         var point = me.getMousePoint(e);
-        console.log('PO.class.GanttDrawComponent.onMouseUp: '+point);
+        console.log('PO.view.resource_management.AbstractGanttEditor.onMouseUp: '+point);
 
         // Reset the offset when just clicking
-        console.log('oldX='+me.dndBasePoint[0]+', newX='+point[0]);
         var xDiff = point[0] - me.dndBasePoint[0];
         if (0 == xDiff) {
             // Single click - nothing
@@ -388,10 +387,10 @@ Ext.define('PO.view.resource_management.AbstractGanttEditor', {
      * Draw all Gantt bars
      */
     redraw: function() {
-        console.log('PO.ResourceLevelingEditor.redraw: Needs to be overwritten');
+        console.log('PO.view.resource_management.AbstractGanttEditor.redraw: Needs to be overwritten');
         var me = this;
         me.surface.removeAll();
-	me.drawAxis();					// Draw the top axis
+        me.drawAxis();					// Draw the top axis
     },
 
     /**
@@ -399,10 +398,10 @@ Ext.define('PO.view.resource_management.AbstractGanttEditor', {
      */
     drawAxis: function() {
         var me = this;
-        if (me.debug) { console.log('PO.class.GanttDrawComponent.drawAxis: Starting'); }
-	me.drawAxisYear();
-	me.drawAxisMonth();
-        if (me.debug) { console.log('PO.class.GanttDrawComponent.drawAxis: Finished'); }
+        if (me.debug) { console.log('PO.view.resource_management.AbstractGanttEditor.drawAxis: Starting'); }
+        me.drawAxisYear();
+        me.drawAxisMonth();
+        if (me.debug) { console.log('PO.view.resource_management.AbstractGanttEditor.drawAxis: Finished'); }
     },
 
     /**
@@ -410,39 +409,39 @@ Ext.define('PO.view.resource_management.AbstractGanttEditor', {
      */
     drawAxisYear: function() {
         var me = this;
-        if (me.debug) { console.log('PO.class.GanttDrawComponent.drawAxisYear: Starting'); }
+        if (me.debug) { console.log('PO.view.resource_management.AbstractGanttEditor.drawAxisYear: Starting'); }
 
-	// Draw Yearly blocks
-	var startYear = me.axisStartDate.getFullYear();
-	var endYear = me.axisEndDate.getFullYear();
-	for (var year = startYear; year <= endYear; year++) {
+        // Draw Yearly blocks
+        var startYear = me.axisStartDate.getFullYear();
+        var endYear = me.axisEndDate.getFullYear();
+        for (var year = startYear; year <= endYear; year++) {
             var x = me.date2x(new Date(year+"-01-01"));
             var xEnd = me.date2x(new Date((year+1)+"-01-01"));
             var w = xEnd - x;
             var y = 0;
             var h = me.ganttBarHeight; 							// Height of the bars
-	    
+            
             var axisBar = me.surface.add({
-		type: 'rect',
-		x: x,
-		y: y,
-		width: w,
-		height: h,
-		fill: '#cdf',               // '#ace'
-		stroke: 'grey'
+                type: 'rect',
+                x: x,
+                y: y,
+                width: w,
+                height: h,
+                fill: '#cdf',               // '#ace'
+                stroke: 'grey'
             }).show(true);
 
             var axisText = me.surface.add({
-		type: 'text',
-		text: ""+year,
-		x: x + 2,
-		y: y + (me.ganttBarHeight / 2),
-		fill: '#000',
-		font: "10px Arial"
+                type: 'text',
+                text: ""+year,
+                x: x + 2,
+                y: y + (me.ganttBarHeight / 2),
+                fill: '#000',
+                font: "10px Arial"
             }).show(true);
-	}
+        }
 
-        if (me.debug) { console.log('PO.class.GanttDrawComponent.drawAxisYear: Finished'); }
+        if (me.debug) { console.log('PO.view.resource_management.AbstractGanttEditor.drawAxisYear: Finished'); }
     },
 
 
@@ -452,54 +451,54 @@ Ext.define('PO.view.resource_management.AbstractGanttEditor', {
      */
     drawAxisMonth: function() {
         var me = this;
-        if (me.debug) { console.log('PO.class.GanttDrawComponent.drawAxisMonth: Starting'); }
+        if (me.debug) { console.log('PO.view.resource_management.AbstractGanttEditor: Starting'); }
 
-	// Draw monthly blocks
-	var startYear = me.axisStartDate.getFullYear();
-	var endYear = me.axisEndDate.getFullYear();
-	var startMonth = me.axisStartDate.getMonth();
-	var endMonth = me.axisEndDate.getMonth();
-	var yea = startYear;
-	var mon = startMonth;
-	while (yea * 100 + mon <= endYear * 100 + endMonth) {
+        // Draw monthly blocks
+        var startYear = me.axisStartDate.getFullYear();
+        var endYear = me.axisEndDate.getFullYear();
+        var startMonth = me.axisStartDate.getMonth();
+        var endMonth = me.axisEndDate.getMonth();
+        var yea = startYear;
+        var mon = startMonth;
+        while (yea * 100 + mon <= endYear * 100 + endMonth) {
 
-	    var xEndMon = mon+1;
-	    var xEndYea = yea;
-	    if (xEndMon > 11) { xEndMon = 0; xEndYea = xEndYea + 1; }
+            var xEndMon = mon+1;
+            var xEndYea = yea;
+            if (xEndMon > 11) { xEndMon = 0; xEndYea = xEndYea + 1; }
 
             var x = me.date2x(new Date(yea+"-"+(mon+1)+"-01"));
             var xEnd = me.date2x(new Date(xEndYea+"-"+(xEndMon+1)+"-01"));
             var w = xEnd - x;
             var y = me.ganttBarHeight;
             var h = me.ganttBarHeight; 							// Height of the bars
-	    
+            
             var axisBar = me.surface.add({
-		type: 'rect',
-		x: x,
-		y: y,
-		width: w,
-		height: h,
-		fill: '#cdf',               // '#ace'
-		stroke: 'grey'
+                type: 'rect',
+                x: x,
+                y: y,
+                width: w,
+                height: h,
+                fill: '#cdf',               // '#ace'
+                stroke: 'grey'
             }).show(true);
 
             var axisText = me.surface.add({
-		type: 'text',
-		text: ""+(mon+1),
-		x: x + 2,
-		y: y + (me.ganttBarHeight / 2),
-		fill: '#000',
-		font: "9px Arial"
+                type: 'text',
+                text: ""+(mon+1),
+                x: x + 2,
+                y: y + (me.ganttBarHeight / 2),
+                fill: '#000',
+                font: "9px Arial"
             }).show(true);
 
-	    mon = mon + 1;
-	    if (mon > 11) {
-		mon = 0;
-		yea = yea + 1;
-	    }
-	}
+            mon = mon + 1;
+            if (mon > 11) {
+                mon = 0;
+                yea = yea + 1;
+            }
+        }
 
-        if (me.debug) { console.log('PO.class.GanttDrawComponent.drawAxis: Finished'); }
+        if (me.debug) { console.log('PO.view.resource_management.AbstractGanttEditor.drawAxis: Finished'); }
     },
 
     /**
@@ -526,9 +525,9 @@ Ext.define('PO.view.resource_management.AbstractGanttEditor', {
 
         var axisWidth = me.axisEndX - me.axisStartX;
         var x = me.axisStartX + Math.floor(1.0 * axisWidth * 
-		(1.0 * dateMilliJulian - me.axisStartDate.getTime()) / 
-		(1.0 * me.axisEndDate.getTime() - me.axisStartDate.getTime())
-	);
+                (1.0 * dateMilliJulian - me.axisStartDate.getTime()) / 
+                (1.0 * me.axisEndDate.getTime() - me.axisStartDate.getTime())
+        );
         if (x < 0) { x = 0; }
         return x;
     },
@@ -586,8 +585,8 @@ Ext.define('PO.view.resource_management.ResourceLevelingEditorProjectPanel', {
             'objectdnd': me.onProjectMove,
             'scope': this
         });
-	
-	// Catch the moment when the "view" of the Project grid
+        
+        // Catch the moment when the "view" of the Project grid
         // is ready in order to draw the GanttBars for the first time.
         // The view seems to take a while...
         me.objectPanel.on({
@@ -606,7 +605,7 @@ Ext.define('PO.view.resource_management.ResourceLevelingEditorProjectPanel', {
      */
     onProjectGridViewReady: function() {
         var me = this;
-        console.log('PO.class.GanttDrawComponent.onProjectGridViewReady');
+        console.log('PO.view.resource_management.ResourceLevelingEditorProjectPanel.onProjectGridViewReady');
         me.surface.setSize(1500, me.surface.height);
         var selModel = me.objectPanel.getSelectionModel();
         selModel.selectAll(true);
@@ -615,7 +614,7 @@ Ext.define('PO.view.resource_management.ResourceLevelingEditorProjectPanel', {
 
     onProjectGridSelectionChange: function() {
         var me = this;
-        console.log('PO.class.GanttDrawComponent.onProjectGridSelectionChange');
+        console.log('PO.view.resource_management.ResourceLevelingEditorProjectPanel.onProjectGridSelectionChange');
         me.redraw();
     },
 
@@ -627,7 +626,7 @@ Ext.define('PO.view.resource_management.ResourceLevelingEditorProjectPanel', {
      */
     onProjectMove: function(baseSprite, projectModel, xDiff) {
         var me = this;
-        console.log('PO.class.GanttDrawComponent.onProjectMove: '+projectModel.get('id') + ', ' + xDiff);
+        console.log('PO.view.resource_management.ResourceLevelingEditorProjectPanel.onProjectMove: '+projectModel.get('id') + ', ' + xDiff);
 
         var bBox = me.dndBaseSprite.getBBox();
         var diffTime = Math.floor(1.0 * xDiff * (me.axisEndDate.getTime() - me.axisStartDate.getTime()) / (me.axisEndX - me.axisStartX));
@@ -651,12 +650,12 @@ Ext.define('PO.view.resource_management.ResourceLevelingEditorProjectPanel', {
      * Draw all Gantt bars
      */
     redraw: function() {
-        console.log('PO.ResourceLevelingEditor.redraw: Starting');
+        console.log('PO.view.resource_management.ResourceLevelingEditorProjectPanel.redraw: Starting');
         var me = this;
 
-	if (undefined === me.surface) { return; }
+        if (undefined === me.surface) { return; }
         me.surface.removeAll();
-	me.drawAxis();					// Draw the top axis
+        me.drawAxis();					// Draw the top axis
 
         // Draw project bars
         var objectPanelView = me.objectPanel.getView();		// The "view" for the GridPanel, containing HTML elements
@@ -670,7 +669,7 @@ Ext.define('PO.view.resource_management.ResourceLevelingEditorProjectPanel', {
             me.drawProjectBar(model, viewNode);
         });
 
-        console.log('PO.ResourceLevelingEditor.redraw: Finished');
+        console.log('PO.view.resource_management.ResourceLevelingEditorProjectPanel.redraw: Finished');
     },
 
 
@@ -679,7 +678,7 @@ Ext.define('PO.view.resource_management.ResourceLevelingEditorProjectPanel', {
      */
     drawProjectBar: function(project, viewNode) {
         var me = this;
-        if (me.debug) { console.log('PO.class.GanttDrawComponent.drawProjectBar: Starting'); }
+        if (me.debug) { console.log('PO.view.resource_management.ResourceLevelingEditorProjectPanel.drawProjectBar: Starting'); }
         var objectPanelView = me.objectPanel.getView();			// The "view" for the GridPanel, containing HTML elements
         var surface = me.surface;
         var panelY = me.objectPanel.getY() - 30;
@@ -701,7 +700,7 @@ Ext.define('PO.view.resource_management.ResourceLevelingEditorProjectPanel', {
         var y = projectY - panelY;
         var w = Math.floor( me.ganttSurfaceWidth * (endTime - startTime) / (me.axisEndDate.getTime() - me.axisStartDate.getTime()));
         var h = me.ganttBarHeight; 							// Height of the bars
-        var d = Math.floor(h / 2.0) + 1;    				// Size of the indent of the super-project bar
+        var d = Math.floor(h / 2.0) + 1;				// Size of the indent of the super-project bar
 
         var spriteBar = surface.add({
             type: 'rect',
@@ -765,7 +764,7 @@ Ext.define('PO.view.resource_management.ResourceLevelingEditorProjectPanel', {
         }).show(true);
         spriteGroup.add(spritePath);
 
-        if (me.debug) { console.log('PO.class.GanttDrawComponent.drawProjectBar: Finished'); }
+        if (me.debug) { console.log('PO.view.resource_management.ResourceLevelingEditorProjectPanel.drawProjectBar: Finished'); }
     }
 
 });
@@ -787,19 +786,46 @@ Ext.define('PO.view.resource_management.ResourceLevelingEditorCostCenterPanel', 
     initComponent: function() {
         var me = this;
         this.callParent(arguments);
+
+        // Catch the moment when the "view" of the CostCenter grid
+        // is ready in order to draw the GanttBars for the first time.
+        // The view seems to take a while...
+        me.objectPanel.on({
+            'viewready': me.onCostCenterGridViewReady,
+            'sortchange': me.onCostCenterGridSelectionChange,
+            'scope': this
+        });
+    },
+
+    /**
+     * The list of cost centers is (finally...) ready to be displayed.
+     * We need to wait until this one-time event in in order to
+     * set the width of the surface and to perform the first redraw().
+     */
+    onCostCenterGridViewReady: function() {
+        var me = this;
+        console.log('PO.view.resource_management.ResourceLevelingEditorCostCenterPanel.onCostCenterGridViewReady');
+        me.surface.setSize(1500, me.surface.height);
+        me.redraw();
+    },
+
+    onCostCenterGridSelectionChange: function() {
+        var me = this;
+        console.log('PO.view.resource_management.ResourceLevelingEditorCostCenterPanel.onCostCenterGridSelectionChange');
+        me.redraw();
     },
 
     /**
      * Draw all Gantt bars
      */
     redraw: function() {
-        console.log('PO.ResourceLevelingEditor.redraw: Starting');
+        console.log('PO.view.resource_management.ResourceLevelingEditorCostCenterPanel.redraw: Starting');
         var me = this;
 
-	if (undefined === me.surface) { return; }
+        if (undefined === me.surface) { return; }
 
         me.surface.removeAll();
-	me.drawAxis();					// Draw the top axis
+        me.drawAxis();					// Draw the top axis
 
         // Draw CostCenter bars
         var costCenterStore = me.objectStore;
@@ -810,7 +836,7 @@ Ext.define('PO.view.resource_management.ResourceLevelingEditorCostCenterPanel', 
             me.drawCostCenterBar(model, viewNode);
         });
 
-        console.log('PO.ResourceLevelingEditor.redraw: Finished');
+        console.log('PO.view.resource_management.ResourceLevelingEditorCostCenterPanel.redraw: Finished');
     },
 
     /**
@@ -818,8 +844,8 @@ Ext.define('PO.view.resource_management.ResourceLevelingEditorCostCenterPanel', 
      */
     drawCostCenterBar: function(costCenter, viewNode) {
         var me = this;
-        if (me.debug) { console.log('PO.class.GanttDrawComponent.drawCostCenterBar: Starting'); }
-        var costCenterGridView = me.costCenterGrid.getView();			// The "view" for the GridPanel, containing HTML elements
+        if (me.debug) { console.log('PO.view.resource_management.ResourceLevelingEditorCostCenterPanel.drawCostCenterBar: Starting'); }
+        var costCenterGridView = me.objectPanel.getView();			// The "view" for the GridPanel, containing HTML elements
         var surface = me.surface;
 
         var start_date = me.axisStartDate.toISOString().substring(0,10);
@@ -834,7 +860,7 @@ Ext.define('PO.view.resource_management.ResourceLevelingEditorCostCenterPanel', 
         });
 
         // Calculate the Y position for the bar, depending on
-        var costCenterPanelY = me.costCenterGrid.getBox().top;
+        var costCenterPanelY = me.objectPanel.getBox().top;
         var projectPanelY = me.objectPanel.getBox().top;
         var surfacePanelY = me.getBox().top;
         var costCenterDivY = costCenterGridView.getNode(costCenter).getBoundingClientRect().top;
@@ -844,7 +870,7 @@ Ext.define('PO.view.resource_management.ResourceLevelingEditorCostCenterPanel', 
         var x = me.date2x(startTime);
         var w = Math.floor( me.ganttSurfaceWidth * (endTime - startTime) / (me.axisEndDate.getTime() - me.axisStartDate.getTime()));
         var h = me.ganttBarHeight; 							// Height of the bars
-        var d = Math.floor(h / 2.0) + 1;    				// Size of the indent of the super-costCenter bar
+        var d = Math.floor(h / 2.0) + 1;				// Size of the indent of the super-costCenter bar
 
         var spriteBar = surface.add({
             type: 'rect',
@@ -942,7 +968,7 @@ Ext.define('PO.view.resource_management.ResourceLevelingEditorCostCenterPanel', 
 
 
 
-        if (me.debug) { console.log('PO.class.GanttDrawComponent.drawCostCenterBar: Finished'); }
+        if (me.debug) { console.log('PO.view.resource_management.ResourceLevelingEditorCostCenterPanel.drawCostCenterBar: Finished'); }
     }
 });
 
@@ -975,17 +1001,17 @@ function launchApplication(){
     var projectGrid = Ext.create('Ext.grid.Panel', {
         title: false,
         region: 'west',
-	width: gridWidth,
+        width: gridWidth,
 //	height: projectGridHeight,
         store: 'projectResourceLoadStore',
 /*
-	autoScroll: true,
-	overflowX: 'scroll',
-	overflowY: 'scroll',
+        autoScroll: true,
+        overflowX: 'scroll',
+        overflowY: 'scroll',
 */
-	autoScroll: true,
-	overflowX: false,
-	overflowY: false,
+        autoScroll: true,
+        overflowX: false,
+        overflowY: false,
 
 
         selModel: projectGridSelectionModel,
@@ -1001,7 +1027,7 @@ function launchApplication(){
             text: 'End',
             dataIndex: 'end_date',
             width: 80,
-	    hidden: true
+            hidden: true
         }],
         shrinkWrap: true
     });
@@ -1009,13 +1035,13 @@ function launchApplication(){
     var costCenterGridSelectionModel = Ext.create('Ext.selection.CheckboxModel');
     var costCenterGrid = Ext.create('Ext.grid.Panel', {
         title: false,
-	width: gridWidth,
+        width: gridWidth,
 //        height: costCenterGridHeight,
         region: 'west',
         store: 'costCenterResourceLoadStore',
-	autoScroll: true,
-	overflowX: false,
-	overflowY: false,
+        autoScroll: true,
+        overflowX: false,
+        overflowY: false,
         // selModel: costCenterGridSelectionModel,                     // We don't need to select departments
         columns: [{
             text: 'Departments',
@@ -1032,7 +1058,7 @@ function launchApplication(){
 
     // Drawing area for for Gantt Bars
     var resourceLevelingEditorProjectPanel = Ext.create('PO.view.resource_management.ResourceLevelingEditorProjectPanel', {
-	title: false,
+        title: false,
 //        height: projectGridHeight,
         region: 'center',
         viewBox: false,
@@ -1054,7 +1080,7 @@ function launchApplication(){
         }],
         overflowX: 'scroll',				// Allows for horizontal scrolling, but not vertical
         scrollFlags: {x: true},
-	objectStore: projectResourceLoadStore,
+        objectStore: projectResourceLoadStore,
         objectPanel: projectGrid,
         reportStartDate: new Date('@report_start_date@'),
         reportEndDate: new Date('@report_end_date@')
@@ -1063,7 +1089,7 @@ function launchApplication(){
 
     // Drawing area for for Gantt Bars
     var resourceLevelingEditorCostCenterPanel = Ext.create('PO.view.resource_management.ResourceLevelingEditorCostCenterPanel', {
-	title: false,
+        title: false,
 //        height: costCenterGridHeight,
         region: 'center',
         viewBox: false,
@@ -1085,11 +1111,8 @@ function launchApplication(){
         }],
         overflowX: 'scroll',				// Allows for horizontal scrolling, but not vertical
         scrollFlags: {x: true},
-
-//        objectStore: costCenterResourceLoadStore,
-	objectStore: projectResourceLoadStore,
-
-	objectPanel: costCenterGrid,
+        objectStore: costCenterResourceLoadStore,
+        objectPanel: costCenterGrid,
         reportStartDate: new Date('@report_start_date@'),
         reportEndDate: new Date('@report_end_date@')
     });
@@ -1111,7 +1134,7 @@ function launchApplication(){
             bodyPadding: 0
         },
         items: [{
-	    title: false,
+            title: false,
             region: 'north',
             height: projectGridHeight,
             xtype: 'panel',
@@ -1122,9 +1145,9 @@ function launchApplication(){
                 resourceLevelingEditorProjectPanel
             ]
         }, {
-	    title: false,
+            title: false,
             region: 'center',
-	    height: costCenterGridHeight,
+            height: costCenterGridHeight,
             xtype: 'panel',
             layout: 'border',
             shrinkWrap: true,
@@ -1138,9 +1161,8 @@ function launchApplication(){
 
     var onWindowResize = function () {
         // ToDo: Try to find out if there is another onWindowResize Event waiting
-//        var borderPanelHeight = (listProjectsAddOnHeight + listCostCenterAddOnHeight) + listCellHeight * numProjectsPlusCostCenters;
-//        var width = Ext.getBody().getViewSize().width - 350;
-//        borderPanel.setSize(width, borderPanelHeight);
+        var width = Ext.getBody().getViewSize().width - 350;
+        borderPanel.setSize(width, borderPanelHeight);
 //        var surface = resourceLevelingEditorProjectPanel.surface;
 //        surface.setSize(1500, surface.height);
 
@@ -1186,10 +1208,9 @@ Ext.onReady(function() {
 
     projectResourceLoadStore.load({
         callback: function() {
-            console.log('PO.store.resource_management.ProjectResourceLoadStore: loaded');
-
-	    // Now load the cost center load for the current 
-	    costCenterResourceLoadStore.loadWithProjectData(projectResourceLoadStore)
+            console.log('PO.controller.StoreLoadCoordinator.projectResourceLoadStore: loaded');
+            // Now load the cost center load for the current 
+            costCenterResourceLoadStore.loadWithProjectData(projectResourceLoadStore)
         }
     });
 
