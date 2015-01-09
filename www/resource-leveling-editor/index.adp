@@ -29,8 +29,6 @@ Ext.require([
     'Ext.data.*',
     'Ext.grid.*',
     'Ext.tree.*',
-    'PO.model.project.Project',
-    'PO.store.project.ProjectMainStore',
     'PO.controller.StoreLoadCoordinator'
 ]);
 
@@ -53,7 +51,6 @@ Ext.define('PO.model.resource_management.ProjectResourceLoadModel', {
         'max_assigned_days',			// Maximum of assignment for a single unit (day or week)
 
 	'projectGridSelected',			// Did the user check the project in the ProjectGrid?
-        'sprite_group',				// Sprite group representing the project bar
         { name: 'end_date_date',		// end_date as Date, required by Chart
           convert: function(value, record) {
               var end_date = record.get('end_date');
@@ -99,8 +96,7 @@ Ext.define('PO.model.resource_management.CostCenterResourceLoadModel', {
         'cost_center_name',			// The name of the cost_center
         'assigned_resources',			// Number of full-time resources being a member of this CC
         'available_days',			// Array with J -> available days, starting with start_date
-        'assigned_days',			// Array with J -> assigned days, starting with start_date
-        'sprite_group'				// Sprite group representing the cost center bar
+        'assigned_days'			// Array with J -> assigned days, starting with start_date
     ]
 });
 
@@ -115,12 +111,6 @@ Ext.define('PO.store.resource_management.CostCenterResourceLoadStore', {
         type:			'rest',			// Standard ]po[ REST interface for loading
         url:			'/intranet-resource-management/resource-leveling-editor/cost-center-resource-availability.json',
         timeout:		300000,
-        extraParams: {
-            format:             'json',
-            granularity:	'@report_granularity@',	// 'week' or 'day'
-            report_start_date:	report_start_date,	// When to start
-            report_end_date:	report_end_date		// when to end
-        },
         reader: {
             type:		'json',			// Tell the Proxy Reader to parse JSON
             root:		'data',			// Where do the data start in the JSON file?
@@ -143,8 +133,8 @@ Ext.define('PO.store.resource_management.CostCenterResourceLoadStore', {
         proxy.extraParams = {
             format:             'json',
             granularity:	'@report_granularity@',				// 'week' or 'day'
-            report_start_date:	'@report_start_date@'.substring(0,10),		// When to start
-            report_end_date:	'@report_end_date@'.substring(0,10)		// when to end
+            report_start_date:	report_start_date.substring(0,10),		// When to start
+            report_end_date:	report_end_date.substring(0,10)		// when to end
         };
 
         // Write the simulation start- and end dates as parameters to the store
@@ -383,6 +373,53 @@ Ext.define('PO.view.resource_management.AbstractGanttEditor', {
         var me = this;
         me.surface.removeAll();
         me.drawAxis();					// Draw the top axis
+    },
+
+    /**
+     * Draws a graph on a Gantt bar that consists of:
+     * - ganttSprite is the actual sprite for the bar and defines the base coordinates
+     * - graphArray is an array for the individual values
+     * - maxGraphArray is the max value of the graphArray ("100%")
+     * - startDate corresponds to ganttSprite.x
+     * - intervalTimeMilliseconds is the duration of each interval (1 day or 1 week)
+     * The graph will range between 0 (bottom of the Gantt bar) and 
+     * maxGraphArray (top of the Gantt bar).
+     */
+    graphOnGanttBar: function(ganttSprite, model, graphArray, maxGraphArray, startDate, intervalTimeMilliseconds) {
+        var me = this;
+        if (me.debug) { console.log('PO.view.resource_management.ResourceLevelingEditorCostCenterPanel.drawGraphOnGanttBar: Starting'); }
+
+        var len = graphArray.length;
+	var startX = ganttSprite.x;
+	var endX = ganttSprite.x + ganttSprite.width;
+	var baseY = ganttSprite.y + ganttSprite.height;
+	var baseHeight = ganttSprite.height;
+	
+	var intervalStartDate = startDate;
+	var intervalStartX =  me.date2x(intervalStartDate);
+	var intervalEndDate, intervalY;
+
+        var path = "";
+        for (var i = 0; i < len; i++) {
+            intervalEndDate = new Date(intervalStartDate.getTime() + intervalTimeMilliseconds);
+	    
+            // Convert start and end date of the interval to x coordinates
+            intervalStartX = me.date2x(intervalStartDate);
+            intervalEndX = me.date2x(intervalEndDate);
+
+	    if (intervalEndX > endX + 1) { continue; }
+
+            intervalY = Math.floor(baseY - (graphArray[i] / maxGraphArray) * baseHeight);
+	    if (0 == i) { 
+		path = path + "M" + intervalStartX + " " + intervalY;   // Start point for path
+	    } else {
+		path = path + " L" + intervalEndX + " " + intervalY;
+	    }
+
+            // The former end of the interval becomes the start for the next interval
+            intervalStartDate = intervalEndDate;
+        }
+	return path;
     },
 
     /**
@@ -696,12 +733,6 @@ Ext.define('PO.view.resource_management.ResourceLevelingEditorProjectPanel', {
         var startTime = new Date(start_date).getTime();
         var endTime = new Date(end_date).getTime();
 
-        // Used for grouping all sprites into one group
-        var spriteGroup = Ext.create('Ext.draw.CompositeSprite', {
-            surface: surface,
-            autoDestroy: true
-        });
-
         var projectY = objectPanelView.getNode(project).getBoundingClientRect().top;
         var x = me.date2x(startTime);
         var y = projectY - panelY;
@@ -726,50 +757,19 @@ Ext.define('PO.view.resource_management.ResourceLevelingEditorProjectPanel', {
         }).show(true);
 
         spriteBar.model = project;					// Store the task information for the sprite
-        spriteGroup.add(spriteBar);
-
-        // Store the start and end points of the bar
-        var id = project.get('id');
 
 
-        // -----------------------------------------------------------
-        // Draw assigned resources bar
-        //
+        // Draw availability percentage
         var assignedDays = project.get('assigned_days');
         var maxAssignedDays = project.get('max_assigned_days');
-        var len = assignedDays.length;
-        var weekStartDate = new Date(project.get('start_date'));
-        var weekStartX = me.date2x(weekStartDate);
-        var weekEndX, weekEndDate;
-
-        var actualAssignedDaysPerInterval = assignedDays[0];
-        var costCenterLoadPercentage = 100.0 * actualAssignedDaysPerInterval / maxAssignedDays
-        var weekY = Math.floor(y + me.ganttBarHeight * (1 - costCenterLoadPercentage / 100.0));
-
-        var path = "M"+weekStartX+" "+weekY;                            // Start point for path
-        // ToDo: Reset startDate to the start of the start of the respective week
-        for (var i = 0; i < len; i++) {
-            weekEndDate = new Date(weekStartDate.getTime() + 1000.0 * 3600 * 24 * 7);
-            // Convert start and end date of the interval to x coordinates
-            weekStartX = me.date2x(weekStartDate);
-            weekEndX = me.date2x(weekEndDate);
-
-            actualAssignedDaysPerInterval = assignedDays[i];
-            costCenterLoadPercentage = 100.0 * actualAssignedDaysPerInterval / maxAssignedDays
-            weekY = Math.floor(y + me.ganttBarHeight * (1 - costCenterLoadPercentage / 100.0));
-
-            path = path + " L" + weekEndX + " " + weekY;
-            // The former end of the week becomes the start for the next week
-            weekStartDate = weekEndDate;
-        }
-
+	var intervalTimeMilliseconds = 1000.0 * 3600 * 24 * 1; // One day
+	var path = me.graphOnGanttBar(spriteBar, project, assignedDays, maxAssignedDays, new Date(startTime), intervalTimeMilliseconds);
         var spritePath = surface.add({
             type: 'path',
             stroke: 'blue',
             'stroke-width': 1,
             path: path
         }).show(true);
-        spriteGroup.add(spritePath);
 
         if (me.debug) { console.log('PO.view.resource_management.ResourceLevelingEditorProjectPanel.drawProjectBar: Finished'); }
     }
@@ -872,25 +872,19 @@ Ext.define('PO.view.resource_management.ResourceLevelingEditorCostCenterPanel', 
         var costCenterGridView = me.objectPanel.getView();			// The "view" for the GridPanel, containing HTML elements
         var surface = me.surface;
 
-        var start_date = me.axisStartDate.toISOString().substring(0,10);
-        var end_date = me.axisEndDate.toISOString().substring(0,10);
-        var startTime = new Date(start_date).getTime();
-        var endTime = new Date(end_date).getTime();
-
-        // Used for grouping all sprites into one group
-        var spriteGroup = Ext.create('Ext.draw.CompositeSprite', {
-            surface: surface,
-            autoDestroy: true
-        });
-
         // Calculate the Y position for the bar, depending on
         var costCenterPanelY = me.objectPanel.getBox().top;
         var projectPanelY = me.objectPanel.getBox().top;
         var surfacePanelY = me.getBox().top;
         var costCenterDivY = costCenterGridView.getNode(costCenter).getBoundingClientRect().top;
 
-        var y = (costCenterPanelY - surfacePanelY) + (costCenterDivY - costCenterPanelY) + 5;
+	// Calculate auxillary start- and end dates
+        var start_date = me.axisStartDate.toISOString().substring(0,10);
+        var end_date = me.axisEndDate.toISOString().substring(0,10);
+        var startTime = new Date(start_date).getTime();
+        var endTime = new Date(end_date).getTime();
 
+        var y = (costCenterPanelY - surfacePanelY) + (costCenterDivY - costCenterPanelY) + 5;
         var x = me.date2x(startTime);
         var w = Math.floor( me.ganttSurfaceWidth * (endTime - startTime) / (me.axisEndDate.getTime() - me.axisStartDate.getTime()));
         var h = me.ganttBarHeight; 							// Height of the bars
@@ -898,10 +892,7 @@ Ext.define('PO.view.resource_management.ResourceLevelingEditorCostCenterPanel', 
 
         var spriteBar = surface.add({
             type: 'rect',
-            x: x,
-            y: y,
-            width: w,
-            height: h,
+            x: x, y: y, width: w, height: h,
             radius: 3,
             fill: 'url(#gradientId)',
             stroke: 'blue',
@@ -911,89 +902,21 @@ Ext.define('PO.view.resource_management.ResourceLevelingEditorCostCenterPanel', 
                 mouseout: function()  { this.animate({duration: 500, to: {'stroke-width': 0.3}}); }
             }
         }).show(true);
-
         spriteBar.model = costCenter;					// Store the task information for the sprite
-        spriteGroup.add(spriteBar);
 
-        // Store the start and end points of the bar
-        var id = costCenter.get('id');
-
-        // -----------------------------------------------------------
         // Draw availability percentage
-        //
-        var availableDays = costCenter.get('available_days');
-        var len = availableDays.length;
-        var weekStartDate = new Date(me.axisStartDate);
-        var weekStartX, weekEndX, weekY, weekEndDate;
-        weekStartX = me.date2x(weekStartDate);
-        weekY = Math.floor(y + availableDays[0]);
-        var path = "M"+weekStartX+" "+weekY;                            // Start point for path
-        // ToDo: Reset startDate to the start of the start of the respective week
-        for (var i = 0; i < len; i++) {
-            weekEndDate = new Date(weekStartDate.getTime() + 1000.0 * 3600 * 24 * 7);
-            // Convert start and end date of the interval to x coordinates
-            weekStartX = me.date2x(weekStartDate);
-            weekEndX = me.date2x(weekEndDate);
-
-            var actualAvailableDaysPerInterval = availableDays[i];
-            var daysPerInterval = me.granularityWorkDays * costCenter.get('assigned_resources');
-            var costCenterLoadPercentage = 100.0 * actualAvailableDaysPerInterval / daysPerInterval
-
-            weekY = Math.floor(y + me.ganttBarHeight * (1 - costCenterLoadPercentage / 100.0));
-            path = path + " L" + weekEndX + " " + weekY;
-            // The former end of the week becomes the start for the next week
-            weekStartDate = weekEndDate;
-        }
-
+        var availableDays = costCenter.get('available_days'); // Array of available days since report_start_date
+        var maxAvailableDays = costCenter.get('assigned_resources'); // Should be the maximum of availableDays
+	var intervalTimeMilliseconds = 1000.0 * 3600 * 24 * 1; // One day
+	var path = me.graphOnGanttBar(spriteBar, costCenter, availableDays, maxAvailableDays, new Date(startTime), intervalTimeMilliseconds);
         var spritePath = surface.add({
             type: 'path',
             stroke: 'blue',
             'stroke-width': 1,
             path: path
         }).show(true);
-        spriteGroup.add(spritePath);
-
-
-
-        // -----------------------------------------------------------
-        // Draw assignment percentage
-        //
-        var assignedDays = costCenter.get('assigned_days');
-        var len = assignedDays.length;
-        var weekStartDate = new Date(me.axisStartDate);
-        var weekStartX, weekEndX, weekY, weekEndDate;
-        weekStartX = me.date2x(weekStartDate);
-        weekY = Math.floor(y + assignedDays[0]);
-        var path = "M"+weekStartX+" "+weekY;                            // Start point for path
-        // ToDo: Reset startDate to the start of the start of the respective week
-        for (var i = 0; i < len; i++) {
-            weekEndDate = new Date(weekStartDate.getTime() + 1000.0 * 3600 * 24 * 7);
-            // Convert start and end date of the interval to x coordinates
-            weekStartX = me.date2x(weekStartDate);
-            weekEndX = me.date2x(weekEndDate);
-
-            var actualAssignedDaysPerInterval = assignedDays[i];
-            var daysPerInterval = me.granularityWorkDays * costCenter.get('assigned_resources');
-            var costCenterLoadPercentage = 100.0 * actualAssignedDaysPerInterval / daysPerInterval
-
-            weekY = Math.floor(y + me.ganttBarHeight * (1 - costCenterLoadPercentage / 100.0));
-            path = path + " L" + weekEndX + " " + weekY;
-            // The former end of the week becomes the start for the next week
-            weekStartDate = weekEndDate;
-        }
-
-        var spritePath = surface.add({
-            type: 'path',
-            stroke: 'red',
-            'stroke-width': 1,
-            path: path
-        }).show(true);
-        spriteGroup.add(spritePath);
-
-
-
-        if (me.debug) { console.log('PO.view.resource_management.ResourceLevelingEditorCostCenterPanel.drawCostCenterBar: Finished'); }
     }
+
 });
 
 
@@ -1105,8 +1028,8 @@ function launchApplication(){
         scrollFlags: {x: true},
         objectStore: costCenterResourceLoadStore,
         objectPanel: costCenterGrid,
-        reportStartDate: new Date('@report_start_date@'),
-        reportEndDate: new Date('@report_end_date@')
+        reportStartDate: new Date(report_start_date),
+        reportEndDate: new Date(report_end_date)
     });
 
     // Drawing area for for Gantt Bars
@@ -1135,8 +1058,8 @@ function launchApplication(){
         scrollFlags: {x: true},
         objectStore: projectResourceLoadStore,
         objectPanel: projectGrid,
-        reportStartDate: new Date('@report_start_date@'),
-        reportEndDate: new Date('@report_end_date@'),
+        reportStartDate: new Date(report_start_date),
+        reportEndDate: new Date(report_end_date),
 
 	// Reference to the CostCenter store
 	costCenterResourceLoadStore: costCenterResourceLoadStore
