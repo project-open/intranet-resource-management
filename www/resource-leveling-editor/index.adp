@@ -201,7 +201,7 @@ Ext.define('PO.view.resource_management.AbstractGanttEditor', {
     axisEndDate: null,
     axisStartX: 0,
     axisEndX: 0,					// End of the axis. ToDo: Adapt to screen width
-    axisHeight: 20,					// Height of each of the two axis levels
+    axisHeight: 11,					// Height of each of the two axis levels
     axisScale: 'month',					// Default scale for the time axis
 
     granularity: '@report_granularity@',		// 'week' or 'day' currently
@@ -237,17 +237,6 @@ Ext.define('PO.view.resource_management.AbstractGanttEditor', {
             'scope': this
         });
 
-        // Granularity
-        switch(me.granularity) {
-        case 'week':
-            me.granularityWorkDays = 5;
-            break;
-        case 'day':
-            me.granularityWorkDays = 1;
-            break;
-        default:
-            alert('Undefined granularity: '+me.granularity);
-        }
     },
 
     /**
@@ -381,15 +370,35 @@ Ext.define('PO.view.resource_management.AbstractGanttEditor', {
      * - graphArray is an array for the individual values
      * - maxGraphArray is the max value of the graphArray ("100%")
      * - startDate corresponds to ganttSprite.x
-     * - intervalTimeMilliseconds is the duration of each interval (1 day or 1 week)
      * The graph will range between 0 (bottom of the Gantt bar) and 
      * maxGraphArray (top of the Gantt bar).
      */
-    graphOnGanttBar: function(ganttSprite, model, graphArray, maxGraphArray, startDate, intervalTimeMilliseconds) {
+    graphOnGanttBar: function(ganttSprite, model, graphArray, maxGraphArray, startDate) {
         var me = this;
         if (me.debug) { console.log('PO.view.resource_management.ResourceLevelingEditorCostCenterPanel.drawGraphOnGanttBar: Starting'); }
 
+        // Granularity
+        var intervalTimeMilliseconds;
+        switch(me.granularity) {
+        case 'week':
+            intervalTimeMilliseconds = 1000.0 * 3600 * 24 * 7.0; // One day
+            break;
+        case 'day':
+            intervalTimeMilliseconds = 1000.0 * 3600 * 24 * 1.0; // One day
+            break;
+        default:
+            alert('Undefined granularity: '+me.granularity);
+        }
+
+        // Calculate the biggest element of the graphArray
         var len = graphArray.length;
+        if (null === maxGraphArray || 0.0 == maxGraphArray) {
+            var maxGraphArray = 0.0;
+            for (var i = 0; i < len; i++) {
+                if (graphArray[i] > maxGraphArray) { maxGraphArray = graphArray[i]; };
+            }
+        }
+
         var startX = ganttSprite.x;
         var endX = ganttSprite.x + ganttSprite.width;
         var baseY = ganttSprite.y + ganttSprite.height;
@@ -397,12 +406,11 @@ Ext.define('PO.view.resource_management.AbstractGanttEditor', {
         
         var intervalEndDate, intervalY;
 
-        var i = 0;
         var intervalStartDate = startDate;
         var intervalStartX =  me.date2x(intervalStartDate);
 
-        intervalY = Math.floor(baseY - (graphArray[i] / maxGraphArray) * baseHeight) + 0.5;
-        var path = path + "M" + intervalStartX + " " + intervalY;   // Start point for path
+        intervalY = Math.floor(baseY - (graphArray[0] / maxGraphArray) * baseHeight) + 0.5;
+        var path = "M" + intervalStartX + " " + intervalY;   // Start point for path
 
         for (i = 0; i < len; i++) {
             intervalEndDate = new Date(intervalStartDate.getTime() + intervalTimeMilliseconds);
@@ -444,12 +452,13 @@ Ext.define('PO.view.resource_management.AbstractGanttEditor', {
         // Draw Yearly blocks
         var startYear = me.axisStartDate.getFullYear();
         var endYear = me.axisEndDate.getFullYear();
+        var y = 0;
+        var h = me.axisHeight; 							// Height of the bars
+
         for (var year = startYear; year <= endYear; year++) {
             var x = me.date2x(new Date(year+"-01-01"));
             var xEnd = me.date2x(new Date((year+1)+"-01-01"));
             var w = xEnd - x;
-            var y = 0;
-            var h = me.ganttBarHeight; 							// Height of the bars
             
             var axisBar = me.surface.add({
                 type: 'rect',
@@ -465,16 +474,13 @@ Ext.define('PO.view.resource_management.AbstractGanttEditor', {
                 type: 'text',
                 text: ""+year,
                 x: x + 2,
-                y: y + (me.ganttBarHeight / 2),
+                y: y + (me.axisHeight / 2),
                 fill: '#000',
                 font: "10px Arial"
             }).show(true);
         }
-
         if (me.debug) { console.log('PO.view.resource_management.AbstractGanttEditor.drawAxisYear: Finished'); }
     },
-
-
 
     /**
      * Draw a date axis on the top of the diagram
@@ -490,17 +496,18 @@ Ext.define('PO.view.resource_management.AbstractGanttEditor', {
         var endMonth = me.axisEndDate.getMonth();
         var yea = startYear;
         var mon = startMonth;
+
+        var y = me.axisHeight;
+        var h = me.axisHeight; 							// Height of the bars
+
         while (yea * 100 + mon <= endYear * 100 + endMonth) {
 
             var xEndMon = mon+1;
             var xEndYea = yea;
             if (xEndMon > 11) { xEndMon = 0; xEndYea = xEndYea + 1; }
-
             var x = me.date2x(new Date(yea+"-"+(mon+1)+"-01"));
             var xEnd = me.date2x(new Date(xEndYea+"-"+(xEndMon+1)+"-01"));
             var w = xEnd - x;
-            var y = me.ganttBarHeight;
-            var h = me.ganttBarHeight; 							// Height of the bars
             
             var axisBar = me.surface.add({
                 type: 'rect',
@@ -516,7 +523,7 @@ Ext.define('PO.view.resource_management.AbstractGanttEditor', {
                 type: 'text',
                 text: ""+(mon+1),
                 x: x + 2,
-                y: y + (me.ganttBarHeight / 2),
+                y: y + (me.axisHeight / 2),
                 fill: '#000',
                 font: "9px Arial"
             }).show(true);
@@ -756,15 +763,20 @@ Ext.define('PO.view.resource_management.ResourceLevelingEditorProjectPanel', {
                 mouseout: function()  { this.animate({duration: 500, to: {'stroke-width': 0.3}}); }
             }
         }).show(true);
-
         spriteBar.model = project;					// Store the task information for the sprite
 
+        var projectText = me.surface.add({
+            type: 'text',
+            text: project_name,
+            x: x + 1 + h/2.0,
+            y: y + 1 + h/2.0,
+            fill: '#000',
+            font: "11px Arial"
+        }).show(true);
 
         // Draw availability percentage
         var assignedDays = project.get('assigned_days');
-        var maxAssignedDays = project.get('max_assigned_days');
-        var intervalTimeMilliseconds = 1000.0 * 3600 * 24 * 1; // One day
-        var path = me.graphOnGanttBar(spriteBar, project, assignedDays, maxAssignedDays, new Date(startTime), intervalTimeMilliseconds);
+        var path = me.graphOnGanttBar(spriteBar, project, assignedDays, null, new Date(startTime));
         var spritePath = surface.add({
             type: 'path',
             stroke: 'blue',
@@ -907,12 +919,23 @@ Ext.define('PO.view.resource_management.ResourceLevelingEditorCostCenterPanel', 
 
         // Draw availability percentage
         var availableDays = costCenter.get('available_days'); // Array of available days since report_start_date
-        var maxAvailableDays = costCenter.get('assigned_resources'); // Should be the maximum of availableDays
-        var intervalTimeMilliseconds = 1000.0 * 3600 * 24 * 1; // One day
-        var path = me.graphOnGanttBar(spriteBar, costCenter, availableDays, maxAvailableDays, new Date(startTime), intervalTimeMilliseconds);
+        var maxAvailableDays = parseFloat(""+costCenter.get('assigned_resources')); // Should be the maximum of availableDays
+	if ('week' == me.granularity) { maxAvailableDays = maxAvailableDays * 7.0; }
+        var path = me.graphOnGanttBar(spriteBar, costCenter, availableDays, maxAvailableDays, new Date(startTime));
         var spritePath = surface.add({
             type: 'path',
             stroke: 'blue',
+            'stroke-width': 1,
+            path: path
+        }).show(true);
+
+        // Draw assignment percentage
+        var assignedDays = costCenter.get('assigned_days');
+        var maxAssignedDays = parseFloat(""+costCenter.get('assigned_resources'));
+        var path = me.graphOnGanttBar(spriteBar, costCenter, assignedDays, maxAssignedDays, new Date(startTime));
+        var spritePath = surface.add({
+            type: 'path',
+            stroke: 'red',
             'stroke-width': 1,
             path: path
         }).show(true);

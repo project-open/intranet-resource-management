@@ -10,7 +10,7 @@ ad_page_contract {
 } {
     { report_start_date "" }
     { report_end_date "" }
-    { report_granularity "day" }
+    { report_granularity "week" }
     { project_id:multiple "" }
     { report_customer_id:integer 0 }
     { report_project_type_id:integer 0 }

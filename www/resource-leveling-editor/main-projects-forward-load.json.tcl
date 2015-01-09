@@ -10,7 +10,7 @@ ad_page_contract {
 } {
     { project_type_id:integer "" }
     { project_status_id:integer 76 }
-    { granularity "day" }
+    { granularity "week" }
     { program_id "" }
     { start_date ""}
     { end_date ""}
