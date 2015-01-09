@@ -365,6 +365,23 @@ Ext.define('PO.view.resource_management.AbstractGanttEditor', {
     },
 
     /**
+     * Calculate the Y-position of a Gantt bar,
+     * based on the Y position of the project or CC 
+     * in the grid at the left.
+     */
+    calcGanttBarYPosition: function(model) {
+	var me = this;
+        var objectPanelView = me.objectPanel.getView();			// The "view" for the GridPanel, containing HTML elements
+	var projectNodeHeight = objectPanelView.getNode(0).getBoundingClientRect().height;   // Height of a project node
+        var projectYFirstProject = objectPanelView.getNode(0).getBoundingClientRect().top; // Y position of the very first project
+	var centerOffset = (projectNodeHeight - me.ganttBarHeight) / 2.0;                    // Small offset in order to center Gantt
+        var projectY = objectPanelView.getNode(model).getBoundingClientRect().top;       // Y position of current project
+        var y = projectY - projectYFirstProject + 2 * me.axisHeight + centerOffset;
+	return y;
+    },
+
+
+    /**
      * Draws a graph on a Gantt bar that consists of:
      * - ganttSprite is the actual sprite for the bar and defines the base coordinates
      * - graphArray is an array for the individual values
@@ -718,22 +735,19 @@ Ext.define('PO.view.resource_management.ResourceLevelingEditorProjectPanel', {
             if (!projectSelModel.isSelected(model)) {
                 return;
             }
-            me.drawProjectBar(model, viewNode);
+            me.drawProjectBar(model);
         });
 
         console.log('PO.view.resource_management.ResourceLevelingEditorProjectPanel.redraw: Finished');
     },
 
-
     /**
      * Draw a single bar for a project or task
      */
-    drawProjectBar: function(project, viewNode) {
+    drawProjectBar: function(project) {
         var me = this;
         if (me.debug) { console.log('PO.view.resource_management.ResourceLevelingEditorProjectPanel.drawProjectBar: Starting'); }
-        var objectPanelView = me.objectPanel.getView();			// The "view" for the GridPanel, containing HTML elements
         var surface = me.surface;
-        var panelY = me.objectPanel.getY() - 30;
 
         var project_name = project.get('project_name');
         var start_date = project.get('start_date').substring(0,10);
@@ -741,9 +755,9 @@ Ext.define('PO.view.resource_management.ResourceLevelingEditorProjectPanel', {
         var startTime = new Date(start_date).getTime();
         var endTime = new Date(end_date).getTime();
 
-        var projectY = objectPanelView.getNode(project).getBoundingClientRect().top;
+	// Calculate the other coordinates
         var x = me.date2x(startTime);
-        var y = projectY - panelY;
+        var y = me.calcGanttBarYPosition(project);
         var w = Math.floor( me.ganttSurfaceWidth * (endTime - startTime) / (me.axisEndDate.getTime() - me.axisStartDate.getTime()));
         var h = me.ganttBarHeight; 							// Height of the bars
         var d = Math.floor(h / 2.0) + 1;				// Size of the indent of the super-project bar
@@ -870,7 +884,7 @@ Ext.define('PO.view.resource_management.ResourceLevelingEditorCostCenterPanel', 
         me.objectStore.each(function(model) {
             var viewNode = costCenterGridView.getNode(model);	// DIV with costCenter name on the CostCenterGrid for Y coo
             if (viewNode == null) { return; }			// hidden nodes/models don't have a viewNode
-            me.drawCostCenterBar(model, viewNode);
+            me.drawCostCenterBar(model);
         });
 
         console.log('PO.view.resource_management.ResourceLevelingEditorCostCenterPanel.redraw: Finished');
@@ -879,7 +893,7 @@ Ext.define('PO.view.resource_management.ResourceLevelingEditorCostCenterPanel', 
     /**
      * Draw a single bar for a cost center
      */
-    drawCostCenterBar: function(costCenter, viewNode) {
+    drawCostCenterBar: function(costCenter) {
         var me = this;
         if (me.debug) { console.log('PO.view.resource_management.ResourceLevelingEditorCostCenterPanel.drawCostCenterBar: Starting'); }
         var costCenterGridView = me.objectPanel.getView();			// The "view" for the GridPanel, containing HTML elements
@@ -897,7 +911,9 @@ Ext.define('PO.view.resource_management.ResourceLevelingEditorCostCenterPanel', 
         var startTime = new Date(start_date).getTime();
         var endTime = new Date(end_date).getTime();
 
-        var y = (costCenterPanelY - surfacePanelY) + (costCenterDivY - costCenterPanelY) + 5;
+//        var y = (costCenterPanelY - surfacePanelY) + (costCenterDivY - costCenterPanelY) + 5;
+	var y = me.calcGanttBarYPosition(costCenter);
+
         var x = me.date2x(startTime);
         var w = Math.floor( me.ganttSurfaceWidth * (endTime - startTime) / (me.axisEndDate.getTime() - me.axisStartDate.getTime()));
         var h = me.ganttBarHeight; 							// Height of the bars
@@ -920,7 +936,7 @@ Ext.define('PO.view.resource_management.ResourceLevelingEditorCostCenterPanel', 
         // Draw availability percentage
         var availableDays = costCenter.get('available_days'); // Array of available days since report_start_date
         var maxAvailableDays = parseFloat(""+costCenter.get('assigned_resources')); // Should be the maximum of availableDays
-	if ('week' == me.granularity) { maxAvailableDays = maxAvailableDays * 7.0; }
+        if ('week' == me.granularity) { maxAvailableDays = maxAvailableDays * 7.0; }
         var path = me.graphOnGanttBar(spriteBar, costCenter, availableDays, maxAvailableDays, new Date(startTime));
         var spritePath = surface.add({
             type: 'path',
@@ -932,6 +948,7 @@ Ext.define('PO.view.resource_management.ResourceLevelingEditorCostCenterPanel', 
         // Draw assignment percentage
         var assignedDays = costCenter.get('assigned_days');
         var maxAssignedDays = parseFloat(""+costCenter.get('assigned_resources'));
+        if ('week' == me.granularity) { maxAssignedDays = maxAssignedDays * 7.0; }
         var path = me.graphOnGanttBar(spriteBar, costCenter, assignedDays, maxAssignedDays, new Date(startTime));
         var spritePath = surface.add({
             type: 'path',
