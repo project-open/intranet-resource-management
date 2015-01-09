@@ -50,7 +50,7 @@ Ext.define('PO.model.resource_management.ProjectResourceLoadModel', {
         'assigned_days',			// Array with J -> % assignments per day, starting with start_date
         'max_assigned_days',			// Maximum of assignment for a single unit (day or week)
 
-	'projectGridSelected',			// Did the user check the project in the ProjectGrid?
+        'projectGridSelected',			// Did the user check the project in the ProjectGrid?
         { name: 'end_date_date',		// end_date as Date, required by Chart
           convert: function(value, record) {
               var end_date = record.get('end_date');
@@ -140,10 +140,10 @@ Ext.define('PO.store.resource_management.CostCenterResourceLoadStore', {
         // Write the simulation start- and end dates as parameters to the store
         // As a result we will get the resource load with moved projects
         projectStore.each(function(model) {
-	    var enabled = model.get('projectGridSelected');
-	    if (0 === enabled) { 
-		return; 
-	    }
+            var enabled = model.get('projectGridSelected');
+            if (0 === enabled) { 
+                return; 
+            }
 
             var projectId = model.get('project_id');
             var startDate = model.get('start_date').substring(0,10);
@@ -390,36 +390,37 @@ Ext.define('PO.view.resource_management.AbstractGanttEditor', {
         if (me.debug) { console.log('PO.view.resource_management.ResourceLevelingEditorCostCenterPanel.drawGraphOnGanttBar: Starting'); }
 
         var len = graphArray.length;
-	var startX = ganttSprite.x;
-	var endX = ganttSprite.x + ganttSprite.width;
-	var baseY = ganttSprite.y + ganttSprite.height;
-	var baseHeight = ganttSprite.height;
-	
-	var intervalStartDate = startDate;
-	var intervalStartX =  me.date2x(intervalStartDate);
-	var intervalEndDate, intervalY;
+        var startX = ganttSprite.x;
+        var endX = ganttSprite.x + ganttSprite.width;
+        var baseY = ganttSprite.y + ganttSprite.height;
+        var baseHeight = ganttSprite.height - 1;
+        
+        var intervalEndDate, intervalY;
 
-        var path = "";
-        for (var i = 0; i < len; i++) {
+        var i = 0;
+        var intervalStartDate = startDate;
+        var intervalStartX =  me.date2x(intervalStartDate);
+
+        intervalY = Math.floor(baseY - (graphArray[i] / maxGraphArray) * baseHeight) + 0.5;
+        var path = path + "M" + intervalStartX + " " + intervalY;   // Start point for path
+
+        for (i = 0; i < len; i++) {
             intervalEndDate = new Date(intervalStartDate.getTime() + intervalTimeMilliseconds);
-	    
-            // Convert start and end date of the interval to x coordinates
-            intervalStartX = me.date2x(intervalStartDate);
             intervalEndX = me.date2x(intervalEndDate);
 
-	    if (intervalEndX > endX + 1) { continue; }
+            if (intervalStartX >= endX) { continue; }           // Skip the last interval if it's outside the bar
+            if (intervalEndX > endX) { intervalEndX = endX; }   // Fix the last interval to stop at the bar
 
-            intervalY = Math.floor(baseY - (graphArray[i] / maxGraphArray) * baseHeight);
-	    if (0 == i) { 
-		path = path + "M" + intervalStartX + " " + intervalY;   // Start point for path
-	    } else {
-		path = path + " L" + intervalEndX + " " + intervalY;
-	    }
+            intervalY = Math.floor(baseY - (graphArray[i] / maxGraphArray) * baseHeight) + 0.5;
+
+            path = path + " L" + intervalStartX + " " + intervalY;
+            path = path + " L" + intervalEndX + " " + intervalY;
 
             // The former end of the interval becomes the start for the next interval
             intervalStartDate = intervalEndDate;
+            intervalStartX = intervalEndX;
         }
-	return path;
+        return path;
     },
 
     /**
@@ -649,15 +650,15 @@ Ext.define('PO.view.resource_management.ResourceLevelingEditorProjectPanel', {
         console.log('PO.view.resource_management.ResourceLevelingEditorProjectPanel.onProjectGridSelectionChange');
 
         me.objectStore.each(function(model) {
-	    if (selModel.isSelected(model)) {
-		model.set('projectGridSelected', 1);
-	    } else {
-		model.set('projectGridSelected', 0);
-	    }	    
-	})
+            if (selModel.isSelected(model)) {
+                model.set('projectGridSelected', 1);
+            } else {
+                model.set('projectGridSelected', 0);
+            }	    
+        })
 
-	// Reload the Cost Center Resource Load Store with the new selected/changed projects
-	me.costCenterResourceLoadStore.loadWithProjectData(me.objectStore);
+        // Reload the Cost Center Resource Load Store with the new selected/changed projects
+        me.costCenterResourceLoadStore.loadWithProjectData(me.objectStore);
 
         me.redraw();
     },
@@ -762,8 +763,8 @@ Ext.define('PO.view.resource_management.ResourceLevelingEditorProjectPanel', {
         // Draw availability percentage
         var assignedDays = project.get('assigned_days');
         var maxAssignedDays = project.get('max_assigned_days');
-	var intervalTimeMilliseconds = 1000.0 * 3600 * 24 * 1; // One day
-	var path = me.graphOnGanttBar(spriteBar, project, assignedDays, maxAssignedDays, new Date(startTime), intervalTimeMilliseconds);
+        var intervalTimeMilliseconds = 1000.0 * 3600 * 24 * 1; // One day
+        var path = me.graphOnGanttBar(spriteBar, project, assignedDays, maxAssignedDays, new Date(startTime), intervalTimeMilliseconds);
         var spritePath = surface.add({
             type: 'path',
             stroke: 'blue',
@@ -878,7 +879,7 @@ Ext.define('PO.view.resource_management.ResourceLevelingEditorCostCenterPanel', 
         var surfacePanelY = me.getBox().top;
         var costCenterDivY = costCenterGridView.getNode(costCenter).getBoundingClientRect().top;
 
-	// Calculate auxillary start- and end dates
+        // Calculate auxillary start- and end dates
         var start_date = me.axisStartDate.toISOString().substring(0,10);
         var end_date = me.axisEndDate.toISOString().substring(0,10);
         var startTime = new Date(start_date).getTime();
@@ -907,8 +908,8 @@ Ext.define('PO.view.resource_management.ResourceLevelingEditorCostCenterPanel', 
         // Draw availability percentage
         var availableDays = costCenter.get('available_days'); // Array of available days since report_start_date
         var maxAvailableDays = costCenter.get('assigned_resources'); // Should be the maximum of availableDays
-	var intervalTimeMilliseconds = 1000.0 * 3600 * 24 * 1; // One day
-	var path = me.graphOnGanttBar(spriteBar, costCenter, availableDays, maxAvailableDays, new Date(startTime), intervalTimeMilliseconds);
+        var intervalTimeMilliseconds = 1000.0 * 3600 * 24 * 1; // One day
+        var path = me.graphOnGanttBar(spriteBar, costCenter, availableDays, maxAvailableDays, new Date(startTime), intervalTimeMilliseconds);
         var spritePath = surface.add({
             type: 'path',
             stroke: 'blue',
@@ -1061,8 +1062,8 @@ function launchApplication(){
         reportStartDate: new Date(report_start_date),
         reportEndDate: new Date(report_end_date),
 
-	// Reference to the CostCenter store
-	costCenterResourceLoadStore: costCenterResourceLoadStore
+        // Reference to the CostCenter store
+        costCenterResourceLoadStore: costCenterResourceLoadStore
     });
 
 
@@ -1141,7 +1142,7 @@ Ext.onReady(function() {
 
     var coo = Ext.create('PO.controller.StoreLoadCoordinator', {
         debug: 0,
-	launched: false,
+        launched: false,
         stores: [
             'projectResourceLoadStore',
             'costCenterResourceLoadStore'
@@ -1149,10 +1150,10 @@ Ext.onReady(function() {
         listeners: {
             load: function() {
 
-		if (this.launched) { return; }
+                if (this.launched) { return; }
                 // Launch the actual application.
                 console.log('PO.controller.StoreLoadCoordinator: launching Application');
-		this.launched = true;
+                this.launched = true;
                 task.delay(100);						// Fade out the splash screen
                 launchApplication();						// launch the actual application
             }

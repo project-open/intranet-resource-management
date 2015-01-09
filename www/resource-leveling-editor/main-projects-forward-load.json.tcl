@@ -10,7 +10,7 @@ ad_page_contract {
 } {
     { project_type_id:integer "" }
     { project_status_id:integer 76 }
-    { granularity "week" }
+    { granularity "day" }
     { program_id "" }
     { start_date ""}
     { end_date ""}
@@ -68,7 +68,7 @@ set main_sql "
 		sub_p.tree_sortkey between main_p.tree_sortkey and tree_right(main_p.tree_sortkey)
 		$main_where
 		-- FOR TESTING ONLY - LIMIT TO ONE PROJECT TO IMPROVE PERFORMANCE
-		-- and main_p.project_id in (164996, 167647, 166593)
+		-- and main_p.project_id in (171036) -- Fraber Test 2015
 "
 set sql "
 	select	*
@@ -84,6 +84,15 @@ db_foreach main_p $sql {
     set main_project_end_date_hash($main_project_id) $main_end_date
 
     for {set j $start_date_julian} {$j <= $end_date_julian} {incr j} {
+	array set date_comps [util_memoize [list im_date_julian_to_components $j]]
+	set year $date_comps(year)
+	set week_of_year $date_comps(week_of_year)
+	set dow $date_comps(day_of_week)
+
+	# Skip weekends
+	if {0 == $dow || 6 == $dow || 7 == $dow} { continue }
+
+
 	# Days
 	set key "$main_project_id-$j"
 	set val 0.0
@@ -92,9 +101,6 @@ db_foreach main_p $sql {
 	set percentage_day_hash($key) $val
 
 	# Weeks
-	array set date_comps [util_memoize [list im_date_julian_to_components $j]]
-	set year $date_comps(year)
-	set week_of_year $date_comps(week_of_year)
 	set key_week "$main_project_id-$year-$week_of_year"
 	set val 0.0
 	if {[info exists percentage_week_hash($key_week)]} { set val $percentage_week_hash($key_week) }
@@ -102,6 +108,9 @@ db_foreach main_p $sql {
         set percentage_week_hash($key_week) $val
     }
 }
+
+# ad_return_complaint 1 [array get percentage_day_hash]
+# ad_return_complaint 1 [lsort [array names percentage_day_hash]]
 
 # ---------------------------------------------------------------
 # Format result as JSON
@@ -148,8 +157,9 @@ foreach pid [qsort [array names main_project_start_j_hash]] {
 	set max_val 0
 	foreach key_week [qsort [array names week_hash]] {
 	    set perc $percentage_week_hash($key_week)
-	    lappend vals [expr round($perc * 100.0) / 100.0]
-	    if {$perc > $max_val} { set max_val $perc }
+	    set perc_rounded [expr round($perc * 100.0) / 100.0]
+	    lappend vals $perc_rounded
+	    if {$perc_rounded > $max_val} { set max_val $perc_rounded }
 	}
     }
 
