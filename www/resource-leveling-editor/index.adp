@@ -222,8 +222,8 @@ Ext.define('PO.view.resource_management.AbstractGanttEditor', {
 
         me.axisStartX = 0;
         me.axisEndX = me.ganttSurfaceWidth;
-        me.axisStartDate = me.prevMonth(me.reportStartDate);
-        me.axisEndDate = me.nextMonth(me.reportEndDate);
+        me.axisStartDate = me.reportStartDate;
+        me.axisEndDate = me.reportEndDate;
 
         // New Event: Drag-and-Drop for a Gantt bar
         this.addEvents('objectdnd');
@@ -370,14 +370,14 @@ Ext.define('PO.view.resource_management.AbstractGanttEditor', {
      * in the grid at the left.
      */
     calcGanttBarYPosition: function(model) {
-	var me = this;
+        var me = this;
         var objectPanelView = me.objectPanel.getView();			// The "view" for the GridPanel, containing HTML elements
-	var projectNodeHeight = objectPanelView.getNode(0).getBoundingClientRect().height;   // Height of a project node
+        var projectNodeHeight = objectPanelView.getNode(0).getBoundingClientRect().height;   // Height of a project node
         var projectYFirstProject = objectPanelView.getNode(0).getBoundingClientRect().top; // Y position of the very first project
-	var centerOffset = (projectNodeHeight - me.ganttBarHeight) / 2.0;                    // Small offset in order to center Gantt
+        var centerOffset = (projectNodeHeight - me.ganttBarHeight) / 2.0;                    // Small offset in order to center Gantt
         var projectY = objectPanelView.getNode(model).getBoundingClientRect().top;       // Y position of current project
         var y = projectY - projectYFirstProject + 2 * me.axisHeight + centerOffset;
-	return y;
+        return y;
     },
 
 
@@ -582,7 +582,13 @@ Ext.define('PO.view.resource_management.AbstractGanttEditor', {
                 (1.0 * dateMilliJulian - me.axisStartDate.getTime()) / 
                 (1.0 * me.axisEndDate.getTime() - me.axisStartDate.getTime())
         );
-        if (x < 0) { x = 0; }
+
+	// Allow for negative starts:
+	// Projects are determined by start_date + width, 
+	// so projects would be shifted to the right
+        // if (x < 0) { x = 0; }
+
+
         return x;
     },
 
@@ -678,7 +684,7 @@ Ext.define('PO.view.resource_management.ResourceLevelingEditorProjectPanel', {
                 model.set('projectGridSelected', 1);
             } else {
                 model.set('projectGridSelected', 0);
-            }	    
+            }
         })
 
         // Reload the Cost Center Resource Load Store with the new selected/changed projects
@@ -746,19 +752,24 @@ Ext.define('PO.view.resource_management.ResourceLevelingEditorProjectPanel', {
      */
     drawProjectBar: function(project) {
         var me = this;
-        if (me.debug) { console.log('PO.view.resource_management.ResourceLevelingEditorProjectPanel.drawProjectBar: Starting'); }
         var surface = me.surface;
 
         var project_name = project.get('project_name');
         var start_date = project.get('start_date').substring(0,10);
         var end_date = project.get('end_date').substring(0,10);
         var startTime = new Date(start_date).getTime();
-        var endTime = new Date(end_date).getTime();
+        var endTime = new Date(end_date).getTime() + 1000.0 * 3600 * 24;  // plus one day
 
-	// Calculate the other coordinates
+        if (me.debug) { console.log('PO.view.resource_management.ResourceLevelingEditorProjectPanel.drawProjectBar: project_name='+project_name+', start_date='+start_date+", end_date="+end_date); }
+
+	if ("2014-12-15" == start_date) {
+	    console.log("po add on perms");
+	}
+
+        // Calculate the other coordinates
         var x = me.date2x(startTime);
         var y = me.calcGanttBarYPosition(project);
-        var w = Math.floor( me.ganttSurfaceWidth * (endTime - startTime) / (me.axisEndDate.getTime() - me.axisStartDate.getTime()));
+        var w = Math.floor(me.ganttSurfaceWidth * (endTime - startTime) / (me.axisEndDate.getTime() - me.axisStartDate.getTime()));
         var h = me.ganttBarHeight; 							// Height of the bars
         var d = Math.floor(h / 2.0) + 1;				// Size of the indent of the super-project bar
 
@@ -912,7 +923,7 @@ Ext.define('PO.view.resource_management.ResourceLevelingEditorCostCenterPanel', 
         var endTime = new Date(end_date).getTime();
 
 //        var y = (costCenterPanelY - surfacePanelY) + (costCenterDivY - costCenterPanelY) + 5;
-	var y = me.calcGanttBarYPosition(costCenter);
+        var y = me.calcGanttBarYPosition(costCenter);
 
         var x = me.date2x(startTime);
         var w = Math.floor( me.ganttSurfaceWidth * (endTime - startTime) / (me.axisEndDate.getTime() - me.axisStartDate.getTime()));

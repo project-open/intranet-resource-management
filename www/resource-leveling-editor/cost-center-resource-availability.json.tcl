@@ -33,6 +33,9 @@ if {"" == $report_end_date} { set end_date [db_string now "select (now()::date +
 set report_start_date [string range $report_start_date 0 9]
 set report_end_date [string range $report_end_date 0 9]
 
+set report_start_julian [im_date_ansi_to_julian $report_start_date]
+set report_end_julian [im_date_ansi_to_julian $report_end_date]
+
 
 # ---------------------------------------------------------------
 # Calculate available resources per cost_center
@@ -51,7 +54,7 @@ foreach cc_id [array names cc_hash] {
     # Initialize the availability array for the interval 
     # and set the resource availability according to the cc base availability
     array unset cc_day_values
-    for {set i [dt_ansi_to_julian_single_arg $report_start_date]} {$i <= [dt_ansi_to_julian_single_arg $report_end_date]} {incr i} {
+    for {set i $report_start_julian} {$i <= $report_end_julian} {incr i} {
 	set available_days [expr $availability_percent / 100.0]
 
 	# Reset weekends to zero availability
@@ -141,12 +144,12 @@ set percentage_sql "
 			child.project_id,
 			to_char(child.start_date, 'J') as child_start_julian,
 			to_char(child.end_date, 'J') as child_end_julian,
-			coalesce(round(m.percentage), 0) as percentage
+			coalesce(round(bom.percentage), 0) as percentage
 		from
 			im_projects parent,
 			im_projects child,
 			acs_rels r,				-- no left outer join - show only assigned users
-			im_biz_object_members m,
+			im_biz_object_members bom,
 			users u
 		where
 			parent.project_id in ([join $pids ","]) and
@@ -154,21 +157,26 @@ set percentage_sql "
 			parent.end_date >= to_date(:report_start_date, 'YYYY-MM-DD') and
 			parent.start_date <= to_date(:report_end_date, 'YYYY-MM-DD') and
 			child.tree_sortkey between parent.tree_sortkey and tree_right(parent.tree_sortkey) and
-			r.rel_id = m.rel_id and
+			r.rel_id = bom.rel_id and
+			bom.percentage is not null and		-- skip assignments without percentage
 			r.object_id_one = child.project_id and
 			r.object_id_two = u.user_id
+			-- Testing
+			-- and parent.project_id = 171036	-- Fraber Test 2015
 "
 db_foreach projects $percentage_sql {
     set pid_start_julian $start_julian_hash($parent_project_id)
     set pid_end_julian $end_julian_hash($parent_project_id)
     set parent_date_shift [expr $pid_start_julian - $parent_start_julian]
+
+    # ns_log Notice "cost-center-resource-availability.json.tcl: parent_date_shift=$parent_date_shift"
     # ToDo: incorporate if the project has been dragged to be longer
 
     set child_start_julian [expr $child_start_julian + $parent_date_shift]
     set child_end_julian [expr $child_end_julian + $parent_date_shift]
     set department_id $employe_department_hash($user_id)
 
-    for {set j $child_start_julian} {$j < $child_end_julian} {incr j} {
+    for {set j $child_start_julian} {$j <= $child_end_julian} {incr j} {
 	set key "$department_id-$j"
 	set perc 0.0
 	if {[info exists assigned_day_hash($key)]} { set perc $assigned_day_hash($key) }
@@ -176,10 +184,13 @@ db_foreach projects $percentage_sql {
 
 	array set date_comps [util_memoize [list im_date_julian_to_components $j]]
 	set dow $date_comps(day_of_week)
-	if {0 != $dow && 6 != $dow && 7 != $dow} { set perc 0.0 }
+
+	if {6 == $dow || 7 == $dow} { set perc 0.0 }
 	set assigned_day_hash($key) $perc
     }
 }
+
+#ad_return_complaint 1 [array get assigned_day_hash]
 
 # ---------------------------------------------------------------
 # Format result as JSON
@@ -196,23 +207,36 @@ switch $granularity {
 	    set cost_center_name $cc_values(cost_center_name)
 	    set assigned_resources_percent $cc_values(availability_percent)
 	    set assigned_resources [expr round($assigned_resources_percent) / 100.0]
-	    
-	    set days [list]
-	    for {set i [im_date_ansi_to_julian $report_start_date]} {$i <= [im_date_ansi_to_julian $report_end_date]} {incr i} {
+
+	    set available_days [list]
+	    set assigned_days [list]
+	    for {set i $report_start_julian} {$i <= $report_end_julian} {incr i} {
 		set key "$cc_id-$i"
-		set available_days 0.0
-		if {[info exists available_day_hash($key)]} { set available_days $available_day_hash($key) }
-		lappend days $available_days
+
+		# Format available days
+		set days 0.0
+		if {[info exists available_day_hash($key)]} { 
+		    set days $available_day_hash($key) 
+		}
+		lappend available_days [expr round(1000.0 * $days) / 1000.0]
+
+		# Format assigned days
+		set days 0.0
+		if {[info exists assigned_day_hash($key)]} { 
+		    set days $assigned_day_hash($key) 
+		}
+		lappend assigned_days [expr round(1000.0 * $days) / 1000.0]
 	    }
 	    
-	    set days_list [join $days ", "]
-	    set cc_row_days [list "\"id\":$cc_id,\
-\"cost_center_id\":$cc_id,\
-\"cost_center_name\":\"$cost_center_name\",\
-\"assigned_resources\":\"$assigned_resources\",\
-\"available_days\":\[
-$days_list
-\]"]
+	    set available_list [join $available_days ", "]
+	    set assigned_list [join $assigned_days ", "]
+	    set cc_row_days [list "\n\t\"id\":$cc_id,
+\t\"cost_center_id\":$cc_id,
+\t\"cost_center_name\":\"$cost_center_name\",
+\t\"assigned_resources\":\"$assigned_resources\",
+\t\"available_days\":\[$available_list\],
+\t\"assigned_days\":\[$assigned_list\]
+"]
 
 	    set cc_row "{[join $cc_row_days ", "]}"
 	    lappend json_list $cc_row
@@ -226,7 +250,7 @@ $days_list
 	# Calculate the list of all weeks in reporting interval
 	set week_list [list]
 	array set week_hash {}
-	for {set i [im_date_ansi_to_julian $report_start_date]} {$i <= [im_date_ansi_to_julian $report_end_date]} {incr i} {
+	for {set i $report_start_julian} {$i <= $report_end_julian} {incr i} {
 	    array set date_comps [util_memoize [list im_date_julian_to_components $i]]
 	    set year $date_comps(year)
 	    set week_of_year $date_comps(week_of_year)
@@ -240,7 +264,7 @@ $days_list
 	
 	# Summarize the daily hash into a weekly hash
 	foreach cc_id [array names cc_hash] {	    
-	    for {set i [im_date_ansi_to_julian $report_start_date]} {$i <= [im_date_ansi_to_julian $report_end_date]} {incr i} {
+	    for {set i $report_start_julian} {$i <= $report_end_julian} {incr i} {
 		array set date_comps [util_memoize [list im_date_julian_to_components $i]]
 		set year $date_comps(year)
 		set week_of_year $date_comps(week_of_year)
