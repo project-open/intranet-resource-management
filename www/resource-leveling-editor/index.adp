@@ -1123,7 +1123,9 @@ function launchApplication(){
      * (projects, departments and gantt bars)
      */
     var borderPanelHeight = costCenterGridHeight + projectGridHeight;
-    var borderPanelWidth = Ext.getBody().getViewSize().width - 350;
+    var sideBar = Ext.get('sidebar');                               // ]po[ left side bar component
+    var sideBarWidth = sideBar.getSize().width;
+    var borderPanelWidth = Ext.getBody().getViewSize().width - sideBarWidth - 95;
     var borderPanel = Ext.create('Ext.panel.Panel', {
         width: borderPanelWidth,
         height: borderPanelHeight,
@@ -1160,18 +1162,51 @@ function launchApplication(){
         renderTo: renderDiv
     });
 
-    var onWindowResize = function () {
-        // ToDo: Try to find out if there is another onWindowResize Event waiting
-        var width = Ext.getBody().getViewSize().width - 350;
-        borderPanel.setSize(width, borderPanelHeight);
-//        var surface = resourceLevelingEditorProjectPanel.surface;
-//        surface.setSize(1500, surface.height);
 
+    var onResize = function (sideBarWidth) {
+        console.log('launchApplication.onSideBarResize:');
+
+        var screenWidth = Ext.getBody().getViewSize().width;
+        var width = screenWidth - sideBarWidth;
+
+        borderPanel.setSize(width, borderPanelHeight);
+
+        var surface = resourceLevelingEditorProjectPanel.surface;
+        surface.setSize(1500, surface.height);
         resourceLevelingEditorProjectPanel.redraw();
+
+        surface = resourceLevelingEditorCostCenterPanel.surface;
+        surface.setSize(1500, surface.height);
         resourceLevelingEditorCostCenterPanel.redraw();
     };
 
+    var onWindowResize = function () {
+        console.log('launchApplication.onWindowResize:');
+        var sideBar = Ext.get('sidebar');                               // ]po[ left side bar component
+        var sideBarWidth = sideBar.getSize().width;
+        onResize(sideBarWidth);
+    };
+    
+    var onSidebarResize = function () {
+        console.log('launchApplication.onResize:');
+	// ]po[ Sidebar
+        var sideBar = Ext.get('sidebar');				// ]po[ left side bar component
+        var sideBarWidth = sideBar.getSize().width;
+
+        // We get the event _before_ the sideBar has changed it's size.
+        // So we actually need to the the oposite of the sidebar size:
+	if (sideBarWidth > 100) {
+            sideBarWidth = 85;                                         // Determines size when Sidebar collapsed
+	} else {
+            sideBarWidth = 340;                                         // Determines size when Sidebar visible
+	}
+        onResize(sideBarWidth);
+	
+    };
+
     Ext.EventManager.onWindowResize(onWindowResize);
+    var sideBarTab = Ext.get('sideBarTab');
+    sideBarTab.on('click', onSidebarResize);
 
 };
 
