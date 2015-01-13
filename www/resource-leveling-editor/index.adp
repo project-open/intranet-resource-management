@@ -1205,6 +1205,9 @@ function launchApplication(){
 	
     };
 
+// !!!    borderPanel.on('resize', onWindowResize);
+
+
     Ext.EventManager.onWindowResize(onWindowResize);
     var sideBarTab = Ext.get('sideBarTab');
     sideBarTab.on('click', onSidebarResize);
