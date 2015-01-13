@@ -45,7 +45,6 @@ Ext.define('PO.model.resource_management.ProjectResourceLoadModel', {
         'description',
         'assigned_days',			// Array with J -> % assignments per day, starting with start_date
         'max_assigned_days',			// Maximum of assignment for a single unit (day or week)
-
         'projectGridSelected',			// Did the user check the project in the ProjectGrid?
         { name: 'end_date_date',		// end_date as Date, required by Chart
           convert: function(value, record) {
@@ -175,7 +174,7 @@ Ext.define('PO.view.resource_management.AbstractGanttEditor', {
     ],
 
     // surface						// Inherited from draw.Component
-    debug: 1,
+    debug: 0,
 
     objectPanel: null,					// Set during init: Reference to grid or tree panel at the left
     objectStore: null,					// Set during init: Reference to store (tree or flat)
@@ -326,23 +325,37 @@ Ext.define('PO.view.resource_management.AbstractGanttEditor', {
             x = point[0],
             y = point[1];
 
+	var result = [];
+
         if (y <= me.axisHeight) { return 'axis1'; }
         if (y > me.axisHeight && y <= 2*me.axisHeight) { return 'axis2'; }
 
         var items = me.surface.items.items;
+	console.log('getSpriteForPoint: items.length='+items.length);
+
         for (var i = 0, ln = items.length; i < ln; i++) {
-            if (items[i] && me.isSpriteInPoint(x, y, items[i], i)) {
-                return items[i];
-            }
+	    var sprite = items[i];
+	    if (!sprite) continue;
+            if ("rect" != sprite.type) continue;
+
+	    var bbox = sprite.getBBox();
+
+	    if (bbox.x > x) continue;
+	    if (bbox.y > y) continue;
+	    if (bbox.x + bbox.width < x) continue;
+	    if (bbox.y + bbox.height < y) continue;
+
+	    return sprite;
         }
-        return null;
+
+	return null;
     },
 
     /**
-     * Checks for mouse inside the BBox
+     * Checks for mouse inside a Gantt bar.
+     * Ignore any non "box" sprites
      */
     isSpriteInPoint: function(x, y, sprite, i) {
-        var spriteType = sprite.type;
         var bbox = sprite.getBBox();
         return bbox.x <= x && bbox.y <= y
             && (bbox.x + bbox.width) >= x
@@ -483,7 +496,7 @@ Ext.define('PO.view.resource_management.AbstractGanttEditor', {
                 stroke: 'grey'
             }).show(true);
 
-            var axisText = me.surface.add({
+           var axisText = me.surface.add({
                 type: 'text',
                 text: ""+year,
                 x: x + 2,
@@ -701,6 +714,7 @@ Ext.define('PO.view.resource_management.ResourceLevelingEditorProjectPanel', {
      */
     onProjectMove: function(baseSprite, projectModel, xDiff) {
         var me = this;
+	if (!projectModel) return;
         console.log('PO.view.resource_management.ResourceLevelingEditorProjectPanel.onProjectMove: '+projectModel.get('id') + ', ' + xDiff);
 
         var bBox = me.dndBaseSprite.getBBox();
@@ -786,6 +800,11 @@ Ext.define('PO.view.resource_management.ResourceLevelingEditorProjectPanel', {
         }).show(true);
         spriteBar.model = project;					// Store the task information for the sprite
 
+	/*
+	 * Doesn't work - Text sprites somehow mess up
+	 * the sprite selection when trying to check 
+	 * which sprite is below the mouse click.
+	 *
         var projectText = me.surface.add({
             type: 'text',
             text: project_name,
@@ -794,6 +813,7 @@ Ext.define('PO.view.resource_management.ResourceLevelingEditorProjectPanel', {
             fill: '#000',
             font: "11px Arial"
         }).show(true);
+	*/
 
         // Draw availability percentage
         var assignedDays = project.get('assigned_days');
