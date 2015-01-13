@@ -12,8 +12,8 @@
 
 <script>
 
-var report_start_date = '@report_start_date@';
-var report_end_date = '@report_end_date@';
+var report_start_date = '@report_start_date@'.substring(0,10);
+var report_end_date = '@report_end_date@'.substring(0,10);
 var report_project_type_id = '@report_project_type_id@';
 var report_program_id = '@report_program_id@';
 
@@ -133,8 +133,8 @@ Ext.define('PO.store.resource_management.CostCenterResourceLoadStore', {
         proxy.extraParams = {
             format:             'json',
             granularity:	'@report_granularity@',				// 'week' or 'day'
-            report_start_date:	report_start_date.substring(0,10),		// When to start
-            report_end_date:	report_end_date.substring(0,10)		// when to end
+            report_start_date:	report_start_date,				// When to start
+            report_end_date:	report_end_date					// when to end
         };
 
         // Write the simulation start- and end dates as parameters to the store
@@ -504,7 +504,7 @@ Ext.define('PO.view.resource_management.AbstractGanttEditor', {
      */
     drawAxisMonth: function() {
         var me = this;
-        if (me.debug) { console.log('PO.view.resource_management.AbstractGanttEditor: Starting'); }
+        if (me.debug) { console.log('PO.view.resource_management.AbstractGanttEditor.drawAxisMonth: Starting'); }
 
         // Draw monthly blocks
         var startYear = me.axisStartDate.getFullYear();
@@ -522,8 +522,8 @@ Ext.define('PO.view.resource_management.AbstractGanttEditor', {
             var xEndMon = mon+1;
             var xEndYea = yea;
             if (xEndMon > 11) { xEndMon = 0; xEndYea = xEndYea + 1; }
-            var x = me.date2x(new Date(yea+"-"+(mon+1)+"-01"));
-            var xEnd = me.date2x(new Date(xEndYea+"-"+(xEndMon+1)+"-01"));
+            var x = me.date2x(new Date(yea+"-"+  ("0"+(mon+1)).slice(-2)  +"-01"));
+            var xEnd = me.date2x(new Date(xEndYea+"-"+  ("0"+(xEndMon+1)).slice(-2)  +"-01"));
             var w = xEnd - x;
             
             var axisBar = me.surface.add({
@@ -552,7 +552,7 @@ Ext.define('PO.view.resource_management.AbstractGanttEditor', {
             }
         }
 
-        if (me.debug) { console.log('PO.view.resource_management.AbstractGanttEditor.drawAxis: Finished'); }
+        if (me.debug) { console.log('PO.view.resource_management.AbstractGanttEditor.drawAxisMonth: Finished'); }
     },
 
     /**
@@ -578,9 +578,13 @@ Ext.define('PO.view.resource_management.AbstractGanttEditor', {
         }
 
         var axisWidth = me.axisEndX - me.axisStartX;
+
+	var axisStartTime = me.axisStartDate.getTime();
+	var axisEndTime = me.axisEndDate.getTime();
+
         var x = me.axisStartX + Math.floor(1.0 * axisWidth * 
-                (1.0 * dateMilliJulian - me.axisStartDate.getTime()) / 
-                (1.0 * me.axisEndDate.getTime() - me.axisStartDate.getTime())
+                (1.0 * dateMilliJulian - axisStartTime) / 
+                (1.0 * axisEndTime - axisStartTime)
         );
 
 	// Allow for negative starts:
@@ -762,10 +766,6 @@ Ext.define('PO.view.resource_management.ResourceLevelingEditorProjectPanel', {
 
         if (me.debug) { console.log('PO.view.resource_management.ResourceLevelingEditorProjectPanel.drawProjectBar: project_name='+project_name+', start_date='+start_date+", end_date="+end_date); }
 
-	if ("2014-12-15" == start_date) {
-	    console.log("po add on perms");
-	}
-
         // Calculate the other coordinates
         var x = me.date2x(startTime);
         var y = me.calcGanttBarYPosition(project);
@@ -927,8 +927,8 @@ Ext.define('PO.view.resource_management.ResourceLevelingEditorCostCenterPanel', 
 
         var x = me.date2x(startTime);
         var w = Math.floor( me.ganttSurfaceWidth * (endTime - startTime) / (me.axisEndDate.getTime() - me.axisStartDate.getTime()));
-        var h = me.ganttBarHeight; 							// Height of the bars
-        var d = Math.floor(h / 2.0) + 1;				// Size of the indent of the super-costCenter bar
+        var h = me.ganttBarHeight; 						// Height of the bars
+        var d = Math.floor(h / 2.0) + 1;					// Size of the indent of the super-costCenter bar
 
         var spriteBar = surface.add({
             type: 'rect',
@@ -937,15 +937,15 @@ Ext.define('PO.view.resource_management.ResourceLevelingEditorCostCenterPanel', 
             fill: 'url(#gradientId)',
             stroke: 'blue',
             'stroke-width': 0.3,
-            listeners: {						// Highlight the sprite on mouse-over
+            listeners: {							// Highlight the sprite on mouse-over
                 mouseover: function() { this.animate({duration: 500, to: {'stroke-width': 1.0}}); },
                 mouseout: function()  { this.animate({duration: 500, to: {'stroke-width': 0.3}}); }
             }
         }).show(true);
-        spriteBar.model = costCenter;					// Store the task information for the sprite
+        spriteBar.model = costCenter;						// Store the task information for the sprite
 
         // Draw availability percentage
-        var availableDays = costCenter.get('available_days'); // Array of available days since report_start_date
+        var availableDays = costCenter.get('available_days');			// Array of available days since report_start_date
         var maxAvailableDays = parseFloat(""+costCenter.get('assigned_resources')); // Should be the maximum of availableDays
         if ('week' == me.granularity) { maxAvailableDays = maxAvailableDays * 7.0; }
         var path = me.graphOnGanttBar(spriteBar, costCenter, availableDays, maxAvailableDays, new Date(startTime));
@@ -1131,6 +1131,7 @@ function launchApplication(){
         height: borderPanelHeight,
         title: false,
         layout: 'border',
+	resizable: true,
         defaults: {
             collapsible: false,
             split: true,
