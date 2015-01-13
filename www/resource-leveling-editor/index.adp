@@ -3,13 +3,11 @@
 <property name="main_navbar_label">@main_navbar_label@</property>
 <property name="sub_navbar">@sub_navbar;noquote@</property>
 <property name="left_navbar">@left_navbar_html;noquote@</property>
-
 <table>
 <tr><td>
 <div id="resource_level_editor_div" style="overflow: hidden; position:absolute; width:100%; height:100%; bgcolo=red;"></div>
 </td></tr>
 </table>
-
 <script>
 
 var report_start_date = '@report_start_date@'.substring(0,10);
@@ -31,8 +29,6 @@ Ext.require([
     'Ext.tree.*',
     'PO.controller.StoreLoadCoordinator'
 ]);
-
-
 
 Ext.define('PO.model.resource_management.ProjectResourceLoadModel', {
     extend: 'Ext.data.Model',
@@ -1188,6 +1184,19 @@ function launchApplication(){
         onResize(sideBarWidth);
     };
     
+    // Manually changed the size of the borderPanel
+    var onBorderResize = function () {
+        console.log('launchApplication.onBorderResize:');
+
+        var surface = resourceLevelingEditorProjectPanel.surface;
+        surface.setSize(1500, surface.height);
+        resourceLevelingEditorProjectPanel.redraw();
+
+        surface = resourceLevelingEditorCostCenterPanel.surface;
+        surface.setSize(1500, surface.height);
+        resourceLevelingEditorCostCenterPanel.redraw();
+    };
+    
     var onSidebarResize = function () {
         console.log('launchApplication.onResize:');
 	// ]po[ Sidebar
@@ -1205,7 +1214,7 @@ function launchApplication(){
 	
     };
 
-// !!!    borderPanel.on('resize', onWindowResize);
+    borderPanel.on('resize', onBorderResize);
 
 
     Ext.EventManager.onWindowResize(onWindowResize);
