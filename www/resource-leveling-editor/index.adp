@@ -970,7 +970,8 @@ Ext.define('PO.view.resource_management.ResourceLevelingEditorCostCenterPanel', 
 
 
 /**
- * Create a diagram and draw bars
+ * Create the four panels and 
+ * handle external resizing events
  */
 function launchApplication(){
 
@@ -997,18 +998,10 @@ function launchApplication(){
         title: false,
         region: 'west',
         width: gridWidth,
-//	height: projectGridHeight,
         store: 'projectResourceLoadStore',
-/*
-        autoScroll: true,
-        overflowX: 'scroll',
-        overflowY: 'scroll',
-*/
         autoScroll: true,
         overflowX: false,
         overflowY: false,
-
-
         selModel: projectGridSelectionModel,
         columns: [{
             text: 'Projects',
@@ -1027,17 +1020,14 @@ function launchApplication(){
         shrinkWrap: true
     });
 
-    var costCenterGridSelectionModel = Ext.create('Ext.selection.CheckboxModel');
     var costCenterGrid = Ext.create('Ext.grid.Panel', {
         title: false,
         width: gridWidth,
-//        height: costCenterGridHeight,
         region: 'west',
         store: 'costCenterResourceLoadStore',
         autoScroll: true,
         overflowX: false,
         overflowY: false,
-        // selModel: costCenterGridSelectionModel,                     // We don't need to select departments
         columns: [{
             text: 'Departments',
             dataIndex: 'cost_center_name',
@@ -1053,7 +1043,6 @@ function launchApplication(){
     // Drawing area for for Gantt Bars
     var resourceLevelingEditorCostCenterPanel = Ext.create('PO.view.resource_management.ResourceLevelingEditorCostCenterPanel', {
         title: false,
-//        height: costCenterGridHeight,
         region: 'center',
         viewBox: false,
         gradients: [{
@@ -1083,7 +1072,6 @@ function launchApplication(){
     // Drawing area for for Gantt Bars
     var resourceLevelingEditorProjectPanel = Ext.create('PO.view.resource_management.ResourceLevelingEditorProjectPanel', {
         title: false,
-//        height: projectGridHeight,
         region: 'center',
         viewBox: false,
         gradients: [{
@@ -1127,7 +1115,7 @@ function launchApplication(){
         height: borderPanelHeight,
         title: false,
         layout: 'border',
-	resizable: true,
+	resizable: true,                                         // Allow the user to resize the outer diagram borders
         defaults: {
             collapsible: false,
             split: true,
@@ -1215,8 +1203,6 @@ function launchApplication(){
     };
 
     borderPanel.on('resize', onBorderResize);
-
-
     Ext.EventManager.onWindowResize(onWindowResize);
     var sideBarTab = Ext.get('sideBarTab');
     sideBarTab.on('click', onSidebarResize);
@@ -1224,7 +1210,11 @@ function launchApplication(){
 };
 
 
-
+/**
+ * Application Launcher
+ * Only deals with loading the required 
+ * stores before calling launchApplication()
+ */
 Ext.onReady(function() {
     Ext.QuickTips.init();
 
@@ -1239,6 +1229,9 @@ Ext.onReady(function() {
     var projectResourceLoadStore = Ext.create('PO.store.resource_management.ProjectResourceLoadStore');
     var costCenterResourceLoadStore = Ext.create('PO.store.resource_management.CostCenterResourceLoadStore');
 
+    // Wait for both the project and cost-center store
+    // before launching the application. We need the
+    // Stores in order to calculate the size of the panels
     var coo = Ext.create('PO.controller.StoreLoadCoordinator', {
         debug: 0,
         launched: false,
@@ -1259,6 +1252,8 @@ Ext.onReady(function() {
         }
     });
 
+    // Load the project store and THEN load the costCenter store.
+    // The Gantt panels will redraw() if stores are reloaded.
     projectResourceLoadStore.load({
         callback: function() {
             console.log('PO.controller.StoreLoadCoordinator.projectResourceLoadStore: loaded');
