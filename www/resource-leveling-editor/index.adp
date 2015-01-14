@@ -438,7 +438,7 @@ Ext.define('PO.view.resource_management.AbstractGanttEditor', {
 	    // Algorithm to optimize the path: Join several horizontal pieces together
 	    var lastPoint = pathArray[pathArray.length - 1];
 
-	    if (lastPoint[1] != intervalY) {				// Start a new segment only if different Y value
+	    if (true || lastPoint[1] != intervalY) {				// Start a new segment only if different Y value
 		// New Y position: Draw vertical + horizontal line
 		pathArray.push([intervalStartX,intervalY]);		// Draw vertical line connecting last interval end to new start
 		pathArray.push([intervalEndX,intervalY]);		// Draw horizonal line during interval
@@ -929,9 +929,9 @@ Ext.define('PO.view.resource_management.ResourceLevelingEditorCostCenterPanel', 
         var startTime = new Date(start_date).getTime();
         var endTime = new Date(end_date).getTime();
 
-//        var y = (costCenterPanelY - surfacePanelY) + (costCenterDivY - costCenterPanelY) + 5;
+	// *************************************************
+	// Draw the main bar
         var y = me.calcGanttBarYPosition(costCenter);
-
         var x = me.date2x(startTime);
         var w = Math.floor( me.ganttSurfaceWidth * (endTime - startTime) / (me.axisEndDate.getTime() - me.axisStartDate.getTime()));
         var h = me.ganttBarHeight; 					// Height of the bars
@@ -951,6 +951,7 @@ Ext.define('PO.view.resource_management.ResourceLevelingEditorCostCenterPanel', 
         }).show(true);
         spriteBar.model = costCenter;					// Store the task information for the sprite
 
+	// *************************************************
         // Draw availability percentage
         var availableDays = costCenter.get('available_days');		// Array of available days since report_start_date
         var maxAvailableDays = parseFloat(""+costCenter.get('assigned_resources')); // Should be the maximum of availableDays
@@ -963,6 +964,7 @@ Ext.define('PO.view.resource_management.ResourceLevelingEditorCostCenterPanel', 
             path: path
         }).show(true);
 
+	// *************************************************
         // Draw assignment percentage
         var assignedDays = costCenter.get('assigned_days');
         var maxAssignedDays = parseFloat(""+costCenter.get('assigned_resources'));
@@ -974,6 +976,56 @@ Ext.define('PO.view.resource_management.ResourceLevelingEditorCostCenterPanel', 
             'stroke-width': 1,
             path: path
         }).show(true);
+
+	// *************************************************
+        // Draw load percentage
+	var len = availableDays.length;
+	if (assignedDays.length < len) { len = assignedDays.length; }
+	var loadDays = [];
+	var maxLoadPercentage = 0;
+	for (var i = 0; i < len; i++) {
+	    if (assignedDays[i] == 0.0) {    // Zero assigned => zero
+		loadDays.push(0);
+		continue;
+	    }
+	    if (availableDays[i] == 0.0) {   // Avoid division by zero
+		loadDays.push(0);
+		continue;
+	    }
+	    var loadPercentage = 100.0 * assignedDays[i] / availableDays[i];
+	    if (loadPercentage > 300) { loadPercentage = 300; }
+	    if (loadPercentage > maxLoadPercentage) { maxLoadPercentage = loadPercentage; }
+	    loadDays.push(loadPercentage);
+	}
+        var path = me.graphOnGanttBar(spriteBar, costCenter, loadDays, maxLoadPercentage, new Date(startTime));
+        var spritePath = surface.add({
+            type: 'path',
+            stroke: 'yellow',
+            'stroke-width': 1,
+            path: path
+        }).show(true);
+
+        // *************************************************
+        // Accumulated Load percentage
+	var accLoad = 0.0
+	var accLoadDays = [];
+	var maxAccLoad = 0.0
+	for (var i = 0; i < len; i++) {
+	    var assigned = assignedDays[i];
+	    var available = availableDays[i];
+	    accLoad = accLoad + assigned - available;
+	    if (accLoad < 0.0) { accLoad = 0.0; }
+            accLoadDays.push(accLoad);
+	    if (accLoad > maxAccLoad) { maxAccLoad = accLoad; }
+        }
+        var path = me.graphOnGanttBar(spriteBar, costCenter, accLoadDays, maxAccLoad, new Date(startTime));
+        var spritePath = surface.add({
+            type: 'path',
+            stroke: 'purple',
+            'stroke-width': 1,
+            path: path
+        }).show(true);
+
     }
 
 });
