@@ -136,8 +136,8 @@ Ext.define('PO.store.resource_management.CostCenterResourceLoadStore', {
         // As a result we will get the resource load with moved projects
         projectStore.each(function(model) {
             var enabled = model.get('projectGridSelected');
-            if (0 === enabled) { 
-                return; 
+            if (0 === enabled) {
+                return;
             }
 
             var projectId = model.get('project_id');
@@ -158,7 +158,7 @@ Ext.define('PO.store.resource_management.CostCenterResourceLoadStore', {
 
 
 /********************************************************
- * Base class for various types of graphical editors using 
+ * Base class for various types of graphical editors using
  * Gantt bars including: GanttEditor, Project part of the
  * ResourceLevelEditor and the Department part of the
  * ResourceLevelEditor.
@@ -362,7 +362,7 @@ Ext.define('PO.view.resource_management.AbstractGanttEditor', {
 
     /**
      * Calculate the Y-position of a Gantt bar,
-     * based on the Y position of the project or CC 
+     * based on the Y position of the project or CC
      * in the grid at the left.
      */
     calcGanttBarYPosition: function(model) {
@@ -383,12 +383,12 @@ Ext.define('PO.view.resource_management.AbstractGanttEditor', {
      * - graphArray is an array for the individual values
      * - maxGraphArray is the max value of the graphArray ("100%")
      * - startDate corresponds to ganttSprite.x
-     * The graph will range between 0 (bottom of the Gantt bar) and 
+     * The graph will range between 0 (bottom of the Gantt bar) and
      * maxGraphArray (top of the Gantt bar).
      */
     graphOnGanttBar: function(ganttSprite, model, graphArray, maxGraphArray, startDate) {
         var me = this;
-        if (me.debug) { console.log('PO.view.resource_management.ResourceLevelingEditorCostCenterPanel.drawGraphOnGanttBar: Starting'); }
+        if (me.debug) { console.log('PO.view.resource_management.ResourceLevelingEditorCostCenterPanel.drawGraphOnGanttBar'); }
 
         // Granularity
         var intervalTimeMilliseconds;
@@ -416,7 +416,6 @@ Ext.define('PO.view.resource_management.AbstractGanttEditor', {
         var endX = ganttSprite.x + ganttSprite.width;
         var baseY = ganttSprite.y + ganttSprite.height;
         var baseHeight = ganttSprite.height - 1;
-        
         var intervalEndDate, intervalY;
 
         var intervalStartDate = startDate;
@@ -472,7 +471,7 @@ Ext.define('PO.view.resource_management.AbstractGanttEditor', {
             var x = me.date2x(new Date(year+"-01-01"));
             var xEnd = me.date2x(new Date((year+1)+"-01-01"));
             var w = xEnd - x;
-            
+
             var axisBar = me.surface.add({
                 type: 'rect',
                 x: x,
@@ -521,7 +520,7 @@ Ext.define('PO.view.resource_management.AbstractGanttEditor', {
             var x = me.date2x(new Date(yea+"-"+  ("0"+(mon+1)).slice(-2)  +"-01"));
             var xEnd = me.date2x(new Date(xEndYea+"-"+  ("0"+(xEndMon+1)).slice(-2)  +"-01"));
             var w = xEnd - x;
-            
+
             var axisBar = me.surface.add({
                 type: 'rect',
                 x: x,
@@ -578,13 +577,13 @@ Ext.define('PO.view.resource_management.AbstractGanttEditor', {
 	var axisStartTime = me.axisStartDate.getTime();
 	var axisEndTime = me.axisEndDate.getTime();
 
-        var x = me.axisStartX + Math.floor(1.0 * axisWidth * 
-                (1.0 * dateMilliJulian - axisStartTime) / 
+        var x = me.axisStartX + Math.floor(1.0 * axisWidth *
+                (1.0 * dateMilliJulian - axisStartTime) /
                 (1.0 * axisEndTime - axisStartTime)
         );
 
 	// Allow for negative starts:
-	// Projects are determined by start_date + width, 
+	// Projects are determined by start_date + width,
 	// so projects would be shifted to the right
         // if (x < 0) { x = 0; }
 
@@ -647,7 +646,7 @@ Ext.define('PO.view.resource_management.ResourceLevelingEditorProjectPanel', {
             'objectdnd': me.onProjectMove,
             'scope': this
         });
-        
+
         // Catch the moment when the "view" of the Project grid
         // is ready in order to draw the GanttBars for the first time.
         // The view seems to take a while...
@@ -716,8 +715,11 @@ Ext.define('PO.view.resource_management.ResourceLevelingEditorProjectPanel', {
         var startDate = new Date(startTime);
         var endDate = new Date(endTime);
 
-        projectModel.set('start_date', startDate.toISOString());
-        projectModel.set('end_date', endDate.toISOString());
+        projectModel.set('start_date', startDate.toISOString().substring(0,10));
+        projectModel.set('end_date', endDate.toISOString().substring(0,10));
+
+        // Reload the Cost Center Resource Load Store with the new selected/changed projects
+	me.costCenterResourceLoadStore.loadWithProjectData(me.objectStore);
 
         me.redraw();
     },
@@ -786,21 +788,6 @@ Ext.define('PO.view.resource_management.ResourceLevelingEditorProjectPanel', {
             }
         }).show(true);
         spriteBar.model = project;					// Store the task information for the sprite
-
-	/*
-	 * Doesn't work - Text sprites somehow mess up
-	 * the sprite selection when trying to check 
-	 * which sprite is below the mouse click.
-	 *
-        var projectText = me.surface.add({
-            type: 'text',
-            text: project_name,
-            x: x + 1 + h/2.0,
-            y: y + 1 + h/2.0,
-            fill: '#000',
-            font: "11px Arial"
-        }).show(true);
-	*/
 
         // Draw availability percentage
         var assignedDays = project.get('assigned_days');
@@ -977,7 +964,7 @@ Ext.define('PO.view.resource_management.ResourceLevelingEditorCostCenterPanel', 
 
 
 /**
- * Create the four panels and 
+ * Create the four panels and
  * handle external resizing events
  */
 function launchApplication(){
@@ -1185,7 +1172,7 @@ function launchApplication(){
 
         onResize(sideBarWidth);
     };
-    
+
     // Manually changed the size of the borderPanel
     var onBorderResize = function () {
         console.log('launchApplication.onBorderResize:');
@@ -1198,7 +1185,7 @@ function launchApplication(){
         surface.setSize(1500, surface.height);
         resourceLevelingEditorCostCenterPanel.redraw();
     };
-    
+
     var onSidebarResize = function () {
         console.log('launchApplication.onResize:');
 	// ]po[ Sidebar
@@ -1213,7 +1200,7 @@ function launchApplication(){
             sideBarWidth = 340;                                         // Determines size when Sidebar visible
 	}
         onResize(sideBarWidth);
-	
+
     };
 
     borderPanel.on('resize', onBorderResize);
@@ -1226,7 +1213,7 @@ function launchApplication(){
 
 /**
  * Application Launcher
- * Only deals with loading the required 
+ * Only deals with loading the required
  * stores before calling launchApplication()
  */
 Ext.onReady(function() {
@@ -1271,7 +1258,7 @@ Ext.onReady(function() {
     projectResourceLoadStore.load({
         callback: function() {
             console.log('PO.controller.StoreLoadCoordinator.projectResourceLoadStore: loaded');
-            // Now load the cost center load for the current 
+            // Now load the cost center load for the current
             costCenterResourceLoadStore.loadWithProjectData(projectResourceLoadStore);
         }
     });
