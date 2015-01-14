@@ -1116,7 +1116,7 @@ function launchApplication(){
     var borderPanelHeight = costCenterGridHeight + projectGridHeight;
     var sideBar = Ext.get('sidebar');                               // ]po[ left side bar component
     var sideBarWidth = sideBar.getSize().width;
-    var borderPanelWidth = Ext.getBody().getViewSize().width - sideBarWidth - 95;
+    var borderPanelWidth = Ext.getBody().getViewSize().width - sideBarWidth - 85;
     var borderPanel = Ext.create('Ext.panel.Panel', {
         width: borderPanelWidth,
         height: borderPanelHeight,
