@@ -15,8 +15,6 @@ ad_page_contract {
     { granularity "week" }
 }
 
-# ad_return_complaint 1 "<pre>[array get start_date]<br>[array get end_date]</pre>"
-
 # ---------------------------------------------------------------
 # Defaults & Security
 # ---------------------------------------------------------------

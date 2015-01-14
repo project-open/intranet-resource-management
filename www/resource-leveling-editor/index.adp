@@ -339,7 +339,6 @@ Ext.define('PO.view.resource_management.AbstractGanttEditor', {
             if ("rect" != sprite.type) continue;
 
 	    var bbox = sprite.getBBox();
-
 	    if (bbox.x > x) continue;
 	    if (bbox.y > y) continue;
 	    if (bbox.x + bbox.width < x) continue;
@@ -350,18 +349,6 @@ Ext.define('PO.view.resource_management.AbstractGanttEditor', {
 
 	return null;
     },
-
-    /**
-     * Checks for mouse inside a Gantt bar.
-     * Ignore any non "box" sprites
-     */
-    isSpriteInPoint: function(x, y, sprite, i) {
-        var bbox = sprite.getBBox();
-        return bbox.x <= x && bbox.y <= y
-            && (bbox.x + bbox.width) >= x
-            && (bbox.y + bbox.height) >= y;
-    },
-
 
     /**
      * Draw all Gantt bars
@@ -1189,6 +1176,13 @@ function launchApplication(){
         console.log('launchApplication.onWindowResize:');
         var sideBar = Ext.get('sidebar');                               // ]po[ left side bar component
         var sideBarWidth = sideBar.getSize().width;
+
+        if (sideBarWidth > 100) {
+            sideBarWidth = 340;                                         // Determines size when Sidebar visible
+        } else {
+            sideBarWidth = 85;                                         // Determines size when Sidebar collapsed
+        }
+
         onResize(sideBarWidth);
     };
     
