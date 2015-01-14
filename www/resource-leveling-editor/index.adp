@@ -357,7 +357,7 @@ Ext.define('PO.view.resource_management.AbstractGanttEditor', {
         console.log('PO.view.resource_management.AbstractGanttEditor.redraw: Needs to be overwritten');
         var me = this;
         me.surface.removeAll();
-        me.drawAxis();					// Draw the top axis
+        me.drawAxis();							// Draw the top axis
     },
 
     /**
@@ -370,7 +370,7 @@ Ext.define('PO.view.resource_management.AbstractGanttEditor', {
         var objectPanelView = me.objectPanel.getView();			// The "view" for the GridPanel, containing HTML elements
         var projectNodeHeight = objectPanelView.getNode(0).getBoundingClientRect().height;   // Height of a project node
         var projectYFirstProject = objectPanelView.getNode(0).getBoundingClientRect().top; // Y position of the very first project
-        var centerOffset = (projectNodeHeight - me.ganttBarHeight) / 2.0;                    // Small offset in order to center Gantt
+        var centerOffset = (projectNodeHeight - me.ganttBarHeight) / 2.0;            	// Small offset in order to center Gantt
         var projectY = objectPanelView.getNode(model).getBoundingClientRect().top;       // Y position of current project
         var y = projectY - projectYFirstProject + 2 * me.axisHeight + centerOffset;
         return y;
@@ -394,10 +394,10 @@ Ext.define('PO.view.resource_management.AbstractGanttEditor', {
         var intervalTimeMilliseconds;
         switch(me.granularity) {
         case 'week':
-            intervalTimeMilliseconds = 1000.0 * 3600 * 24 * 7.0; // One day
+            intervalTimeMilliseconds = 1000.0 * 3600 * 24 * 7.0;	// One day
             break;
         case 'day':
-            intervalTimeMilliseconds = 1000.0 * 3600 * 24 * 1.0; // One day
+            intervalTimeMilliseconds = 1000.0 * 3600 * 24 * 1.0;	// One day
             break;
         default:
             alert('Undefined granularity: '+me.granularity);
@@ -422,24 +422,41 @@ Ext.define('PO.view.resource_management.AbstractGanttEditor', {
         var intervalStartX =  me.date2x(intervalStartDate);
 
         intervalY = Math.floor(baseY - (graphArray[0] / maxGraphArray) * baseHeight) + 0.5;
-        var path = "M" + intervalStartX + " " + intervalY;   // Start point for path
+
+        var path = "M" + intervalStartX + " " + intervalY;		// Start point for path
+        var pathArray = [[intervalStartX,intervalY]];			// Array will keep the LX,Y points
 
         for (i = 0; i < len; i++) {
             intervalEndDate = new Date(intervalStartDate.getTime() + intervalTimeMilliseconds);
             intervalEndX = me.date2x(intervalEndDate);
 
-            if (intervalStartX >= endX) { continue; }           // Skip the last interval if it's outside the bar
-            if (intervalEndX > endX) { intervalEndX = endX; }   // Fix the last interval to stop at the bar
+            if (intervalStartX >= endX) { continue; }			// Skip the last interval if it's outside the bar
+            if (intervalEndX > endX) { intervalEndX = endX; }		// Fix the last interval to stop at the bar
 
             intervalY = Math.floor(baseY - (graphArray[i] / maxGraphArray) * baseHeight) + 0.5;
 
-            path = path + " L" + intervalStartX + " " + intervalY;
-            path = path + " L" + intervalEndX + " " + intervalY;
+	    // Algorithm to optimize the path: Join several horizontal pieces together
+	    var lastPoint = pathArray[pathArray.length - 1];
+
+	    if (lastPoint[1] != intervalY) {				// Start a new segment only if different Y value
+		// New Y position: Draw vertical + horizontal line
+		pathArray.push([intervalStartX,intervalY]);		// Draw vertical line connecting last interval end to new start
+		pathArray.push([intervalEndX,intervalY]);		// Draw horizonal line during interval
+	    } else {
+		// Same Y position
+		lastPoint[0] = intervalEndX;				// Update last X position to the new intervalEnd
+	    }
 
             // The former end of the interval becomes the start for the next interval
             intervalStartDate = intervalEndDate;
             intervalStartX = intervalEndX;
         }
+
+        for (i = 0; i < pathArray.length; i++) {			// The very first element corresponds to the MX,Y command
+	    var point = pathArray[i];
+            path = path + " L" + point[0] + " " + point[1];
+        }
+
         return path;
     },
 
@@ -465,7 +482,7 @@ Ext.define('PO.view.resource_management.AbstractGanttEditor', {
         var startYear = me.axisStartDate.getFullYear();
         var endYear = me.axisEndDate.getFullYear();
         var y = 0;
-        var h = me.axisHeight; 							// Height of the bars
+        var h = me.axisHeight; 						// Height of the bars
 
         for (var year = startYear; year <= endYear; year++) {
             var x = me.date2x(new Date(year+"-01-01"));
@@ -478,7 +495,7 @@ Ext.define('PO.view.resource_management.AbstractGanttEditor', {
                 y: y,
                 width: w,
                 height: h,
-                fill: '#cdf',               // '#ace'
+                fill: '#cdf',						// '#ace'
                 stroke: 'grey'
             }).show(true);
 
@@ -510,7 +527,7 @@ Ext.define('PO.view.resource_management.AbstractGanttEditor', {
         var mon = startMonth;
 
         var y = me.axisHeight;
-        var h = me.axisHeight; 							// Height of the bars
+        var h = me.axisHeight; 						// Height of the bars
 
         while (yea * 100 + mon <= endYear * 100 + endMonth) {
 
@@ -527,7 +544,7 @@ Ext.define('PO.view.resource_management.AbstractGanttEditor', {
                 y: y,
                 width: w,
                 height: h,
-                fill: '#cdf',               // '#ace'
+                fill: '#cdf',       	// '#ace'
                 stroke: 'grey'
             }).show(true);
 
@@ -733,14 +750,14 @@ Ext.define('PO.view.resource_management.ResourceLevelingEditorProjectPanel', {
 
         if (undefined === me.surface) { return; }
         me.surface.removeAll();
-        me.drawAxis();					// Draw the top axis
+        me.drawAxis();							// Draw the top axis
 
         // Draw project bars
-        var objectPanelView = me.objectPanel.getView();		// The "view" for the GridPanel, containing HTML elements
+        var objectPanelView = me.objectPanel.getView();			// The "view" for the GridPanel, containing HTML elements
         var projectSelModel = me.objectPanel.getSelectionModel();
         me.objectStore.each(function(model) {
-            var viewNode = objectPanelView.getNode(model);	// DIV with project name on the ProjectGrid for Y coo
-            if (viewNode == null) { return; }			// hidden nodes/models don't have a viewNode
+            var viewNode = objectPanelView.getNode(model);		// DIV with project name on the ProjectGrid for Y coo
+            if (viewNode == null) { return; }				// hidden nodes/models don't have a viewNode
             if (!projectSelModel.isSelected(model)) {
                 return;
             }
@@ -769,7 +786,7 @@ Ext.define('PO.view.resource_management.ResourceLevelingEditorProjectPanel', {
         var x = me.date2x(startTime);
         var y = me.calcGanttBarYPosition(project);
         var w = Math.floor(me.ganttSurfaceWidth * (endTime - startTime) / (me.axisEndDate.getTime() - me.axisStartDate.getTime()));
-        var h = me.ganttBarHeight; 							// Height of the bars
+        var h = me.ganttBarHeight; 					// Height of the bars
         var d = Math.floor(h / 2.0) + 1;				// Size of the indent of the super-project bar
 
         var spriteBar = surface.add({
@@ -877,14 +894,14 @@ Ext.define('PO.view.resource_management.ResourceLevelingEditorCostCenterPanel', 
         if (undefined === me.surface) { return; }
 
         me.surface.removeAll();
-        me.drawAxis();					// Draw the top axis
+        me.drawAxis();							// Draw the top axis
 
         // Draw CostCenter bars
         var costCenterStore = me.objectStore;
-        var costCenterGridView = me.objectPanel.getView();	// The "view" for the GridPanel, containing HTML elements
+        var costCenterGridView = me.objectPanel.getView();		// The "view" for the GridPanel, containing HTML elements
         me.objectStore.each(function(model) {
-            var viewNode = costCenterGridView.getNode(model);	// DIV with costCenter name on the CostCenterGrid for Y coo
-            if (viewNode == null) { return; }			// hidden nodes/models don't have a viewNode
+            var viewNode = costCenterGridView.getNode(model);		// DIV with costCenter name on the CostCenterGrid for Y coo
+            if (viewNode == null) { return; }				// hidden nodes/models don't have a viewNode
             me.drawCostCenterBar(model);
         });
 
@@ -897,7 +914,7 @@ Ext.define('PO.view.resource_management.ResourceLevelingEditorCostCenterPanel', 
     drawCostCenterBar: function(costCenter) {
         var me = this;
         if (me.debug) { console.log('PO.view.resource_management.ResourceLevelingEditorCostCenterPanel.drawCostCenterBar: Starting'); }
-        var costCenterGridView = me.objectPanel.getView();			// The "view" for the GridPanel, containing HTML elements
+        var costCenterGridView = me.objectPanel.getView();		// The "view" for the GridPanel, containing HTML elements
         var surface = me.surface;
 
         // Calculate the Y position for the bar, depending on
@@ -917,8 +934,8 @@ Ext.define('PO.view.resource_management.ResourceLevelingEditorCostCenterPanel', 
 
         var x = me.date2x(startTime);
         var w = Math.floor( me.ganttSurfaceWidth * (endTime - startTime) / (me.axisEndDate.getTime() - me.axisStartDate.getTime()));
-        var h = me.ganttBarHeight; 						// Height of the bars
-        var d = Math.floor(h / 2.0) + 1;					// Size of the indent of the super-costCenter bar
+        var h = me.ganttBarHeight; 					// Height of the bars
+        var d = Math.floor(h / 2.0) + 1;				// Size of the indent of the super-costCenter bar
 
         var spriteBar = surface.add({
             type: 'rect',
@@ -927,15 +944,15 @@ Ext.define('PO.view.resource_management.ResourceLevelingEditorCostCenterPanel', 
             fill: 'url(#gradientId)',
             stroke: 'blue',
             'stroke-width': 0.3,
-            listeners: {							// Highlight the sprite on mouse-over
+            listeners: {						// Highlight the sprite on mouse-over
                 mouseover: function() { this.animate({duration: 500, to: {'stroke-width': 1.0}}); },
                 mouseout: function()  { this.animate({duration: 500, to: {'stroke-width': 0.3}}); }
             }
         }).show(true);
-        spriteBar.model = costCenter;						// Store the task information for the sprite
+        spriteBar.model = costCenter;					// Store the task information for the sprite
 
         // Draw availability percentage
-        var availableDays = costCenter.get('available_days');			// Array of available days since report_start_date
+        var availableDays = costCenter.get('available_days');		// Array of available days since report_start_date
         var maxAvailableDays = parseFloat(""+costCenter.get('assigned_resources')); // Should be the maximum of availableDays
         if ('week' == me.granularity) { maxAvailableDays = maxAvailableDays * 7.0; }
         var path = me.graphOnGanttBar(spriteBar, costCenter, availableDays, maxAvailableDays, new Date(startTime));
@@ -1084,7 +1101,7 @@ function launchApplication(){
                 100: { color: '#ddd' }
             }
         }],
-        overflowX: 'scroll',				// Allows for horizontal scrolling, but not vertical
+        overflowX: 'scroll',						// Allows for horizontal scrolling, but not vertical
         scrollFlags: {x: true},
         objectStore: projectResourceLoadStore,
         objectPanel: projectGrid,
@@ -1101,7 +1118,8 @@ function launchApplication(){
      * (projects, departments and gantt bars)
      */
     var borderPanelHeight = costCenterGridHeight + projectGridHeight;
-    var sideBar = Ext.get('sidebar');                               // ]po[ left side bar component
+
+    var sideBar = Ext.get('sidebar');					// ]po[ left side bar component
     var sideBarWidth = sideBar.getSize().width;
     var borderPanelWidth = Ext.getBody().getViewSize().width - sideBarWidth - 85;
     var borderPanel = Ext.create('Ext.panel.Panel', {
@@ -1109,7 +1127,7 @@ function launchApplication(){
         height: borderPanelHeight,
         title: false,
         layout: 'border',
-	resizable: true,                                         // Allow the user to resize the outer diagram borders
+	resizable: true,						// Allow the user to resize the outer diagram borders
         defaults: {
             collapsible: false,
             split: true,
@@ -1161,13 +1179,13 @@ function launchApplication(){
 
     var onWindowResize = function () {
         console.log('launchApplication.onWindowResize:');
-        var sideBar = Ext.get('sidebar');                               // ]po[ left side bar component
+        var sideBar = Ext.get('sidebar');				// ]po[ left side bar component
         var sideBarWidth = sideBar.getSize().width;
 
         if (sideBarWidth > 100) {
-            sideBarWidth = 340;                                         // Determines size when Sidebar visible
+            sideBarWidth = 340;						// Determines size when Sidebar visible
         } else {
-            sideBarWidth = 85;                                         // Determines size when Sidebar collapsed
+            sideBarWidth = 85;						// Determines size when Sidebar collapsed
         }
 
         onResize(sideBarWidth);
@@ -1195,9 +1213,9 @@ function launchApplication(){
         // We get the event _before_ the sideBar has changed it's size.
         // So we actually need to the the oposite of the sidebar size:
 	if (sideBarWidth > 100) {
-            sideBarWidth = 85;                                         // Determines size when Sidebar collapsed
+            sideBarWidth = 85;						// Determines size when Sidebar collapsed
 	} else {
-            sideBarWidth = 340;                                         // Determines size when Sidebar visible
+            sideBarWidth = 340;						// Determines size when Sidebar visible
 	}
         onResize(sideBarWidth);
 
@@ -1223,8 +1241,8 @@ Ext.onReady(function() {
     var renderDiv = Ext.get('resource_level_editor_div');
     var splashScreen = renderDiv.mask('Loading data');
     var task = new Ext.util.DelayedTask(function() {
-        splashScreen.fadeOut({duration: 100, remove: true});			// fade out the body mask
-        splashScreen.next().fadeOut({duration: 100, remove: true});		// fade out the message
+        splashScreen.fadeOut({duration: 100, remove: true});		// fade out the body mask
+        splashScreen.next().fadeOut({duration: 100, remove: true});	// fade out the message
     });
 
     var projectResourceLoadStore = Ext.create('PO.store.resource_management.ProjectResourceLoadStore');
@@ -1247,8 +1265,8 @@ Ext.onReady(function() {
                 // Launch the actual application.
                 console.log('PO.controller.StoreLoadCoordinator: launching Application');
                 this.launched = true;
-                task.delay(100);						// Fade out the splash screen
-                launchApplication();						// launch the actual application
+                task.delay(100);					// Fade out the splash screen
+                launchApplication();					// launch the actual application
             }
         }
     });
