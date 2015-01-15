@@ -325,29 +325,29 @@ Ext.define('PO.view.resource_management.AbstractGanttEditor', {
             x = point[0],
             y = point[1];
 
-	var result = [];
+        var result = [];
 
         if (y <= me.axisHeight) { return 'axis1'; }
         if (y > me.axisHeight && y <= 2*me.axisHeight) { return 'axis2'; }
 
         var items = me.surface.items.items;
-	console.log('getSpriteForPoint: items.length='+items.length);
+        console.log('getSpriteForPoint: items.length='+items.length);
 
         for (var i = 0, ln = items.length; i < ln; i++) {
-	    var sprite = items[i];
-	    if (!sprite) continue;
+            var sprite = items[i];
+            if (!sprite) continue;
             if ("rect" != sprite.type) continue;
 
-	    var bbox = sprite.getBBox();
-	    if (bbox.x > x) continue;
-	    if (bbox.y > y) continue;
-	    if (bbox.x + bbox.width < x) continue;
-	    if (bbox.y + bbox.height < y) continue;
+            var bbox = sprite.getBBox();
+            if (bbox.x > x) continue;
+            if (bbox.y > y) continue;
+            if (bbox.x + bbox.width < x) continue;
+            if (bbox.y + bbox.height < y) continue;
 
-	    return sprite;
+            return sprite;
         }
 
-	return null;
+        return null;
     },
 
     /**
@@ -386,9 +386,16 @@ Ext.define('PO.view.resource_management.AbstractGanttEditor', {
      * The graph will range between 0 (bottom of the Gantt bar) and
      * maxGraphArray (top of the Gantt bar).
      */
-    graphOnGanttBar: function(ganttSprite, model, graphArray, maxGraphArray, startDate) {
+    graphOnGanttBar: function(ganttSprite, model, graphArray, maxGraphArray, startDate, colorConf, tooltipTemplate) {
         var me = this;
-        if (me.debug) { console.log('PO.view.resource_management.ResourceLevelingEditorCostCenterPanel.drawGraphOnGanttBar'); }
+        var surface = me.surface;
+        if (me.debug) { console.log('PO.view.resource_management.ResourceLevelingEditorCostCenterPanel.graphOnGanttBar'); }
+
+        // Add a -1 at the end of the graphArray
+        // "-1" indicates the end of the array
+        if (graphArray[graphArray.length-1] != -1) {
+            graphArray.push(-1);
+        }
 
         // Granularity
         var intervalTimeMilliseconds;
@@ -404,10 +411,11 @@ Ext.define('PO.view.resource_management.AbstractGanttEditor', {
         }
 
         // Calculate the biggest element of the graphArray
+        var i;
         var len = graphArray.length;
         if (null === maxGraphArray || 0.0 == maxGraphArray) {
             var maxGraphArray = 0.0;
-            for (var i = 0; i < len; i++) {
+            for (i = 0; i < len; i++) {
                 if (graphArray[i] > maxGraphArray) { maxGraphArray = graphArray[i]; };
             }
         }
@@ -416,48 +424,80 @@ Ext.define('PO.view.resource_management.AbstractGanttEditor', {
         var endX = ganttSprite.x + ganttSprite.width;
         var baseY = ganttSprite.y + ganttSprite.height;
         var baseHeight = ganttSprite.height - 1;
-        var intervalEndDate, intervalY;
+        var intervalEndDate, intervalEndX, intervalY;
 
         var intervalStartDate = startDate;
+        var segmentStartDate = startDate;
         var intervalStartX =  me.date2x(intervalStartDate);
 
         intervalY = Math.floor(baseY - (graphArray[0] / maxGraphArray) * baseHeight) + 0.5;
 
         var path = "M" + intervalStartX + " " + intervalY;		// Start point for path
-        var pathArray = [[intervalStartX,intervalY]];			// Array will keep the LX,Y points
+        var pathX = intervalStartX;
+        var pathY = intervalY;
 
+        if ("2015-01-01" == model.get('start_date')) {
+            console.log('Fraber Test 2015');
+        }
+
+
+        var value, lastValue = 0;
         for (i = 0; i < len; i++) {
+            var value = graphArray[i];
             intervalEndDate = new Date(intervalStartDate.getTime() + intervalTimeMilliseconds);
             intervalEndX = me.date2x(intervalEndDate);
-
-            if (intervalStartX >= endX) { continue; }			// Skip the last interval if it's outside the bar
             if (intervalEndX > endX) { intervalEndX = endX; }		// Fix the last interval to stop at the bar
+            intervalY = Math.floor(baseY - (value / maxGraphArray) * baseHeight) + 0.5;
 
-            intervalY = Math.floor(baseY - (graphArray[i] / maxGraphArray) * baseHeight) + 0.5;
+            if (pathY != intervalY) {
+                // This segment starts with a new Y coordinate
+                // Finish off the last segment and start a new one
+                path = path + " L" + intervalEndX + " " + pathY;
 
-	    // Algorithm to optimize the path: Join several horizontal pieces together
-	    var lastPoint = pathArray[pathArray.length - 1];
+                if (intervalStartX < endX) {
+                    path = path + " L" + intervalEndX + " " + intervalY;
+                }
+                var spritePath = surface.add({
+                    type: 'path',
+                    stroke: colorConf,
+                    'stroke-width': 2,
+                    path: path
+                }).show(true);
 
-	    if (true || lastPoint[1] != intervalY) {				// Start a new segment only if different Y value
-		// New Y position: Draw vertical + horizontal line
-		pathArray.push([intervalStartX,intervalY]);		// Draw vertical line connecting last interval end to new start
-		pathArray.push([intervalEndX,intervalY]);		// Draw horizonal line during interval
-	    } else {
-		// Same Y position
-		lastPoint[0] = intervalEndX;				// Update last X position to the new intervalEnd
-	    }
+                // Format a ToolTip based on the provided template,
+                // the values of the current segment 
+                // and the model of the object shown.
+                if (undefined !== tooltipTemplate) {
+                    var data = {};
+                    for (var v in model.data) { data[v] = model.data[v]; }
+                    data['value'] = lastValue;
+                    data['maxValue'] = maxGraphArray;
+                    data['startDate'] = segmentStartDate.toISOString().substring(0,10);
+                    data['endDate'] = intervalStartDate.toISOString().substring(0,10);
+                    var tip = Ext.create("Ext.tip.ToolTip", {
+                        target: spritePath.el,
+                        html: tooltipTemplate.apply(data)                 // Replace {0} in the template with value
+                    });
+                }
+
+                path = "M" + intervalEndX + " " + intervalY;              // Start point for path
+                pathX = intervalEndX;
+                pathY = intervalY;
+
+                // A new segment will start here.
+                segmentStartDate = intervalEndDate;
+
+            } else {
+                // Nothing - still on the same Y coordinates
+                pathX = intervalEndX;
+            }
 
             // The former end of the interval becomes the start for the next interval
             intervalStartDate = intervalEndDate;
             intervalStartX = intervalEndX;
-        }
 
-        for (i = 0; i < pathArray.length; i++) {			// The very first element corresponds to the MX,Y command
-	    var point = pathArray[i];
-            path = path + " L" + point[0] + " " + point[1];
+            lastValue = value;
         }
-
-        return path;
     },
 
     /**
@@ -591,17 +631,17 @@ Ext.define('PO.view.resource_management.AbstractGanttEditor', {
 
         var axisWidth = me.axisEndX - me.axisStartX;
 
-	var axisStartTime = me.axisStartDate.getTime();
-	var axisEndTime = me.axisEndDate.getTime();
+        var axisStartTime = me.axisStartDate.getTime();
+        var axisEndTime = me.axisEndDate.getTime();
 
         var x = me.axisStartX + Math.floor(1.0 * axisWidth *
                 (1.0 * dateMilliJulian - axisStartTime) /
                 (1.0 * axisEndTime - axisStartTime)
         );
 
-	// Allow for negative starts:
-	// Projects are determined by start_date + width,
-	// so projects would be shifted to the right
+        // Allow for negative starts:
+        // Projects are determined by start_date + width,
+        // so projects would be shifted to the right
         // if (x < 0) { x = 0; }
 
 
@@ -717,7 +757,7 @@ Ext.define('PO.view.resource_management.ResourceLevelingEditorProjectPanel', {
      */
     onProjectMove: function(baseSprite, projectModel, xDiff) {
         var me = this;
-	if (!projectModel) return;
+        if (!projectModel) return;
         console.log('PO.view.resource_management.ResourceLevelingEditorProjectPanel.onProjectMove: '+projectModel.get('id') + ', ' + xDiff);
 
         var bBox = me.dndBaseSprite.getBBox();
@@ -736,7 +776,7 @@ Ext.define('PO.view.resource_management.ResourceLevelingEditorProjectPanel', {
         projectModel.set('end_date', endDate.toISOString().substring(0,10));
 
         // Reload the Cost Center Resource Load Store with the new selected/changed projects
-	me.costCenterResourceLoadStore.loadWithProjectData(me.objectStore);
+        me.costCenterResourceLoadStore.loadWithProjectData(me.objectStore);
 
         me.redraw();
     },
@@ -808,13 +848,9 @@ Ext.define('PO.view.resource_management.ResourceLevelingEditorProjectPanel', {
 
         // Draw availability percentage
         var assignedDays = project.get('assigned_days');
-        var path = me.graphOnGanttBar(spriteBar, project, assignedDays, null, new Date(startTime));
-        var spritePath = surface.add({
-            type: 'path',
-            stroke: 'blue',
-            'stroke-width': 1,
-            path: path
-        }).show(true);
+        var colorConf = 'blue';
+        var template = new Ext.Template("<div><b>Project Assignment</b>:<br>There are {value} out of {maxValue} resources assigned to project '{project_name}' and it's subprojects between {startDate} and {endDate}.<br></div>");
+        me.graphOnGanttBar(spriteBar, project, assignedDays, null, new Date(startTime), colorConf, template);
 
         if (me.debug) { console.log('PO.view.resource_management.ResourceLevelingEditorProjectPanel.drawProjectBar: Finished'); }
     }
@@ -929,8 +965,8 @@ Ext.define('PO.view.resource_management.ResourceLevelingEditorCostCenterPanel', 
         var startTime = new Date(start_date).getTime();
         var endTime = new Date(end_date).getTime();
 
-	// *************************************************
-	// Draw the main bar
+        // *************************************************
+        // Draw the main bar
         var y = me.calcGanttBarYPosition(costCenter);
         var x = me.date2x(startTime);
         var w = Math.floor( me.ganttSurfaceWidth * (endTime - startTime) / (me.axisEndDate.getTime() - me.axisStartDate.getTime()));
@@ -951,80 +987,61 @@ Ext.define('PO.view.resource_management.ResourceLevelingEditorCostCenterPanel', 
         }).show(true);
         spriteBar.model = costCenter;					// Store the task information for the sprite
 
-	// *************************************************
+        // *************************************************
         // Draw availability percentage
         var availableDays = costCenter.get('available_days');		// Array of available days since report_start_date
         var maxAvailableDays = parseFloat(""+costCenter.get('assigned_resources')); // Should be the maximum of availableDays
         if ('week' == me.granularity) { maxAvailableDays = maxAvailableDays * 7.0; }
-        var path = me.graphOnGanttBar(spriteBar, costCenter, availableDays, maxAvailableDays, new Date(startTime));
-        var spritePath = surface.add({
-            type: 'path',
-            stroke: 'blue',
-            'stroke-width': 1,
-            path: path
-        }).show(true);
+        var template = new Ext.Template("<div><b>Resource Availability</b>:<br>There are {value} out of {maxValue} resources available in department '{cost_center_name}' on {startDate}.<br></div>");
+        me.graphOnGanttBar(spriteBar, costCenter, availableDays, maxAvailableDays, new Date(startTime), 'blue', template);
 
-	// *************************************************
+
+        // *************************************************
         // Draw assignment percentage
         var assignedDays = costCenter.get('assigned_days');
         var maxAssignedDays = parseFloat(""+costCenter.get('assigned_resources'));
         if ('week' == me.granularity) { maxAssignedDays = maxAssignedDays * 7.0; }
-        var path = me.graphOnGanttBar(spriteBar, costCenter, assignedDays, maxAssignedDays, new Date(startTime));
-        var spritePath = surface.add({
-            type: 'path',
-            stroke: 'red',
-            'stroke-width': 1,
-            path: path
-        }).show(true);
+        var template = new Ext.Template("<div><b>Assigned Resources</b>:<br>There are {value} out of {maxValue} resources available in department '{cost_center_name}' between {startDate} and {endDate}.<br></div>");
+        me.graphOnGanttBar(spriteBar, costCenter, assignedDays, maxAssignedDays, new Date(startTime), 'red', template);
 
-	// *************************************************
+        // *************************************************
         // Draw load percentage
-	var len = availableDays.length;
-	if (assignedDays.length < len) { len = assignedDays.length; }
-	var loadDays = [];
-	var maxLoadPercentage = 0;
-	for (var i = 0; i < len; i++) {
-	    if (assignedDays[i] == 0.0) {    // Zero assigned => zero
-		loadDays.push(0);
-		continue;
-	    }
-	    if (availableDays[i] == 0.0) {   // Avoid division by zero
-		loadDays.push(0);
-		continue;
-	    }
-	    var loadPercentage = 100.0 * assignedDays[i] / availableDays[i];
-	    if (loadPercentage > 300) { loadPercentage = 300; }
-	    if (loadPercentage > maxLoadPercentage) { maxLoadPercentage = loadPercentage; }
-	    loadDays.push(loadPercentage);
-	}
-        var path = me.graphOnGanttBar(spriteBar, costCenter, loadDays, maxLoadPercentage, new Date(startTime));
-        var spritePath = surface.add({
-            type: 'path',
-            stroke: 'yellow',
-            'stroke-width': 1,
-            path: path
-        }).show(true);
+        var len = availableDays.length;
+        if (assignedDays.length < len) { len = assignedDays.length; }
+        var loadDays = [];
+        var maxLoadPercentage = 0;
+        for (var i = 0; i < len; i++) {
+            if (assignedDays[i] == 0.0) {    // Zero assigned => zero
+                loadDays.push(0);
+                continue;
+            }
+            if (availableDays[i] == 0.0) {   // Avoid division by zero
+                loadDays.push(0);
+                continue;
+            }
+            var loadPercentage = 100.0 * assignedDays[i] / availableDays[i];
+            if (loadPercentage > 300) { loadPercentage = 300; }
+            if (loadPercentage > maxLoadPercentage) { maxLoadPercentage = loadPercentage; }
+            loadDays.push(loadPercentage);
+        }
+        var template = new Ext.Template("<div><b>Accumulated Load</b>:<br>There are {value} out of {maxValue} resources available in department '{cost_center_name}' between {startDate} and {endDate}.<br></div>");
+        me.graphOnGanttBar(spriteBar, costCenter, loadDays, maxLoadPercentage, new Date(startTime), 'yellow', template);
 
         // *************************************************
         // Accumulated Load percentage
-	var accLoad = 0.0
-	var accLoadDays = [];
-	var maxAccLoad = 0.0
-	for (var i = 0; i < len; i++) {
-	    var assigned = assignedDays[i];
-	    var available = availableDays[i];
-	    accLoad = accLoad + assigned - available;
-	    if (accLoad < 0.0) { accLoad = 0.0; }
+        var accLoad = 0.0
+        var accLoadDays = [];
+        var maxAccLoad = 0.0
+        for (var i = 0; i < len; i++) {
+            var assigned = assignedDays[i];
+            var available = availableDays[i];
+            accLoad = accLoad + assigned - available;
+            if (accLoad < 0.0) { accLoad = 0.0; }
             accLoadDays.push(accLoad);
-	    if (accLoad > maxAccLoad) { maxAccLoad = accLoad; }
+            if (accLoad > maxAccLoad) { maxAccLoad = accLoad; }
         }
-        var path = me.graphOnGanttBar(spriteBar, costCenter, accLoadDays, maxAccLoad, new Date(startTime));
-        var spritePath = surface.add({
-            type: 'path',
-            stroke: 'purple',
-            'stroke-width': 1,
-            path: path
-        }).show(true);
+        var template
+        me.graphOnGanttBar(spriteBar, costCenter, accLoadDays, maxAccLoad, new Date(startTime), 'purple', template);
 
     }
 
@@ -1164,12 +1181,50 @@ function launchApplication(){
         costCenterResourceLoadStore: costCenterResourceLoadStore
     });
 
+    /**
+     * Help Drop-down
+     */
+    // Define the model for a State
+    Ext.regModel('State', {
+        fields: [
+            {type: 'string', name: 'abbr'},
+            {type: 'string', name: 'name'},
+            {type: 'string', name: 'slogan'}
+    ]
+    });
+
+// The data store holding the states
+    var store = Ext.create('Ext.data.Store', {
+        model: 'State',
+        data: [
+            { 'abbr': 'cat', 'name': 'Catalonia', 'slogan': 'Hi' },
+            { 'abbr': 'cat', 'name': 'Catalonia', 'slogan': 'Hi' }
+        ]
+    });
+
+
+    var helpComponent = Ext.create('Ext.form.ComboBox', {
+        emptyText: 'Help Topics',
+        displayField: 'name',
+        width: 300,
+        labelWidth: 130,
+        store: store,
+        queryMode: 'local',
+        typeAhead: true,
+        listConfig : {
+            getInnerTpl : function() {
+                return '<div class="x-combo-list-item"><img src="' + Ext.BLANK_IMAGE_URL + '" class="chkCombo-default-icon chkCombo" /> {abbr} - {name} </div>';
+            }
+        }
+
+    });
 
     /*
      * Main Panel that contains the three other panels
      * (projects, departments and gantt bars)
      */
-    var borderPanelHeight = costCenterGridHeight + projectGridHeight;
+    var buttonPanelHeight = 40;
+    var borderPanelHeight = buttonPanelHeight + costCenterGridHeight + projectGridHeight;
 
     var sideBar = Ext.get('sidebar');					// ]po[ left side bar component
     var sideBarWidth = sideBar.getSize().width;
@@ -1179,7 +1234,7 @@ function launchApplication(){
         height: borderPanelHeight,
         title: false,
         layout: 'border',
-	resizable: true,						// Allow the user to resize the outer diagram borders
+        resizable: true,						// Allow the user to resize the outer diagram borders
         defaults: {
             collapsible: false,
             split: true,
@@ -1208,6 +1263,68 @@ function launchApplication(){
                 resourceLevelingEditorCostCenterPanel
             ]
         }],
+
+    tbar: [
+        {
+            text: 'OK',
+            icon: '/intranet/images/navbar_default/disk.png',
+            tooltip: 'Save the project to the ]po[ back-end',
+            id: 'buttonSave'
+        }, {
+            icon: '/intranet/images/navbar_default/folder_go.png',
+            tooltip: 'Load a project from he ]po[ back-end',
+            id: 'buttonLoad'
+        }, {
+            xtype: 'tbseparator' 
+        }, {
+            icon: '/intranet/images/navbar_default/add.png',
+            tooltip: 'Add a new task',
+            id: 'buttonAdd'
+        }, {
+            icon: '/intranet/images/navbar_default/delete.png',
+            tooltip: 'Delete a task',
+            id: 'buttonDelete'
+        }, {
+            xtype: 'tbseparator' 
+        }, {
+            icon: '/intranet/images/navbar_default/arrow_left.png',
+            tooltip: 'Reduce Indent',
+            id: 'buttonReduceIndent'
+        }, {
+            icon: '/intranet/images/navbar_default/arrow_right.png',
+            tooltip: 'Increase Indent',
+            id: 'buttonIncreaseIndent'
+        }, {
+            xtype: 'tbseparator'
+        }, {
+            icon: '/intranet/images/navbar_default/link_add.png',
+            tooltip: 'Add dependency',
+            id: 'buttonAddDependency'
+        }, {
+            icon: '/intranet/images/navbar_default/link_break.png',
+            tooltip: 'Break dependency',
+            id: 'buttonBreakDependency'
+        }, '->' , {
+            icon: '/intranet/images/navbar_default/zoom_in.png',
+            tooltip: { 
+                target: 'buttonZoomIn',
+                title: 'Title',
+                width: 300,
+                text: '<p>Zoom in time axis</p>'
+            },
+            id: 'buttonZoomIn'
+        }, {
+            icon: '/intranet/images/navbar_default/zoom_out.png',
+            tooltip: 'Zoom out of time axis',
+            id: 'buttonZoomOut'
+        }, 
+        helpComponent,
+        {
+            xtype: 'tbseparator' 
+        }
+    ],
+
+
         renderTo: renderDiv
     });
 
@@ -1258,17 +1375,17 @@ function launchApplication(){
 
     var onSidebarResize = function () {
         console.log('launchApplication.onResize:');
-	// ]po[ Sidebar
+        // ]po[ Sidebar
         var sideBar = Ext.get('sidebar');				// ]po[ left side bar component
         var sideBarWidth = sideBar.getSize().width;
 
         // We get the event _before_ the sideBar has changed it's size.
         // So we actually need to the the oposite of the sidebar size:
-	if (sideBarWidth > 100) {
+        if (sideBarWidth > 100) {
             sideBarWidth = 85;						// Determines size when Sidebar collapsed
-	} else {
+        } else {
             sideBarWidth = 340;						// Determines size when Sidebar visible
-	}
+        }
         onResize(sideBarWidth);
 
     };
