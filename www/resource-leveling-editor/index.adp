@@ -1198,7 +1198,6 @@ function launchApplication(){
         ]
     });
 
-
     var helpComponent = Ext.create('Ext.form.ComboBox', {
         emptyText: 'Help Topics',
         displayField: 'name',
@@ -1212,7 +1211,6 @@ function launchApplication(){
                 return '<div class="x-combo-list-item"><img src="' + Ext.BLANK_IMAGE_URL + '" class="chkCombo-default-icon chkCombo" /> {abbr} - {name} </div>';
             }
         }
-
     });
 
     /*
@@ -1259,7 +1257,7 @@ function launchApplication(){
                 resourceLevelingEditorCostCenterPanel
             ]
         }],
-
+/*
     tbar: [
         {
             text: 'OK',
@@ -1319,7 +1317,7 @@ function launchApplication(){
             xtype: 'tbseparator' 
         }
     ],
-
+    */
 
         renderTo: renderDiv
     });
