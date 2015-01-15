@@ -386,13 +386,12 @@ Ext.define('PO.view.resource_management.AbstractGanttEditor', {
      * The graph will range between 0 (bottom of the Gantt bar) and
      * maxGraphArray (top of the Gantt bar).
      */
-    graphOnGanttBar: function(ganttSprite, model, graphArray, maxGraphArray, startDate, colorConf, tooltipTemplate) {
+    graphOnGanttBar: function(ganttSprite, model, graphArray, maxGraphArray, spriteBarStartDate, colorConf, tooltipTemplate) {
         var me = this;
         var surface = me.surface;
         if (me.debug) { console.log('PO.view.resource_management.ResourceLevelingEditorCostCenterPanel.graphOnGanttBar'); }
 
-        // Add a -1 at the end of the graphArray
-        // "-1" indicates the end of the array
+        // Add a -1 at the end of the graphArray, "-1" indicates the end of the array
         if (graphArray[graphArray.length-1] != -1) {
             graphArray.push(-1);
         }
@@ -400,62 +399,58 @@ Ext.define('PO.view.resource_management.AbstractGanttEditor', {
         // Granularity
         var intervalTimeMilliseconds;
         switch(me.granularity) {
-        case 'week':
-            intervalTimeMilliseconds = 1000.0 * 3600 * 24 * 7.0;	// One day
-            break;
-        case 'day':
-            intervalTimeMilliseconds = 1000.0 * 3600 * 24 * 1.0;	// One day
-            break;
-        default:
-            alert('Undefined granularity: '+me.granularity);
+        case 'week': intervalTimeMilliseconds = 1000.0 * 3600 * 24 * 7.0; break;	// One day
+        case 'day':  intervalTimeMilliseconds = 1000.0 * 3600 * 24 * 1.0; break;	// One day
+        default:     alert('Undefined granularity: '+me.granularity);
         }
 
         // Calculate the biggest element of the graphArray
         var i;
         var len = graphArray.length;
         if (null === maxGraphArray || 0.0 == maxGraphArray) {
-            var maxGraphArray = 0.0;
+            maxGraphArray = 0.0;
             for (i = 0; i < len; i++) {
                 if (graphArray[i] > maxGraphArray) { maxGraphArray = graphArray[i]; };
             }
         }
 
-        var startX = ganttSprite.x;
-        var endX = ganttSprite.x + ganttSprite.width;
-        var baseY = ganttSprite.y + ganttSprite.height;
-        var baseHeight = ganttSprite.height - 1;
-        var intervalEndDate, intervalEndX, intervalY;
+        var spriteBarStartX = ganttSprite.x;
+        var spriteBarEndX = ganttSprite.x + ganttSprite.width;
+        var spriteBarBaseY = ganttSprite.y + ganttSprite.height;
+        var spriteBarHeight = ganttSprite.height - 1;
 
-        var intervalStartDate = startDate;
-        var segmentStartDate = startDate;
+        var intervalStartDate = spriteBarStartDate;
+        var segmentStartDate = spriteBarStartDate;
         var intervalStartX =  me.date2x(intervalStartDate);
+	var lastIntervalStartDate = spriteBarStartDate;
 
-        intervalY = Math.floor(baseY - (graphArray[0] / maxGraphArray) * baseHeight) + 0.5;
+        var intervalY = Math.floor(spriteBarBaseY - (graphArray[0] / maxGraphArray) * spriteBarHeight) + 0.5;
+        var lastIntervalY = intervalY;
+        var intervalEndDate, intervalEndX;
 
         var path = "M" + intervalStartX + " " + intervalY;		// Start point for path
-        var pathX = intervalStartX;
-        var pathY = intervalY;
 
         if ("2015-01-01" == model.get('start_date')) {
             console.log('Fraber Test 2015');
         }
 
-
-        var value, lastValue = 0;
+        var value = graphArray[0];
+	var lastValue = graphArray[0];
         for (i = 0; i < len; i++) {
-            var value = graphArray[i];
+            value = graphArray[i];
+            intervalY = Math.floor(spriteBarBaseY - (value / maxGraphArray) * spriteBarHeight) + 0.5;
+
             intervalEndDate = new Date(intervalStartDate.getTime() + intervalTimeMilliseconds);
             intervalEndX = me.date2x(intervalEndDate);
-            if (intervalEndX > endX) { intervalEndX = endX; }		// Fix the last interval to stop at the bar
-            intervalY = Math.floor(baseY - (value / maxGraphArray) * baseHeight) + 0.5;
+            if (intervalEndX > spriteBarEndX) { intervalEndX = spriteBarEndX; }		// Fix the last interval to stop at the bar
 
-            if (pathY != intervalY) {
-                // This segment starts with a new Y coordinate
-                // Finish off the last segment and start a new one
-                path = path + " L" + intervalEndX + " " + pathY;
+            if (lastIntervalY != intervalY) {
+                // A new segment starts with a new Y coordinate
+                // Finish off the previous segment.
+                path = path + " L" + intervalStartX + " " + lastIntervalY;
 
-                if (intervalStartX < endX) {
-                    path = path + " L" + intervalEndX + " " + intervalY;
+                if (intervalStartX < spriteBarEndX) {
+                    path = path + " L" + intervalStartX + " " + intervalY;
                 }
                 var spritePath = surface.add({
                     type: 'path',
@@ -473,30 +468,32 @@ Ext.define('PO.view.resource_management.AbstractGanttEditor', {
                     data['value'] = lastValue;
                     data['maxValue'] = maxGraphArray;
                     data['startDate'] = segmentStartDate.toISOString().substring(0,10);
-                    data['endDate'] = intervalStartDate.toISOString().substring(0,10);
+                    data['endDate'] = lastIntervalStartDate.toISOString().substring(0,10);
                     var tip = Ext.create("Ext.tip.ToolTip", {
                         target: spritePath.el,
+			width: 250,
                         html: tooltipTemplate.apply(data)                 // Replace {0} in the template with value
                     });
                 }
 
-                path = "M" + intervalEndX + " " + intervalY;              // Start point for path
-                pathX = intervalEndX;
-                pathY = intervalY;
+                path = "M" + intervalStartX + " " + intervalY;              // Start point for path
 
                 // A new segment will start here.
                 segmentStartDate = intervalEndDate;
 
             } else {
                 // Nothing - still on the same Y coordinates
-                pathX = intervalEndX;
             }
+
+	    // Remember the values of the last iteration
+            lastValue = value;
+            lastIntervalY = intervalY;
+	    lastIntervalStartDate = intervalStartDate;
 
             // The former end of the interval becomes the start for the next interval
             intervalStartDate = intervalEndDate;
             intervalStartX = intervalEndX;
 
-            lastValue = value;
         }
     },
 
@@ -849,7 +846,7 @@ Ext.define('PO.view.resource_management.ResourceLevelingEditorProjectPanel', {
         // Draw availability percentage
         var assignedDays = project.get('assigned_days');
         var colorConf = 'blue';
-        var template = new Ext.Template("<div><b>Project Assignment</b>:<br>There are {value} out of {maxValue} resources assigned to project '{project_name}' and it's subprojects between {startDate} and {endDate}.<br></div>");
+        var template = new Ext.Template("<div><b>Project Assignment</b>:<br>There are {value} resources assigned to project '{project_name}' and it's subprojects between {startDate} and {endDate}.<br></div>");
         me.graphOnGanttBar(spriteBar, project, assignedDays, null, new Date(startTime), colorConf, template);
 
         if (me.debug) { console.log('PO.view.resource_management.ResourceLevelingEditorProjectPanel.drawProjectBar: Finished'); }
