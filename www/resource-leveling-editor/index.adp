@@ -422,7 +422,7 @@ Ext.define('PO.view.resource_management.AbstractGanttEditor', {
         var intervalStartDate = spriteBarStartDate;
         var segmentStartDate = spriteBarStartDate;
         var intervalStartX =  me.date2x(intervalStartDate);
-	var lastIntervalStartDate = spriteBarStartDate;
+        var lastIntervalStartDate = spriteBarStartDate;
 
         var intervalY = Math.floor(spriteBarBaseY - (graphArray[0] / maxGraphArray) * spriteBarHeight) + 0.5;
         var lastIntervalY = intervalY;
@@ -435,7 +435,7 @@ Ext.define('PO.view.resource_management.AbstractGanttEditor', {
         }
 
         var value = graphArray[0];
-	var lastValue = graphArray[0];
+        var lastValue = graphArray[0];
         for (i = 0; i < len; i++) {
             value = graphArray[i];
             intervalY = Math.floor(spriteBarBaseY - (value / maxGraphArray) * spriteBarHeight) + 0.5;
@@ -471,7 +471,7 @@ Ext.define('PO.view.resource_management.AbstractGanttEditor', {
                     data['endDate'] = lastIntervalStartDate.toISOString().substring(0,10);
                     var tip = Ext.create("Ext.tip.ToolTip", {
                         target: spritePath.el,
-			width: 250,
+                        width: 250,
                         html: tooltipTemplate.apply(data)                 // Replace {0} in the template with value
                     });
                 }
@@ -479,16 +479,16 @@ Ext.define('PO.view.resource_management.AbstractGanttEditor', {
                 path = "M" + intervalStartX + " " + intervalY;              // Start point for path
 
                 // A new segment will start here.
-                segmentStartDate = intervalEndDate;
+                segmentStartDate = intervalStartDate;
 
             } else {
                 // Nothing - still on the same Y coordinates
             }
 
-	    // Remember the values of the last iteration
+            // Remember the values of the last iteration
             lastValue = value;
             lastIntervalY = intervalY;
-	    lastIntervalStartDate = intervalStartDate;
+            lastIntervalStartDate = intervalStartDate;
 
             // The former end of the interval becomes the start for the next interval
             intervalStartDate = intervalEndDate;
@@ -989,7 +989,7 @@ Ext.define('PO.view.resource_management.ResourceLevelingEditorCostCenterPanel', 
         var availableDays = costCenter.get('available_days');		// Array of available days since report_start_date
         var maxAvailableDays = parseFloat(""+costCenter.get('assigned_resources')); // Should be the maximum of availableDays
         if ('week' == me.granularity) { maxAvailableDays = maxAvailableDays * 7.0; }
-        var template = new Ext.Template("<div><b>Resource Availability</b>:<br>There are {value} out of {maxValue} resources available in department '{cost_center_name}' on {startDate}.<br></div>");
+        var template = new Ext.Template("<div><b>Resource Capacity</b>:<br>{value} out of {maxValue} resources are available in department '{cost_center_name}' between {startDate} and {endDate}.<br></div>");
         me.graphOnGanttBar(spriteBar, costCenter, availableDays, maxAvailableDays, new Date(startTime), 'blue', template);
 
 
@@ -998,7 +998,7 @@ Ext.define('PO.view.resource_management.ResourceLevelingEditorCostCenterPanel', 
         var assignedDays = costCenter.get('assigned_days');
         var maxAssignedDays = parseFloat(""+costCenter.get('assigned_resources'));
         if ('week' == me.granularity) { maxAssignedDays = maxAssignedDays * 7.0; }
-        var template = new Ext.Template("<div><b>Assigned Resources</b>:<br>There are {value} out of {maxValue} resources available in department '{cost_center_name}' between {startDate} and {endDate}.<br></div>");
+        var template = new Ext.Template("<div><b>Resources Assignment</b>:<br>{value} out of {maxValue} resources are assigned to projects in department '{cost_center_name}' between {startDate} and {endDate}.<br></div>");
         me.graphOnGanttBar(spriteBar, costCenter, assignedDays, maxAssignedDays, new Date(startTime), 'red', template);
 
         // *************************************************
@@ -1016,12 +1016,11 @@ Ext.define('PO.view.resource_management.ResourceLevelingEditorCostCenterPanel', 
                 loadDays.push(0);
                 continue;
             }
-            var loadPercentage = 100.0 * assignedDays[i] / availableDays[i];
-            if (loadPercentage > 300) { loadPercentage = 300; }
+            var loadPercentage = Math.round(100.0 * 100.0 * assignedDays[i] / availableDays[i]) / 100.0
             if (loadPercentage > maxLoadPercentage) { maxLoadPercentage = loadPercentage; }
             loadDays.push(loadPercentage);
         }
-        var template = new Ext.Template("<div><b>Accumulated Load</b>:<br>There are {value} out of {maxValue} resources available in department '{cost_center_name}' between {startDate} and {endDate}.<br></div>");
+        var template = new Ext.Template("<div><b>Work Load</b>:<br>The work load is at {value}% out of 100% available in department {cost_center_name} beween {startDate} and {endDate}.<br></div>");
         me.graphOnGanttBar(spriteBar, costCenter, loadDays, maxLoadPercentage, new Date(startTime), 'yellow', template);
 
         // *************************************************
@@ -1034,10 +1033,10 @@ Ext.define('PO.view.resource_management.ResourceLevelingEditorCostCenterPanel', 
             var available = availableDays[i];
             accLoad = accLoad + assigned - available;
             if (accLoad < 0.0) { accLoad = 0.0; }
-            accLoadDays.push(accLoad);
+            accLoadDays.push(Math.round(100.0 * accLoad) / 100.0);
             if (accLoad > maxAccLoad) { maxAccLoad = accLoad; }
         }
-        var template
+        var template = new Ext.Template("<div><b>Accumulated Overload</b>:<br>There are {value} days of planned work not yet finished in department {cost_center_name} on {startDate}.<br></div>");
         me.graphOnGanttBar(spriteBar, costCenter, accLoadDays, maxAccLoad, new Date(startTime), 'purple', template);
 
     }
