@@ -38,7 +38,7 @@ set context_bar [im_context_bar $page_title]
 set return_url [im_url_with_query]
 
 if {"" == $report_start_date} { set report_start_date [db_string report_start_date "select to_char(now(), 'YYYY-MM-01') from dual"] }
-if {"" == $report_end_date} { set report_end_date [db_string report_end_date "select :report_start_date::date + '3 months'::interval"] }
+if {"" == $report_end_date} { set report_end_date [db_string report_end_date "select :report_start_date::date + '12 months'::interval"] }
 if {0 == $report_project_type_id} { set report_project_type_id [im_project_type_consulting] }
 
 

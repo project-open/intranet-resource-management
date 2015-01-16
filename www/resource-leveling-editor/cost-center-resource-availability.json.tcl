@@ -58,7 +58,7 @@ foreach cc_id [array names cc_hash] {
 	# Reset weekends to zero availability
 	array set date_comps [util_memoize [list im_date_julian_to_components $i]]
 	set dow $date_comps(day_of_week)
-	if {0 == $dow || 6 == $dow || 7 == $dow} { 
+	if {6 == $dow || 7 == $dow} { 
 	    # Weekend
 	    set available_days 0.0 
 	}
@@ -241,19 +241,13 @@ switch $granularity {
 	    incr ctr
 	}
     }
-
-
     "week" {
-
 	# Calculate the list of all weeks in reporting interval
 	set week_list [list]
 	array set week_hash {}
 	for {set i $report_start_julian} {$i <= $report_end_julian} {incr i} {
-	    array set date_comps [util_memoize [list im_date_julian_to_components $i]]
-	    set year $date_comps(year)
-	    set week_of_year $date_comps(week_of_year)
-	    
-	    set week_key "$year-$week_of_year"
+	    set week_after_start [expr ($i-$report_start_julian) / 7]
+	    set week_key "$week_after_start"
 	    if {![info exists week_hash($week_key)]} { 
 		set week_hash($week_key) 1
 		lappend week_list $week_key
@@ -263,12 +257,9 @@ switch $granularity {
 	# Summarize the daily hash into a weekly hash
 	foreach cc_id [array names cc_hash] {	    
 	    for {set i $report_start_julian} {$i <= $report_end_julian} {incr i} {
-		array set date_comps [util_memoize [list im_date_julian_to_components $i]]
-		set year $date_comps(year)
-		set week_of_year $date_comps(week_of_year)
-
 		set day_key "$cc_id-$i"
-		set week_key "$cc_id-$year-$week_of_year"
+		set week_after_start [expr ($i-$report_start_julian) / 7]
+		set week_key "$cc_id-$week_after_start"
 
 		# Aggregate available days per week
 		set available_days 0
@@ -292,7 +283,7 @@ switch $granularity {
 
 	    }
 	}
-	# ad_return_complaint 1 [array get available_week_hash]
+#	ad_return_complaint 1 [array get available_week_hash]
 
 	foreach cc_id [array names cc_hash] {
 	    array unset cc_values
