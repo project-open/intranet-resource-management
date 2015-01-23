@@ -698,6 +698,7 @@ Ext.define('PO.view.resource_management.ResourceLevelingEditorProjectPanel', {
         // Catch the event that the object got moved
         me.on({
             'objectdnd': me.onProjectMove,
+	    'resize': me.redraw,
             'scope': this
         });
 
@@ -722,7 +723,6 @@ Ext.define('PO.view.resource_management.ResourceLevelingEditorProjectPanel', {
     onProjectGridViewReady: function() {
         var me = this;
         console.log('PO.view.resource_management.ResourceLevelingEditorProjectPanel.onProjectGridViewReady');
-        me.surface.setSize(1500, me.surface.height);
         var selModel = me.objectPanel.getSelectionModel();
         selModel.selectAll(true);
         me.redraw();
@@ -787,6 +787,7 @@ Ext.define('PO.view.resource_management.ResourceLevelingEditorProjectPanel', {
 
         if (undefined === me.surface) { return; }
         me.surface.removeAll();
+        me.surface.setSize(me.ganttSurfaceWidth, me.surface.height);	// Set the size of the drawing area
         me.drawAxis();							// Draw the top axis
 
         // Draw project bars
@@ -872,6 +873,13 @@ Ext.define('PO.view.resource_management.ResourceLevelingEditorCostCenterPanel', 
         var me = this;
         this.callParent(arguments);
 
+        // Catch the event that the object got moved
+        me.on({
+	    'resize': me.redraw,
+            'scope': this
+        });
+
+
         // Catch the moment when the "view" of the CostCenter grid
         // is ready in order to draw the GanttBars for the first time.
         // The view seems to take a while...
@@ -907,7 +915,6 @@ Ext.define('PO.view.resource_management.ResourceLevelingEditorCostCenterPanel', 
     onCostCenterGridViewReady: function() {
         var me = this;
         console.log('PO.view.resource_management.ResourceLevelingEditorCostCenterPanel.onCostCenterGridViewReady');
-        me.surface.setSize(1500, me.surface.height);
         me.redraw();
     },
 
@@ -927,6 +934,7 @@ Ext.define('PO.view.resource_management.ResourceLevelingEditorCostCenterPanel', 
         if (undefined === me.surface) { return; }
 
         me.surface.removeAll();
+        me.surface.setSize(me.ganttSurfaceWidth, me.surface.height);	// Set the size of the drawing area
         me.drawAxis();							// Draw the top axis
 
         // Draw CostCenter bars
@@ -1330,13 +1338,7 @@ function launchApplication(){
         var width = screenWidth - sideBarWidth;
 
         borderPanel.setSize(width, borderPanelHeight);
-
-        var surface = resourceLevelingEditorProjectPanel.surface;
-        surface.setSize(1500, surface.height);
         resourceLevelingEditorProjectPanel.redraw();
-
-        surface = resourceLevelingEditorCostCenterPanel.surface;
-        surface.setSize(1500, surface.height);
         resourceLevelingEditorCostCenterPanel.redraw();
     };
 
@@ -1358,12 +1360,7 @@ function launchApplication(){
     var onBorderResize = function () {
         console.log('launchApplication.onBorderResize:');
 
-        var surface = resourceLevelingEditorProjectPanel.surface;
-        surface.setSize(1500, surface.height);
         resourceLevelingEditorProjectPanel.redraw();
-
-        surface = resourceLevelingEditorCostCenterPanel.surface;
-        surface.setSize(1500, surface.height);
         resourceLevelingEditorCostCenterPanel.redraw();
     };
 
