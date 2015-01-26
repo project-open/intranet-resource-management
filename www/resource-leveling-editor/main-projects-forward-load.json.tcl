@@ -48,9 +48,8 @@ set main_sql "
 		main_p.start_date::date as main_start_date,
 		main_p.end_date::date as main_end_date,
 		main_p.description as main_description,
-		main_p.percent_completed as main_percent_completed,
-		main_p.on_track_status_id as main_on_track_status_id,
-
+		coalesce(main_p.percent_completed, 0.0) as main_percent_completed,
+		coalesce(main_p.on_track_status_id, 0) as main_on_track_status_id,
 		to_char(main_p.start_date::date, 'J') as main_start_date_julian,
 		to_char(main_p.end_date::date, 'J') as main_end_date_julian,
 		sub_p.*,
@@ -169,8 +168,8 @@ foreach pid [qsort [array names main_project_start_j_hash]] {
 \"project_name\":\"$project_name\",\
 \"start_date\":\"$start_date\",\
 \"end_date\":\"$end_date\",\
-\"start_j\":$start_j,\
-\"end_j\":$end_j,\
+\"percent_completed\":$main_percent_completed,\
+\"on_track_status_id\":$main_on_track_status_id,\
 \"max_assigned_days\":$max_val,\
 \"assigned_days\":\[
 $percs
