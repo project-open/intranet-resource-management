@@ -1061,6 +1061,7 @@ function launchApplication(){
 
     var projectResourceLoadStore = Ext.StoreManager.get('projectResourceLoadStore');
     var costCenterResourceLoadStore = Ext.StoreManager.get('costCenterResourceLoadStore');
+    var senchaPreferenceStore = Ext.StoreManager.get('senchaPreferenceStore');
 
     var numProjects = projectResourceLoadStore.getCount();
     var numCostCenters = costCenterResourceLoadStore.getCount();
@@ -1219,6 +1220,55 @@ function launchApplication(){
         }
     });
 
+
+    var configurationMenuOnItemCheck = function(item, checked){
+	console.log('configurationMenuOnItemCheck: item.id='+item.id);
+
+	// ToDo: !!!Write change to database
+	var pref = Ext.create('PO.model.user.SenchaPreference', {
+	    preference_key: item.id,
+	    preference_value: 
+	});
+	costCenterResourceLoadStore.put(pref);
+    }
+
+    var configurationMenu = Ext.create('Ext.menu.Menu', {
+        id: 'configMenu',
+        style: {
+            overflow: 'visible'     // For the Combo popup
+        },
+        items: [
+            {
+                text: 'Show Project Resource Load',
+		id: 'show_project_resource_load',
+                checked: true,
+                checkHandler: configurationMenuOnItemCheck
+	    }, '-', {
+                text: 'Show Department Available Resources',
+		id: 'show_dept_available_resources',
+                checked: true,
+                checkHandler: configurationMenuOnItemCheck
+	    }, '-', {
+                text: 'Show Department Assigned Resources',
+		id: 'show_dept_assigned_resources',
+                checked: true,
+                checkHandler: configurationMenuOnItemCheck
+	    }, '-', {
+                text: 'Show Department % Work Load',
+		id: 'show_dept_percent_work_load',
+                checked: true,
+                checkHandler: configurationMenuOnItemCheck
+	    }, '-', {
+                text: 'Show Department Accumulated Overload',
+		id: 'show_dept_accumulated_overload',
+                checked: true,
+                checkHandler: configurationMenuOnItemCheck
+            }
+        ]
+    });
+    
+
+
     /*
      * Main Panel that contains the three other panels
      * (projects, departments and gantt bars)
@@ -1263,71 +1313,71 @@ function launchApplication(){
                 resourceLevelingEditorCostCenterPanel
             ]
         }],
-/*
-    tbar: [
-        {
-            text: 'OK',
-            icon: '/intranet/images/navbar_default/disk.png',
-            tooltip: 'Save the project to the ]po[ back-end',
-            id: 'buttonSave'
-        }, {
-            icon: '/intranet/images/navbar_default/folder_go.png',
-            tooltip: 'Load a project from he ]po[ back-end',
-            id: 'buttonLoad'
-        }, {
-            xtype: 'tbseparator' 
-        }, {
-            icon: '/intranet/images/navbar_default/add.png',
-            tooltip: 'Add a new task',
-            id: 'buttonAdd'
-        }, {
-            icon: '/intranet/images/navbar_default/delete.png',
-            tooltip: 'Delete a task',
-            id: 'buttonDelete'
-        }, {
-            xtype: 'tbseparator' 
-        }, {
-            icon: '/intranet/images/navbar_default/arrow_left.png',
-            tooltip: 'Reduce Indent',
-            id: 'buttonReduceIndent'
-        }, {
-            icon: '/intranet/images/navbar_default/arrow_right.png',
-            tooltip: 'Increase Indent',
-            id: 'buttonIncreaseIndent'
-        }, {
-            xtype: 'tbseparator'
-        }, {
-            icon: '/intranet/images/navbar_default/link_add.png',
-            tooltip: 'Add dependency',
-            id: 'buttonAddDependency'
-        }, {
-            icon: '/intranet/images/navbar_default/link_break.png',
-            tooltip: 'Break dependency',
-            id: 'buttonBreakDependency'
-        }, '->' , {
-            icon: '/intranet/images/navbar_default/zoom_in.png',
-            tooltip: { 
-                target: 'buttonZoomIn',
-                title: 'Title',
-                width: 300,
-                text: '<p>Zoom in time axis</p>'
-            },
-            id: 'buttonZoomIn'
-        }, {
-            icon: '/intranet/images/navbar_default/zoom_out.png',
-            tooltip: 'Zoom out of time axis',
-            id: 'buttonZoomOut'
-        }, 
-        helpComponent,
-        {
-            xtype: 'tbseparator' 
-        }
-    ],
-    */
-
+	tbar: [
+            {
+		text: 'OK',
+		icon: '/intranet/images/navbar_default/disk.png',
+		tooltip: 'Save the project to the ]po[ back-end',
+		id: 'buttonSave'
+            }, {
+		icon: '/intranet/images/navbar_default/folder_go.png',
+		tooltip: 'Load a project from he ]po[ back-end',
+		id: 'buttonLoad'
+            }, {
+		xtype: 'tbseparator' 
+            }, {
+		icon: '/intranet/images/navbar_default/add.png',
+		tooltip: 'Add a new task',
+		id: 'buttonAdd'
+            }, {
+		icon: '/intranet/images/navbar_default/delete.png',
+		tooltip: 'Delete a task',
+		id: 'buttonDelete'
+            }, {
+		xtype: 'tbseparator' 
+            }, {
+		icon: '/intranet/images/navbar_default/arrow_left.png',
+		tooltip: 'Reduce Indent',
+		id: 'buttonReduceIndent'
+            }, {
+		icon: '/intranet/images/navbar_default/arrow_right.png',
+		tooltip: 'Increase Indent',
+		id: 'buttonIncreaseIndent'
+            }, {
+		xtype: 'tbseparator'
+            }, {
+		icon: '/intranet/images/navbar_default/link_add.png',
+		tooltip: 'Add dependency',
+		id: 'buttonAddDependency'
+            }, {
+		icon: '/intranet/images/navbar_default/link_break.png',
+		tooltip: 'Break dependency',
+		id: 'buttonBreakDependency'
+            }, '->' , {
+		icon: '/intranet/images/navbar_default/zoom_in.png',
+		tooltip: { 
+                    target: 'buttonZoomIn',
+                    title: 'Title',
+                    width: 300,
+                    text: '<p>Zoom in time axis</p>'
+		},
+		id: 'buttonZoomIn'
+            }, {
+		icon: '/intranet/images/navbar_default/zoom_out.png',
+		tooltip: 'Zoom out of time axis',
+		id: 'buttonZoomOut'
+            }, 
+            helpComponent,
+            {
+		xtype: 'tbseparator' 
+            }, {
+		text: 'Configuration',
+		icon: '/intranet/images/navbar_default/cog.png',
+		menu: configurationMenu
+            }
+	],
         renderTo: renderDiv
     });
-
 
     var onResize = function (sideBarWidth) {
         console.log('launchApplication.onSideBarResize:');
@@ -1405,6 +1455,7 @@ Ext.onReady(function() {
 
     var projectResourceLoadStore = Ext.create('PO.store.resource_management.ProjectResourceLoadStore');
     var costCenterResourceLoadStore = Ext.create('PO.store.resource_management.CostCenterResourceLoadStore');
+    var senchaPreferenceStore = Ext.create('PO.store.user.SenchaPreferenceStore');
 
     // Wait for both the project and cost-center store
     // before launching the application. We need the
@@ -1414,7 +1465,8 @@ Ext.onReady(function() {
         launched: false,
         stores: [
             'projectResourceLoadStore',
-            'costCenterResourceLoadStore'
+            'costCenterResourceLoadStore',
+            'senchaPreferenceStore'
         ],
         listeners: {
             load: function() {
@@ -1438,6 +1490,8 @@ Ext.onReady(function() {
             costCenterResourceLoadStore.loadWithProjectData(projectResourceLoadStore);
         }
     });
+
+    senchaPreferenceStore.load();
 
 });
 
