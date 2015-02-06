@@ -132,7 +132,8 @@ foreach pid [qsort [array names main_project_start_j_hash]] {
 	set key_day "$pid-$j"
 	set perc 0
 	if {[info exists percentage_day_hash($key_day)]} { set perc $percentage_day_hash($key_day) }
-	lappend vals $perc
+	set perc_rounded [expr round($perc * 100.0) / 100.0]
+	lappend vals $perc_rounded
 	if {$perc > $max_val} { set max_val $perc }
 
 
@@ -156,7 +157,7 @@ foreach pid [qsort [array names main_project_start_j_hash]] {
 	set max_val 0
 	foreach key_week [qsort [array names week_hash]] {
 	    set perc $percentage_week_hash($key_week)
-	    set perc_rounded [expr round($perc * 100.0) / 100.0]
+	    set perc_rounded [expr round($perc * 100.0 / 5.0) / 100.0]
 	    lappend vals $perc_rounded
 	    if {$perc_rounded > $max_val} { set max_val $perc_rounded }
 	}

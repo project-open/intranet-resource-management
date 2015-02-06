@@ -204,7 +204,7 @@ switch $granularity {
 	    array set cc_values $cc_hash($cc_id)
 	    set cost_center_name $cc_values(cost_center_name)
 	    set assigned_resources_percent $cc_values(availability_percent)
-	    set assigned_resources [expr round($assigned_resources_percent) / 100.0]
+	    set assigned_resources [expr round($assigned_resources_percent * 10.0) / 1000.0]
 
 	    set available_days [list]
 	    set assigned_days [list]
@@ -283,7 +283,6 @@ switch $granularity {
 
 	    }
 	}
-#	ad_return_complaint 1 [array get available_week_hash]
 
 	foreach cc_id [array names cc_hash] {
 	    array unset cc_values
@@ -300,12 +299,12 @@ switch $granularity {
 		# Format available days
 		set available_days 0.0
 		if {[info exists available_week_hash($key)]} { set available_days $available_week_hash($key) }
-		lappend available_weeks [expr round(1000.0 * $available_days) / 1000.0]
+		lappend available_weeks [expr round(1000.0 * $available_days / 5.0) / 1000.0]
 
 		# Format assigned days
 		set assigned_days 0.0
 		if {[info exists assigned_week_hash($key)]} { set assigned_days $assigned_week_hash($key) }
-		lappend assigned_weeks [expr round(1000.0 * $assigned_days) / 1000.0]
+		lappend assigned_weeks [expr round(1000.0 * $assigned_days / 5.0) / 1000.0]
 	    }
 	    
 	    set available_list [join $available_weeks ", "]

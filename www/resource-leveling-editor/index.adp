@@ -996,7 +996,6 @@ Ext.define('PO.view.resource_management.ResourceLevelingEditorCostCenterPanel', 
         // Draw availability percentage
         var availableDays = costCenter.get('available_days');		// Array of available days since report_start_date
         var maxAvailableDays = parseFloat(""+costCenter.get('assigned_resources')); // Should be the maximum of availableDays
-        if ('week' == me.granularity) { maxAvailableDays = maxAvailableDays * 7.0; }
         var template = new Ext.Template("<div><b>Resource Capacity</b>:<br>{value} out of {maxValue} resources are available in department '{cost_center_name}' between {startDate} and {endDate}.<br></div>");
         me.graphOnGanttBar(spriteBar, costCenter, availableDays, maxAvailableDays, new Date(startTime), 'blue', template);
 
@@ -1005,8 +1004,7 @@ Ext.define('PO.view.resource_management.ResourceLevelingEditorCostCenterPanel', 
         // Draw assignment percentage
         var assignedDays = costCenter.get('assigned_days');
         var maxAssignedDays = parseFloat(""+costCenter.get('assigned_resources'));
-        if ('week' == me.granularity) { maxAssignedDays = maxAssignedDays * 7.0; }
-        var template = new Ext.Template("<div><b>Resources Assignment</b>:<br>{value} out of {maxValue} resources are assigned to projects in department '{cost_center_name}' between {startDate} and {endDate}.<br></div>");
+        var template = new Ext.Template("<div><b>Resource Assignment</b>:<br>{value} out of {maxValue} resources are assigned to projects in department '{cost_center_name}' between {startDate} and {endDate}.<br></div>");
         me.graphOnGanttBar(spriteBar, costCenter, assignedDays, maxAssignedDays, new Date(startTime), 'red', template);
 
         // *************************************************
