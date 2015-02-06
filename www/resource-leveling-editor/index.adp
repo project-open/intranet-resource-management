@@ -1223,13 +1223,7 @@ function launchApplication(){
 
     var configurationMenuOnItemCheck = function(item, checked){
 	console.log('configurationMenuOnItemCheck: item.id='+item.id);
-
-	// ToDo: !!!Write change to database
-	var pref = Ext.create('PO.model.user.SenchaPreference', {
-	    preference_key: item.id,
-	    preference_value: 
-	});
-	costCenterResourceLoadStore.put(pref);
+	senchaPreferenceStore.setPreference(item.id, checked);
     }
 
     var configurationMenu = Ext.create('Ext.menu.Menu', {
@@ -1239,29 +1233,37 @@ function launchApplication(){
         },
         items: [
             {
+                text: 'Reset Configuration',
+                handler: function() {
+		    console.log('configurationMenuOnResetConfiguration');
+		    senchaPreferenceStore.each(function(model) {
+			model.destroy();
+		    })
+		}
+	    }, '-', {
                 text: 'Show Project Resource Load',
 		id: 'show_project_resource_load',
-                checked: true,
+                checked: senchaPreferenceStore.getPreferenceBoolean('show_project_resource_load', true),
                 checkHandler: configurationMenuOnItemCheck
 	    }, '-', {
                 text: 'Show Department Available Resources',
 		id: 'show_dept_available_resources',
-                checked: true,
+                checked: senchaPreferenceStore.getPreferenceBoolean('show_dept_available_resources', true),
                 checkHandler: configurationMenuOnItemCheck
-	    }, '-', {
+	    }, {
                 text: 'Show Department Assigned Resources',
 		id: 'show_dept_assigned_resources',
-                checked: true,
+                checked: senchaPreferenceStore.getPreferenceBoolean('show_dept_assigned_resources', true),
                 checkHandler: configurationMenuOnItemCheck
-	    }, '-', {
+	    }, {
                 text: 'Show Department % Work Load',
 		id: 'show_dept_percent_work_load',
-                checked: true,
+                checked: senchaPreferenceStore.getPreferenceBoolean('show_dept_percent_work_load', true),
                 checkHandler: configurationMenuOnItemCheck
-	    }, '-', {
+	    }, {
                 text: 'Show Department Accumulated Overload',
 		id: 'show_dept_accumulated_overload',
-                checked: true,
+                checked: senchaPreferenceStore.getPreferenceBoolean('show_dept_accumulated_overload', true),
                 checkHandler: configurationMenuOnItemCheck
             }
         ]
