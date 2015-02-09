@@ -1223,7 +1223,7 @@ function launchApplication(){
 
     var configurationMenuOnItemCheck = function(item, checked){
 	console.log('configurationMenuOnItemCheck: item.id='+item.id);
-	senchaPreferenceStore.setPreference(item.id, checked);
+	senchaPreferenceStore.setPreference('@page_url@', item.id, checked);
     }
 
     var configurationMenu = Ext.create('Ext.menu.Menu', {
