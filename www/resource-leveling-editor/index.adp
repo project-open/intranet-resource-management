@@ -178,6 +178,7 @@ Ext.define('PO.view.resource_management.AbstractGanttEditor', {
 
     objectPanel: null,					// Set during init: Reference to grid or tree panel at the left
     objectStore: null,					// Set during init: Reference to store (tree or flat)
+    preferenceStore: null,				// Set during init: Reference to store with user preferences
 
     // Drag-and-drop state variables
     dndBasePoint: null,					// Drag-and-drop starting point
@@ -389,7 +390,7 @@ Ext.define('PO.view.resource_management.AbstractGanttEditor', {
     graphOnGanttBar: function(ganttSprite, model, graphArray, maxGraphArray, spriteBarStartDate, colorConf, tooltipTemplate) {
         var me = this;
         var surface = me.surface;
-        if (me.debug) { console.log('PO.view.resource_management.ResourceLevelingEditorCostCenterPanel.graphOnGanttBar'); }
+        if (me.debug) { console.log('PO.view.resource_management.AbstractGanttEditor.graphOnGanttBar'); }
 
         // Add a -1 at the end of the graphArray, "-1" indicates the end of the array
         if (graphArray[graphArray.length-1] != -1) {
@@ -397,10 +398,11 @@ Ext.define('PO.view.resource_management.AbstractGanttEditor', {
         }
 
         // Granularity
+	var oneDayMilliseconds = 1000.0 * 3600 * 24 * 1.0;
         var intervalTimeMilliseconds;
         switch(me.granularity) {
-        case 'week': intervalTimeMilliseconds = 1000.0 * 3600 * 24 * 7.0; break;	// One day
-        case 'day':  intervalTimeMilliseconds = 1000.0 * 3600 * 24 * 1.0; break;	// One day
+        case 'week': intervalTimeMilliseconds = oneDayMilliseconds * 7.0; break;	// One week
+        case 'day':  intervalTimeMilliseconds = oneDayMilliseconds * 1.0; break;	// One day
         default:     alert('Undefined granularity: '+me.granularity);
         }
 
@@ -423,16 +425,13 @@ Ext.define('PO.view.resource_management.AbstractGanttEditor', {
         var segmentStartDate = spriteBarStartDate;
         var intervalStartX =  me.date2x(intervalStartDate);
         var lastIntervalStartDate = spriteBarStartDate;
+        var lastIntervalEndDate = new Date(spriteBarStartDate.getTime() + intervalTimeMilliseconds);
 
         var intervalY = Math.floor(spriteBarBaseY - (graphArray[0] / maxGraphArray) * spriteBarHeight) + 0.5;
         var lastIntervalY = intervalY;
         var intervalEndDate, intervalEndX;
 
         var path = "M" + intervalStartX + " " + intervalY;		// Start point for path
-
-        if ("2015-01-01" == model.get('start_date')) {
-            console.log('Fraber Test 2015');
-        }
 
         var value = graphArray[0];
         var lastValue = graphArray[0];
@@ -468,7 +467,7 @@ Ext.define('PO.view.resource_management.AbstractGanttEditor', {
                     data['value'] = lastValue;
                     data['maxValue'] = maxGraphArray;
                     data['startDate'] = segmentStartDate.toISOString().substring(0,10);
-                    data['endDate'] = lastIntervalStartDate.toISOString().substring(0,10);
+                    data['endDate'] = new Date(lastIntervalEndDate.getTime() - oneDayMilliseconds).toISOString().substring(0,10);
                     var tip = Ext.create("Ext.tip.ToolTip", {
                         target: spritePath.el,
                         width: 250,
@@ -489,6 +488,7 @@ Ext.define('PO.view.resource_management.AbstractGanttEditor', {
             lastValue = value;
             lastIntervalY = intervalY;
             lastIntervalStartDate = intervalStartDate;
+            lastIntervalEndDate = intervalEndDate;
 
             // The former end of the interval becomes the start for the next interval
             intervalStartDate = intervalEndDate;
@@ -845,10 +845,12 @@ Ext.define('PO.view.resource_management.ResourceLevelingEditorProjectPanel', {
         spriteBar.model = project;					// Store the task information for the sprite
 
         // Draw availability percentage
-        var assignedDays = project.get('assigned_days');
-        var colorConf = 'blue';
-        var template = new Ext.Template("<div><b>Project Assignment</b>:<br>There are {value} resources assigned to project '{project_name}' and it's subprojects between {startDate} and {endDate}.<br></div>");
-        me.graphOnGanttBar(spriteBar, project, assignedDays, null, new Date(startTime), colorConf, template);
+	if (me.preferenceStore.getPreferenceBoolean('show_project_resource_load', true)) {
+            var assignedDays = project.get('assigned_days');
+            var colorConf = 'blue';
+            var template = new Ext.Template("<div><b>Project Assignment</b>:<br>There are {value} resources assigned to project '{project_name}' and it's subprojects between {startDate} and {endDate}.<br></div>");
+            me.graphOnGanttBar(spriteBar, project, assignedDays, null, new Date(startTime), colorConf, template);
+	}
 
         if (me.debug) { console.log('PO.view.resource_management.ResourceLevelingEditorProjectPanel.drawProjectBar: Finished'); }
     }
@@ -981,7 +983,7 @@ Ext.define('PO.view.resource_management.ResourceLevelingEditorCostCenterPanel', 
         var spriteBar = surface.add({
             type: 'rect',
             x: x, y: y, width: w, height: h,
-            radius: 3,
+            // radius: 0,
             fill: 'url(#gradientId)',
             stroke: 'blue',
             'stroke-width': 0.3,
@@ -995,60 +997,64 @@ Ext.define('PO.view.resource_management.ResourceLevelingEditorCostCenterPanel', 
         // *************************************************
         // Draw availability percentage
         var availableDays = costCenter.get('available_days');		// Array of available days since report_start_date
-        var maxAvailableDays = parseFloat(""+costCenter.get('assigned_resources')); // Should be the maximum of availableDays
-        var template = new Ext.Template("<div><b>Resource Capacity</b>:<br>{value} out of {maxValue} resources are available in department '{cost_center_name}' between {startDate} and {endDate}.<br></div>");
-        me.graphOnGanttBar(spriteBar, costCenter, availableDays, maxAvailableDays, new Date(startTime), 'blue', template);
-
+	if (me.preferenceStore.getPreferenceBoolean('show_dept_available_resources', true)) {
+            var maxAvailableDays = parseFloat(""+costCenter.get('assigned_resources')); // Should be the maximum of availableDays
+            var template = new Ext.Template("<div><b>Resource Capacity</b>:<br>{value} out of {maxValue} resources are available in department '{cost_center_name}' between {startDate} and {endDate}.<br></div>");
+            me.graphOnGanttBar(spriteBar, costCenter, availableDays, maxAvailableDays, new Date(startTime), 'blue', template);
+	}
 
         // *************************************************
         // Draw assignment percentage
         var assignedDays = costCenter.get('assigned_days');
-        var maxAssignedDays = parseFloat(""+costCenter.get('assigned_resources'));
-        var template = new Ext.Template("<div><b>Resource Assignment</b>:<br>{value} out of {maxValue} resources are assigned to projects in department '{cost_center_name}' between {startDate} and {endDate}.<br></div>");
-        me.graphOnGanttBar(spriteBar, costCenter, assignedDays, maxAssignedDays, new Date(startTime), 'red', template);
+	if (me.preferenceStore.getPreferenceBoolean('show_dept_assigned_resources', true)) {
+            var maxAssignedDays = parseFloat(""+costCenter.get('assigned_resources'));
+            var template = new Ext.Template("<div><b>Resource Assignment</b>:<br>{value} out of {maxValue} resources are assigned to projects in department '{cost_center_name}' between {startDate} and {endDate}.<br></div>");
+            me.graphOnGanttBar(spriteBar, costCenter, assignedDays, maxAssignedDays, new Date(startTime), 'red', template);
+	}
 
         // *************************************************
         // Draw load percentage
-        var len = availableDays.length;
-        if (assignedDays.length < len) { len = assignedDays.length; }
-        var loadDays = [];
-        var maxLoadPercentage = 0;
-        for (var i = 0; i < len; i++) {
-            if (assignedDays[i] == 0.0) {    // Zero assigned => zero
-                loadDays.push(0);
-                continue;
+	if (me.preferenceStore.getPreferenceBoolean('show_dept_percent_work_load', true)) {
+            var len = availableDays.length;
+            if (assignedDays.length < len) { len = assignedDays.length; }
+            var loadDays = [];
+            var maxLoadPercentage = 0;
+            for (var i = 0; i < len; i++) {
+		if (assignedDays[i] == 0.0) {    // Zero assigned => zero
+                    loadDays.push(0);
+                    continue;
+		}
+		if (availableDays[i] == 0.0) {   // Avoid division by zero
+                    loadDays.push(0);
+                    continue;
+		}
+		var loadPercentage = Math.round(100.0 * 100.0 * assignedDays[i] / availableDays[i]) / 100.0
+		if (loadPercentage > maxLoadPercentage) { maxLoadPercentage = loadPercentage; }
+		loadDays.push(loadPercentage);
             }
-            if (availableDays[i] == 0.0) {   // Avoid division by zero
-                loadDays.push(0);
-                continue;
-            }
-            var loadPercentage = Math.round(100.0 * 100.0 * assignedDays[i] / availableDays[i]) / 100.0
-            if (loadPercentage > maxLoadPercentage) { maxLoadPercentage = loadPercentage; }
-            loadDays.push(loadPercentage);
-        }
-        var template = new Ext.Template("<div><b>Work Load</b>:<br>The work load is at {value}% out of 100% available in department {cost_center_name} beween {startDate} and {endDate}.<br></div>");
-        me.graphOnGanttBar(spriteBar, costCenter, loadDays, maxLoadPercentage, new Date(startTime), 'yellow', template);
-
+            var template = new Ext.Template("<div><b>Work Load</b>:<br>The work load is at {value}% out of 100% available in department {cost_center_name} beween {startDate} and {endDate}.<br></div>");
+            me.graphOnGanttBar(spriteBar, costCenter, loadDays, maxLoadPercentage, new Date(startTime), 'yellow', template);
+	}
+	
         // *************************************************
         // Accumulated Load percentage
-        var accLoad = 0.0
-        var accLoadDays = [];
-        var maxAccLoad = 0.0
-        for (var i = 0; i < len; i++) {
-            var assigned = assignedDays[i];
-            var available = availableDays[i];
-            accLoad = accLoad + assigned - available;
-            if (accLoad < 0.0) { accLoad = 0.0; }
-            accLoadDays.push(Math.round(100.0 * accLoad) / 100.0);
-            if (accLoad > maxAccLoad) { maxAccLoad = accLoad; }
-        }
-        var template = new Ext.Template("<div><b>Accumulated Overload</b>:<br>There are {value} days of planned work not yet finished in department {cost_center_name} on {startDate}.<br></div>");
-        me.graphOnGanttBar(spriteBar, costCenter, accLoadDays, maxAccLoad, new Date(startTime), 'purple', template);
-
+	if (me.preferenceStore.getPreferenceBoolean('show_dept_accumulated_overload', true)) {
+            var accLoad = 0.0
+            var accLoadDays = [];
+            var maxAccLoad = 0.0
+            for (var i = 0; i < len; i++) {
+		var assigned = assignedDays[i];
+		var available = availableDays[i];
+		accLoad = accLoad + assigned - available;
+		if (accLoad < 0.0) { accLoad = 0.0; }
+		accLoadDays.push(Math.round(100.0 * accLoad) / 100.0);
+		if (accLoad > maxAccLoad) { maxAccLoad = accLoad; }
+            }
+            var template = new Ext.Template("<div><b>Accumulated Overload</b>:<br>There are {value} days of planned work not yet finished in department {cost_center_name} on {startDate}.<br></div>");
+            me.graphOnGanttBar(spriteBar, costCenter, accLoadDays, maxAccLoad, new Date(startTime), 'purple', template);
+	}
     }
-
 });
-
 
 
 /**
@@ -1149,7 +1155,8 @@ function launchApplication(){
         objectStore: costCenterResourceLoadStore,
         objectPanel: costCenterGrid,
         reportStartDate: new Date(report_start_date),
-        reportEndDate: new Date(report_end_date)
+        reportEndDate: new Date(report_end_date),
+	preferenceStore: senchaPreferenceStore
     });
 
     // Drawing area for for Gantt Bars
@@ -1179,6 +1186,7 @@ function launchApplication(){
         objectPanel: projectGrid,
         reportStartDate: new Date(report_start_date),
         reportEndDate: new Date(report_end_date),
+	preferenceStore: senchaPreferenceStore,
 
         // Reference to the CostCenter store
         costCenterResourceLoadStore: costCenterResourceLoadStore
@@ -1224,6 +1232,8 @@ function launchApplication(){
     var configurationMenuOnItemCheck = function(item, checked){
 	console.log('configurationMenuOnItemCheck: item.id='+item.id);
 	senchaPreferenceStore.setPreference('@page_url@', item.id, checked);
+	resourceLevelingEditorProjectPanel.redraw();
+	resourceLevelingEditorCostCenterPanel.redraw();
     }
 
     var configurationMenu = Ext.create('Ext.menu.Menu', {
@@ -1237,39 +1247,42 @@ function launchApplication(){
                 handler: function() {
 		    console.log('configurationMenuOnResetConfiguration');
 		    senchaPreferenceStore.each(function(model) {
+			var url = model.get('preference_url');
+			if (url != '@page_url@') { return; }
 			model.destroy();
 		    })
 		}
-	    }, '-', {
-                text: 'Show Project Resource Load',
-		id: 'show_project_resource_load',
-                checked: senchaPreferenceStore.getPreferenceBoolean('show_project_resource_load', true),
-                checkHandler: configurationMenuOnItemCheck
-	    }, '-', {
-                text: 'Show Department Available Resources',
-		id: 'show_dept_available_resources',
-                checked: senchaPreferenceStore.getPreferenceBoolean('show_dept_available_resources', true),
-                checkHandler: configurationMenuOnItemCheck
-	    }, {
-                text: 'Show Department Assigned Resources',
-		id: 'show_dept_assigned_resources',
-                checked: senchaPreferenceStore.getPreferenceBoolean('show_dept_assigned_resources', true),
-                checkHandler: configurationMenuOnItemCheck
-	    }, {
-                text: 'Show Department % Work Load',
-		id: 'show_dept_percent_work_load',
-                checked: senchaPreferenceStore.getPreferenceBoolean('show_dept_percent_work_load', true),
-                checkHandler: configurationMenuOnItemCheck
-	    }, {
-                text: 'Show Department Accumulated Overload',
-		id: 'show_dept_accumulated_overload',
-                checked: senchaPreferenceStore.getPreferenceBoolean('show_dept_accumulated_overload', true),
-                checkHandler: configurationMenuOnItemCheck
-            }
+            }, '-'
         ]
     });
-    
 
+    // Setup the configurationMenu items
+    var confSetupStore = Ext.create('Ext.data.Store', {
+	fields: ['key', 'text', 'def'],
+	data : [
+            {key: 'show_project_resource_load', text: 'Show Project Resource Load', def: true},
+	    {key: 'show_dept_available_resources', text: 'Show Department Available Resources', def: true},
+	    {key: 'show_dept_assigned_resources', text: 'Show Department Assigned Resources', def: true},
+	    {key: 'show_dept_percent_work_load', text: 'Show Department % Work Load', def: true},
+	    {key: 'show_dept_accumulated_overload', text: 'Show Department Accumulated Overload', def: false}
+	]
+    });
+    confSetupStore.each(function(model) {
+	console.log('confSetupStore: '+model);
+	var key = model.get('key');
+	var def = model.get('def');
+	var checked = senchaPreferenceStore.getPreferenceBoolean(key, def);
+	if (!senchaPreferenceStore.existsPreference(key)) {
+	    senchaPreferenceStore.setPreference('@page_url@', key, checked ? 'true' : 'false');
+	}
+	var item = Ext.create('Ext.menu.CheckItem', {
+	    id: key,
+	    text: model.get('text'),
+	    checked: checked,
+	    checkHandler: configurationMenuOnItemCheck
+	});
+	configurationMenu.add(item);
+    });
 
     /*
      * Main Panel that contains the three other panels
