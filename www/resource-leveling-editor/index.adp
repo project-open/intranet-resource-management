@@ -181,6 +181,7 @@ Ext.define('PO.view.resource_management.AbstractGanttEditor', {
     preferenceStore: null,				// Set during init: Reference to store with user preferences
 
     // Drag-and-drop state variables
+    dndEnabled: true,					// Enable drag-and-drop at all?
     dndBasePoint: null,					// Drag-and-drop starting point
     dndBaseSprite: null,				// DnD sprite being draged
     dndShadowSprite: null,				// DnD shadow generated for BaseSprite
@@ -250,9 +251,10 @@ Ext.define('PO.view.resource_management.AbstractGanttEditor', {
      */
     onMouseDown: function(e) {
         var me = this;
-        var point = me.getMousePoint(e);
+	if (!me.dndEnabled) { return; }
 
         // Now using offsetX/offsetY instead of getXY()
+        var point = me.getMousePoint(e);
         var baseSprite = me.getSpriteForPoint(point);
         console.log('PO.view.resource_management.AbstractGanttEditor.onMouseDown: '+point+' -> ' + baseSprite);
         if (baseSprite == null) { return; }
@@ -281,9 +283,10 @@ Ext.define('PO.view.resource_management.AbstractGanttEditor', {
      */
     onMouseMove: function(e) {
         var me = this;
+	if (!me.dndEnabled) { return; }
+
         if (me.dndBasePoint == null) { return; }				// Only if we are dragging
         var point = me.getMousePoint(e);
-
         me.dndShadowSprite.setAttributes({
             translate: {
                 x: point[0] - me.dndBasePoint[0],
@@ -298,6 +301,8 @@ Ext.define('PO.view.resource_management.AbstractGanttEditor', {
      */
     onMouseUp: function(e) {
         var me = this;
+	if (!me.dndEnabled) { return; }
+
         if (me.dndBasePoint == null) { return; }
         var point = me.getMousePoint(e);
         console.log('PO.view.resource_management.AbstractGanttEditor.onMouseUp: '+point);
@@ -1134,6 +1139,7 @@ function launchApplication(){
         title: false,
         region: 'center',
         viewBox: false,
+	dndEnabled: false,				// Disable drag-and-drop for cost centers
         gradients: [{
             id: 'gradientId',
             angle: 66,
@@ -1260,9 +1266,9 @@ function launchApplication(){
     var confSetupStore = Ext.create('Ext.data.Store', {
 	fields: ['key', 'text', 'def'],
 	data : [
-            {key: 'show_project_resource_load', text: 'Show Project Resource Load', def: true},
-	    {key: 'show_dept_available_resources', text: 'Show Department Available Resources', def: false},
+            {key: 'show_project_resource_load', text: 'Show Project Assigned Resources', def: true},
 	    {key: 'show_dept_assigned_resources', text: 'Show Department Assigned Resources', def: false},
+	    {key: 'show_dept_available_resources', text: 'Show Department Available Resources', def: false},
 	    {key: 'show_dept_percent_work_load', text: 'Show Department % Work Load', def: true},
 	    {key: 'show_dept_accumulated_overload', text: 'Show Department Accumulated Overload', def: false}
 	]
