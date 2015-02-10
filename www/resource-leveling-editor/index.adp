@@ -59,7 +59,7 @@ Ext.define('PO.model.resource_management.ProjectResourceLoadModel', {
 Ext.define('PO.store.resource_management.ProjectResourceLoadStore', {
     extend:			'Ext.data.Store',
     storeId:			'projectResourceLoadStore',
-    model: 			'PO.model.resource_management.ProjectResourceLoadModel',
+    model:			'PO.model.resource_management.ProjectResourceLoadModel',
     remoteFilter:		true,			// Do not filter on the Sencha side
     autoLoad:			false,
     pageSize:			100000,			// Load all projects, no matter what size(?)
@@ -98,7 +98,7 @@ Ext.define('PO.model.resource_management.CostCenterResourceLoadModel', {
 Ext.define('PO.store.resource_management.CostCenterResourceLoadStore', {
     extend:			'Ext.data.Store',
     storeId:			'costCenterResourceLoadStore',
-    model: 			'PO.model.resource_management.CostCenterResourceLoadModel',
+    model:			'PO.model.resource_management.CostCenterResourceLoadModel',
     remoteFilter:		true,			// Do not filter on the Sencha side
     autoLoad:			false,
     pageSize:			100000,			// Load all cost_centers, no matter what size(?)
@@ -251,7 +251,7 @@ Ext.define('PO.view.resource_management.AbstractGanttEditor', {
      */
     onMouseDown: function(e) {
         var me = this;
-	if (!me.dndEnabled) { return; }
+        if (!me.dndEnabled) { return; }
 
         // Now using offsetX/offsetY instead of getXY()
         var point = me.getMousePoint(e);
@@ -283,7 +283,7 @@ Ext.define('PO.view.resource_management.AbstractGanttEditor', {
      */
     onMouseMove: function(e) {
         var me = this;
-	if (!me.dndEnabled) { return; }
+        if (!me.dndEnabled) { return; }
 
         if (me.dndBasePoint == null) { return; }				// Only if we are dragging
         var point = me.getMousePoint(e);
@@ -301,7 +301,7 @@ Ext.define('PO.view.resource_management.AbstractGanttEditor', {
      */
     onMouseUp: function(e) {
         var me = this;
-	if (!me.dndEnabled) { return; }
+        if (!me.dndEnabled) { return; }
 
         if (me.dndBasePoint == null) { return; }
         var point = me.getMousePoint(e);
@@ -373,11 +373,11 @@ Ext.define('PO.view.resource_management.AbstractGanttEditor', {
      */
     calcGanttBarYPosition: function(model) {
         var me = this;
-        var objectPanelView = me.objectPanel.getView();			// The "view" for the GridPanel, containing HTML elements
-        var projectNodeHeight = objectPanelView.getNode(0).getBoundingClientRect().height;   // Height of a project node
-        var projectYFirstProject = objectPanelView.getNode(0).getBoundingClientRect().top; // Y position of the very first project
-        var centerOffset = (projectNodeHeight - me.ganttBarHeight) / 2.0;            	// Small offset in order to center Gantt
-        var projectY = objectPanelView.getNode(model).getBoundingClientRect().top;       // Y position of current project
+        var objectPanelView = me.objectPanel.getView();						// The "view" for the GridPanel, containing HTML elements
+        var projectNodeHeight = objectPanelView.getNode(0).getBoundingClientRect().height;	// Height of a project node
+        var projectYFirstProject = objectPanelView.getNode(0).getBoundingClientRect().top;	// Y position of the very first project
+        var centerOffset = (projectNodeHeight - me.ganttBarHeight) / 2.0;			// Small offset in order to center Gantt
+        var projectY = objectPanelView.getNode(model).getBoundingClientRect().top;		// Y position of current project
         var y = projectY - projectYFirstProject + 2 * me.axisHeight + centerOffset;
         return y;
     },
@@ -403,7 +403,7 @@ Ext.define('PO.view.resource_management.AbstractGanttEditor', {
         }
 
         // Granularity
-	var oneDayMilliseconds = 1000.0 * 3600 * 24 * 1.0;
+        var oneDayMilliseconds = 1000.0 * 3600 * 24 * 1.0;
         var intervalTimeMilliseconds;
         switch(me.granularity) {
         case 'week': intervalTimeMilliseconds = oneDayMilliseconds * 7.0; break;	// One week
@@ -524,7 +524,7 @@ Ext.define('PO.view.resource_management.AbstractGanttEditor', {
         var startYear = me.axisStartDate.getFullYear();
         var endYear = me.axisEndDate.getFullYear();
         var y = 0;
-        var h = me.axisHeight; 						// Height of the bars
+        var h = me.axisHeight;					// Height of the bars
 
         for (var year = startYear; year <= endYear; year++) {
             var x = me.date2x(new Date(year+"-01-01"));
@@ -569,7 +569,7 @@ Ext.define('PO.view.resource_management.AbstractGanttEditor', {
         var mon = startMonth;
 
         var y = me.axisHeight;
-        var h = me.axisHeight; 						// Height of the bars
+        var h = me.axisHeight;						// Height of the bars
 
         while (yea * 100 + mon <= endYear * 100 + endMonth) {
 
@@ -586,7 +586,7 @@ Ext.define('PO.view.resource_management.AbstractGanttEditor', {
                 y: y,
                 width: w,
                 height: h,
-                fill: '#cdf',       	// '#ace'
+                fill: '#cdf',						// '#ace'
                 stroke: 'grey'
             }).show(true);
 
@@ -689,7 +689,8 @@ Ext.define('PO.view.resource_management.ResourceLevelingEditorProjectPanel', {
     extend: 'PO.view.resource_management.AbstractGanttEditor',
     requires: ['PO.view.resource_management.AbstractGanttEditor'],
 
-    costCenterResourceLoadStore: null,		// Reference to cost center store, set during init
+    costCenterResourceLoadStore: null,				// Reference to cost center store, set during init
+    skipGridSelectionChange: false,				// Temporaritly disable updates
 
     /**
      * Starts the main editor panel as the right-hand side
@@ -703,7 +704,7 @@ Ext.define('PO.view.resource_management.ResourceLevelingEditorProjectPanel', {
         // Catch the event that the object got moved
         me.on({
             'objectdnd': me.onProjectMove,
-	    'resize': me.redraw,
+            'resize': me.redraw,
             'scope': this
         });
 
@@ -729,19 +730,43 @@ Ext.define('PO.view.resource_management.ResourceLevelingEditorProjectPanel', {
         var me = this;
         console.log('PO.view.resource_management.ResourceLevelingEditorProjectPanel.onProjectGridViewReady');
         var selModel = me.objectPanel.getSelectionModel();
-        selModel.selectAll(true);
+
+	var atLeastOneProjectSelected = false
+        me.objectStore.each(function(model) {
+            var projectId = model.get('project_id');
+            var sel = me.preferenceStore.getPreferenceBoolean('project_selected.' + projectId);
+            if (sel) { 
+		me.skipGridSelectionChange = true;
+                selModel.select(model, true); 
+		me.skipGridSelectionChange = false;
+		atLeastOneProjectSelected = true;
+            }
+        });
+
+	if (!atLeastOneProjectSelected) {
+            selModel.selectAll(true);
+	}
         me.redraw();
     },
 
     onProjectGridSelectionChange: function(selModel, models, eOpts) {
         var me = this;
+	if (me.skipGridSelectionChange) { return; }
         console.log('PO.view.resource_management.ResourceLevelingEditorProjectPanel.onProjectGridSelectionChange');
 
         me.objectStore.each(function(model) {
+            var projectId = model.get('project_id');
+            var prefSelected = me.preferenceStore.getPreferenceBoolean('project_selected.' + projectId, true);
             if (selModel.isSelected(model)) {
                 model.set('projectGridSelected', 1);
+                if (!prefSelected) { 
+                    me.preferenceStore.setPreference('@page_url@', 'project_selected.' + projectId, 'true');
+                }
             } else {
                 model.set('projectGridSelected', 0);
+                if (prefSelected) {
+                    me.preferenceStore.setPreference('@page_url@', 'project_selected.' + projectId, 'false'); 
+                }
             }
         })
 
@@ -821,7 +846,7 @@ Ext.define('PO.view.resource_management.ResourceLevelingEditorProjectPanel', {
         var start_date = project.get('start_date').substring(0,10);
         var end_date = project.get('end_date').substring(0,10);
         var startTime = new Date(start_date).getTime();
-        var endTime = new Date(end_date).getTime() + 1000.0 * 3600 * 24;  // plus one day
+        var endTime = new Date(end_date).getTime() + 1000.0 * 3600 * 24;	// plus one day
 
         if (me.debug) { console.log('PO.view.resource_management.ResourceLevelingEditorProjectPanel.drawProjectBar: project_name='+project_name+', start_date='+start_date+", end_date="+end_date); }
 
@@ -829,8 +854,8 @@ Ext.define('PO.view.resource_management.ResourceLevelingEditorProjectPanel', {
         var x = me.date2x(startTime);
         var y = me.calcGanttBarYPosition(project);
         var w = Math.floor(me.ganttSurfaceWidth * (endTime - startTime) / (me.axisEndDate.getTime() - me.axisStartDate.getTime()));
-        var h = me.ganttBarHeight; 					// Height of the bars
-        var d = Math.floor(h / 2.0) + 1;				// Size of the indent of the super-project bar
+        var h = me.ganttBarHeight;						// Height of the bars
+        var d = Math.floor(h / 2.0) + 1;					// Size of the indent of the super-project bar
 
         var spriteBar = surface.add({
             type: 'rect',
@@ -842,20 +867,20 @@ Ext.define('PO.view.resource_management.ResourceLevelingEditorProjectPanel', {
             fill: 'url(#gradientId)',
             stroke: 'blue',
             'stroke-width': 0.3,
-            listeners: {						// Highlight the sprite on mouse-over
+            listeners: {							// Highlight the sprite on mouse-over
                 mouseover: function() { this.animate({duration: 500, to: {'stroke-width': 1.0}}); },
                 mouseout: function()  { this.animate({duration: 500, to: {'stroke-width': 0.3}}); }
             }
         }).show(true);
-        spriteBar.model = project;					// Store the task information for the sprite
+        spriteBar.model = project;						// Store the task information for the sprite
 
         // Draw availability percentage
-	if (me.preferenceStore.getPreferenceBoolean('show_project_resource_load', true)) {
+        if (me.preferenceStore.getPreferenceBoolean('show_project_resource_load', true)) {
             var assignedDays = project.get('assigned_days');
             var colorConf = 'blue';
             var template = new Ext.Template("<div><b>Project Assignment</b>:<br>There are {value} resources assigned to project '{project_name}' and it's subprojects between {startDate} and {endDate}.<br></div>");
             me.graphOnGanttBar(spriteBar, project, assignedDays, null, new Date(startTime), colorConf, template);
-	}
+        }
 
         if (me.debug) { console.log('PO.view.resource_management.ResourceLevelingEditorProjectPanel.drawProjectBar: Finished'); }
     }
@@ -882,7 +907,7 @@ Ext.define('PO.view.resource_management.ResourceLevelingEditorCostCenterPanel', 
 
         // Catch the event that the object got moved
         me.on({
-	    'resize': me.redraw,
+            'resize': me.redraw,
             'scope': this
         });
 
@@ -971,15 +996,15 @@ Ext.define('PO.view.resource_management.ResourceLevelingEditorCostCenterPanel', 
         var startTime = new Date(start_date).getTime();
         var endTime = new Date(end_date).getTime();
 
-	// Calculate the start and end of the cost center bars
+        // Calculate the start and end of the cost center bars
         var costCenterPanelView = me.objectPanel.getView();                                     // The "view" for the GridPanel, containing HTML elements
-	var firstCostCenterBBox = costCenterPanelView.getNode(0).getBoundingClientRect();
-	var costCenterBBox = costCenterPanelView.getNode(costCenter).getBoundingClientRect();
+        var firstCostCenterBBox = costCenterPanelView.getNode(0).getBoundingClientRect();
+        var costCenterBBox = costCenterPanelView.getNode(costCenter).getBoundingClientRect();
 
         // *************************************************
         // Draw the main bar
-	var y = costCenterBBox.top - firstCostCenterBBox.top + 23;
-	var h = costCenterBBox.height;
+        var y = costCenterBBox.top - firstCostCenterBBox.top + 23;
+        var h = costCenterBBox.height;
         var x = me.date2x(startTime);
         var w = Math.floor( me.ganttSurfaceWidth * (endTime - startTime) / (me.axisEndDate.getTime() - me.axisStartDate.getTime()));
         var d = Math.floor(h / 2.0) + 1;				// Size of the indent of the super-costCenter bar
@@ -1001,62 +1026,62 @@ Ext.define('PO.view.resource_management.ResourceLevelingEditorCostCenterPanel', 
         // *************************************************
         // Draw availability percentage
         var availableDays = costCenter.get('available_days');		// Array of available days since report_start_date
-	if (me.preferenceStore.getPreferenceBoolean('show_dept_available_resources', true)) {
+        if (me.preferenceStore.getPreferenceBoolean('show_dept_available_resources', true)) {
             var maxAvailableDays = parseFloat(""+costCenter.get('assigned_resources')); // Should be the maximum of availableDays
             var template = new Ext.Template("<div><b>Resource Capacity</b>:<br>{value} out of {maxValue} resources are available in department '{cost_center_name}' between {startDate} and {endDate}.<br></div>");
             me.graphOnGanttBar(spriteBar, costCenter, availableDays, maxAvailableDays, new Date(startTime), 'blue', template);
-	}
+        }
 
         // *************************************************
         // Draw assignment percentage
         var assignedDays = costCenter.get('assigned_days');
-	if (me.preferenceStore.getPreferenceBoolean('show_dept_assigned_resources', true)) {
+        if (me.preferenceStore.getPreferenceBoolean('show_dept_assigned_resources', true)) {
             var maxAssignedDays = parseFloat(""+costCenter.get('assigned_resources'));
             var template = new Ext.Template("<div><b>Resource Assignment</b>:<br>{value} out of {maxValue} resources are assigned to projects in department '{cost_center_name}' between {startDate} and {endDate}.<br></div>");
             me.graphOnGanttBar(spriteBar, costCenter, assignedDays, maxAssignedDays, new Date(startTime), 'red', template);
-	}
+        }
 
         // *************************************************
         // Draw load percentage
-	if (me.preferenceStore.getPreferenceBoolean('show_dept_percent_work_load', true)) {
+        if (me.preferenceStore.getPreferenceBoolean('show_dept_percent_work_load', true)) {
             var len = availableDays.length;
             if (assignedDays.length < len) { len = assignedDays.length; }
             var loadDays = [];
             var maxLoadPercentage = 0;
             for (var i = 0; i < len; i++) {
-		if (assignedDays[i] == 0.0) {    // Zero assigned => zero
+                if (assignedDays[i] == 0.0) {    // Zero assigned => zero
                     loadDays.push(0);
                     continue;
-		}
-		if (availableDays[i] == 0.0) {   // Avoid division by zero
+                }
+                if (availableDays[i] == 0.0) {   // Avoid division by zero
                     loadDays.push(0);
                     continue;
-		}
-		var loadPercentage = Math.round(100.0 * 100.0 * assignedDays[i] / availableDays[i]) / 100.0
-		if (loadPercentage > maxLoadPercentage) { maxLoadPercentage = loadPercentage; }
-		loadDays.push(loadPercentage);
+                }
+                var loadPercentage = Math.round(100.0 * 100.0 * assignedDays[i] / availableDays[i]) / 100.0
+                if (loadPercentage > maxLoadPercentage) { maxLoadPercentage = loadPercentage; }
+                loadDays.push(loadPercentage);
             }
             var template = new Ext.Template("<div><b>Work Load</b>:<br>The work load is at {value}% out of 100% available in department {cost_center_name} beween {startDate} and {endDate}.<br></div>");
             me.graphOnGanttBar(spriteBar, costCenter, loadDays, maxLoadPercentage, new Date(startTime), 'green', template);
-	}
-	
+        }
+        
         // *************************************************
         // Accumulated Load percentage
-	if (me.preferenceStore.getPreferenceBoolean('show_dept_accumulated_overload', true)) {
+        if (me.preferenceStore.getPreferenceBoolean('show_dept_accumulated_overload', true)) {
             var accLoad = 0.0
             var accLoadDays = [];
             var maxAccLoad = 0.0
             for (var i = 0; i < len; i++) {
-		var assigned = assignedDays[i];
-		var available = availableDays[i];
-		accLoad = accLoad + assigned - available;
-		if (accLoad < 0.0) { accLoad = 0.0; }
-		accLoadDays.push(Math.round(100.0 * accLoad) / 100.0);
-		if (accLoad > maxAccLoad) { maxAccLoad = accLoad; }
+                var assigned = assignedDays[i];
+                var available = availableDays[i];
+                accLoad = accLoad + assigned - available;
+                if (accLoad < 0.0) { accLoad = 0.0; }
+                accLoadDays.push(Math.round(100.0 * accLoad) / 100.0);
+                if (accLoad > maxAccLoad) { maxAccLoad = accLoad; }
             }
             var template = new Ext.Template("<div><b>Accumulated Overload</b>:<br>There are {value} days of planned work not yet finished in department {cost_center_name} on {startDate}.<br></div>");
             me.graphOnGanttBar(spriteBar, costCenter, accLoadDays, maxAccLoad, new Date(startTime), 'purple', template);
-	}
+        }
     }
 });
 
@@ -1139,7 +1164,7 @@ function launchApplication(){
         title: false,
         region: 'center',
         viewBox: false,
-	dndEnabled: false,				// Disable drag-and-drop for cost centers
+        dndEnabled: false,				// Disable drag-and-drop for cost centers
         gradients: [{
             id: 'gradientId',
             angle: 66,
@@ -1162,7 +1187,7 @@ function launchApplication(){
         objectPanel: costCenterGrid,
         reportStartDate: new Date(report_start_date),
         reportEndDate: new Date(report_end_date),
-	preferenceStore: senchaPreferenceStore
+        preferenceStore: senchaPreferenceStore
     });
 
     // Drawing area for for Gantt Bars
@@ -1192,7 +1217,7 @@ function launchApplication(){
         objectPanel: projectGrid,
         reportStartDate: new Date(report_start_date),
         reportEndDate: new Date(report_end_date),
-	preferenceStore: senchaPreferenceStore,
+        preferenceStore: senchaPreferenceStore,
 
         // Reference to the CostCenter store
         costCenterResourceLoadStore: costCenterResourceLoadStore
@@ -1236,10 +1261,10 @@ function launchApplication(){
 
 
     var configurationMenuOnItemCheck = function(item, checked){
-	console.log('configurationMenuOnItemCheck: item.id='+item.id);
-	senchaPreferenceStore.setPreference('@page_url@', item.id, checked);
-	resourceLevelingEditorProjectPanel.redraw();
-	resourceLevelingEditorCostCenterPanel.redraw();
+        console.log('configurationMenuOnItemCheck: item.id='+item.id);
+        senchaPreferenceStore.setPreference('@page_url@', item.id, checked);
+        resourceLevelingEditorProjectPanel.redraw();
+        resourceLevelingEditorCostCenterPanel.redraw();
     }
 
     var configurationMenu = Ext.create('Ext.menu.Menu', {
@@ -1251,43 +1276,43 @@ function launchApplication(){
             {
                 text: 'Reset Configuration',
                 handler: function() {
-		    console.log('configurationMenuOnResetConfiguration');
-		    senchaPreferenceStore.each(function(model) {
-			var url = model.get('preference_url');
-			if (url != '@page_url@') { return; }
-			model.destroy();
-		    })
-		}
+                    console.log('configurationMenuOnResetConfiguration');
+                    senchaPreferenceStore.each(function(model) {
+                        var url = model.get('preference_url');
+                        if (url != '@page_url@') { return; }
+                        model.destroy();
+                    })
+                }
             }, '-'
         ]
     });
 
     // Setup the configurationMenu items
     var confSetupStore = Ext.create('Ext.data.Store', {
-	fields: ['key', 'text', 'def'],
-	data : [
+        fields: ['key', 'text', 'def'],
+        data : [
             {key: 'show_project_resource_load', text: 'Show Project Assigned Resources', def: true},
-	    {key: 'show_dept_assigned_resources', text: 'Show Department Assigned Resources', def: false},
-	    {key: 'show_dept_available_resources', text: 'Show Department Available Resources', def: false},
-	    {key: 'show_dept_percent_work_load', text: 'Show Department % Work Load', def: true},
-	    {key: 'show_dept_accumulated_overload', text: 'Show Department Accumulated Overload', def: false}
-	]
+            {key: 'show_dept_assigned_resources', text: 'Show Department Assigned Resources', def: false},
+            {key: 'show_dept_available_resources', text: 'Show Department Available Resources', def: false},
+            {key: 'show_dept_percent_work_load', text: 'Show Department % Work Load', def: true},
+            {key: 'show_dept_accumulated_overload', text: 'Show Department Accumulated Overload', def: false}
+        ]
     });
     confSetupStore.each(function(model) {
-	console.log('confSetupStore: '+model);
-	var key = model.get('key');
-	var def = model.get('def');
-	var checked = senchaPreferenceStore.getPreferenceBoolean(key, def);
-	if (!senchaPreferenceStore.existsPreference(key)) {
-	    senchaPreferenceStore.setPreference('@page_url@', key, checked ? 'true' : 'false');
-	}
-	var item = Ext.create('Ext.menu.CheckItem', {
-	    id: key,
-	    text: model.get('text'),
-	    checked: checked,
-	    checkHandler: configurationMenuOnItemCheck
-	});
-	configurationMenu.add(item);
+        console.log('confSetupStore: '+model);
+        var key = model.get('key');
+        var def = model.get('def');
+        var checked = senchaPreferenceStore.getPreferenceBoolean(key, def);
+        if (!senchaPreferenceStore.existsPreference(key)) {
+            senchaPreferenceStore.setPreference('@page_url@', key, checked ? 'true' : 'false');
+        }
+        var item = Ext.create('Ext.menu.CheckItem', {
+            id: key,
+            text: model.get('text'),
+            checked: checked,
+            checkHandler: configurationMenuOnItemCheck
+        });
+        configurationMenu.add(item);
     });
 
     /*
@@ -1334,69 +1359,69 @@ function launchApplication(){
                 resourceLevelingEditorCostCenterPanel
             ]
         }],
-	tbar: [
+        tbar: [
             {
-		text: 'OK',
-		icon: '/intranet/images/navbar_default/disk.png',
-		tooltip: 'Save the project to the ]po[ back-end',
-		id: 'buttonSave'
+                text: 'OK',
+                icon: '/intranet/images/navbar_default/disk.png',
+                tooltip: 'Save the project to the ]po[ back-end',
+                id: 'buttonSave'
             }, {
-		icon: '/intranet/images/navbar_default/folder_go.png',
-		tooltip: 'Load a project from he ]po[ back-end',
-		id: 'buttonLoad'
+                icon: '/intranet/images/navbar_default/folder_go.png',
+                tooltip: 'Load a project from he ]po[ back-end',
+                id: 'buttonLoad'
             }, {
-		xtype: 'tbseparator' 
+                xtype: 'tbseparator' 
             }, {
-		icon: '/intranet/images/navbar_default/add.png',
-		tooltip: 'Add a new task',
-		id: 'buttonAdd'
+                icon: '/intranet/images/navbar_default/add.png',
+                tooltip: 'Add a new task',
+                id: 'buttonAdd'
             }, {
-		icon: '/intranet/images/navbar_default/delete.png',
-		tooltip: 'Delete a task',
-		id: 'buttonDelete'
+                icon: '/intranet/images/navbar_default/delete.png',
+                tooltip: 'Delete a task',
+                id: 'buttonDelete'
             }, {
-		xtype: 'tbseparator' 
+                xtype: 'tbseparator' 
             }, {
-		icon: '/intranet/images/navbar_default/arrow_left.png',
-		tooltip: 'Reduce Indent',
-		id: 'buttonReduceIndent'
+                icon: '/intranet/images/navbar_default/arrow_left.png',
+                tooltip: 'Reduce Indent',
+                id: 'buttonReduceIndent'
             }, {
-		icon: '/intranet/images/navbar_default/arrow_right.png',
-		tooltip: 'Increase Indent',
-		id: 'buttonIncreaseIndent'
+                icon: '/intranet/images/navbar_default/arrow_right.png',
+                tooltip: 'Increase Indent',
+                id: 'buttonIncreaseIndent'
             }, {
-		xtype: 'tbseparator'
+                xtype: 'tbseparator'
             }, {
-		icon: '/intranet/images/navbar_default/link_add.png',
-		tooltip: 'Add dependency',
-		id: 'buttonAddDependency'
+                icon: '/intranet/images/navbar_default/link_add.png',
+                tooltip: 'Add dependency',
+                id: 'buttonAddDependency'
             }, {
-		icon: '/intranet/images/navbar_default/link_break.png',
-		tooltip: 'Break dependency',
-		id: 'buttonBreakDependency'
+                icon: '/intranet/images/navbar_default/link_break.png',
+                tooltip: 'Break dependency',
+                id: 'buttonBreakDependency'
             }, '->' , {
-		icon: '/intranet/images/navbar_default/zoom_in.png',
-		tooltip: { 
+                icon: '/intranet/images/navbar_default/zoom_in.png',
+                tooltip: { 
                     target: 'buttonZoomIn',
                     title: 'Title',
                     width: 300,
                     text: '<p>Zoom in time axis</p>'
-		},
-		id: 'buttonZoomIn'
+                },
+                id: 'buttonZoomIn'
             }, {
-		icon: '/intranet/images/navbar_default/zoom_out.png',
-		tooltip: 'Zoom out of time axis',
-		id: 'buttonZoomOut'
+                icon: '/intranet/images/navbar_default/zoom_out.png',
+                tooltip: 'Zoom out of time axis',
+                id: 'buttonZoomOut'
             }, 
             helpComponent,
             {
-		xtype: 'tbseparator' 
+                xtype: 'tbseparator' 
             }, {
-		text: 'Configuration',
-		icon: '/intranet/images/navbar_default/cog.png',
-		menu: configurationMenu
+                text: 'Configuration',
+                icon: '/intranet/images/navbar_default/cog.png',
+                menu: configurationMenu
             }
-	],
+        ],
         renderTo: renderDiv
     });
 
