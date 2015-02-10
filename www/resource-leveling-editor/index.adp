@@ -960,24 +960,23 @@ Ext.define('PO.view.resource_management.ResourceLevelingEditorCostCenterPanel', 
         var costCenterGridView = me.objectPanel.getView();		// The "view" for the GridPanel, containing HTML elements
         var surface = me.surface;
 
-        // Calculate the Y position for the bar, depending on
-        var costCenterPanelY = me.objectPanel.getBox().top;
-        var projectPanelY = me.objectPanel.getBox().top;
-        var surfacePanelY = me.getBox().top;
-        var costCenterDivY = costCenterGridView.getNode(costCenter).getBoundingClientRect().top;
-
         // Calculate auxillary start- and end dates
         var start_date = me.axisStartDate.toISOString().substring(0,10);
         var end_date = me.axisEndDate.toISOString().substring(0,10);
         var startTime = new Date(start_date).getTime();
         var endTime = new Date(end_date).getTime();
 
+	// Calculate the start and end of the cost center bars
+        var costCenterPanelView = me.objectPanel.getView();                                     // The "view" for the GridPanel, containing HTML elements
+	var firstCostCenterBBox = costCenterPanelView.getNode(0).getBoundingClientRect();
+	var costCenterBBox = costCenterPanelView.getNode(costCenter).getBoundingClientRect();
+
         // *************************************************
         // Draw the main bar
-        var y = me.calcGanttBarYPosition(costCenter);
+	var y = costCenterBBox.top - firstCostCenterBBox.top + 23;
+	var h = costCenterBBox.height;
         var x = me.date2x(startTime);
         var w = Math.floor( me.ganttSurfaceWidth * (endTime - startTime) / (me.axisEndDate.getTime() - me.axisStartDate.getTime()));
-        var h = me.ganttBarHeight; 					// Height of the bars
         var d = Math.floor(h / 2.0) + 1;				// Size of the indent of the super-costCenter bar
 
         var spriteBar = surface.add({
@@ -985,11 +984,11 @@ Ext.define('PO.view.resource_management.ResourceLevelingEditorCostCenterPanel', 
             x: x, y: y, width: w, height: h,
             // radius: 0,
             fill: 'url(#gradientId)',
-            stroke: 'blue',
-            'stroke-width': 0.3,
+            // stroke: 'blue',
+            // 'stroke-width': 0.3,
             listeners: {						// Highlight the sprite on mouse-over
-                mouseover: function() { this.animate({duration: 500, to: {'stroke-width': 1.0}}); },
-                mouseout: function()  { this.animate({duration: 500, to: {'stroke-width': 0.3}}); }
+//                mouseover: function() { this.animate({duration: 500, to: {'stroke-width': 1.0}}); },
+//                mouseout: function()  { this.animate({duration: 500, to: {'stroke-width': 0.3}}); }
             }
         }).show(true);
         spriteBar.model = costCenter;					// Store the task information for the sprite
@@ -1033,7 +1032,7 @@ Ext.define('PO.view.resource_management.ResourceLevelingEditorCostCenterPanel', 
 		loadDays.push(loadPercentage);
             }
             var template = new Ext.Template("<div><b>Work Load</b>:<br>The work load is at {value}% out of 100% available in department {cost_center_name} beween {startDate} and {endDate}.<br></div>");
-            me.graphOnGanttBar(spriteBar, costCenter, loadDays, maxLoadPercentage, new Date(startTime), 'yellow', template);
+            me.graphOnGanttBar(spriteBar, costCenter, loadDays, maxLoadPercentage, new Date(startTime), 'green', template);
 	}
 	
         // *************************************************
@@ -1076,11 +1075,12 @@ function launchApplication(){
     var gridWidth = 300;
 
     // Height of grids and Gantt Panels
-    var listCellHeight = 27;
+    var projectCellHeight = 27;
+    var costCenterCellHeight = 39;
     var listProjectsAddOnHeight = 11;
     var listCostCenterAddOnHeight = 11;
-    var projectGridHeight = listProjectsAddOnHeight + listCellHeight * (1 + numProjects);
-    var costCenterGridHeight = listCostCenterAddOnHeight + listCellHeight * (1 + numCostCenters);
+    var projectGridHeight = listProjectsAddOnHeight + projectCellHeight * (1 + numProjects);
+    var costCenterGridHeight = listCostCenterAddOnHeight + costCenterCellHeight * (1 + numCostCenters);
 
     var projectGridSelectionModel = Ext.create('Ext.selection.CheckboxModel');
     var projectGrid = Ext.create('Ext.grid.Panel', {
@@ -1261,8 +1261,8 @@ function launchApplication(){
 	fields: ['key', 'text', 'def'],
 	data : [
             {key: 'show_project_resource_load', text: 'Show Project Resource Load', def: true},
-	    {key: 'show_dept_available_resources', text: 'Show Department Available Resources', def: true},
-	    {key: 'show_dept_assigned_resources', text: 'Show Department Assigned Resources', def: true},
+	    {key: 'show_dept_available_resources', text: 'Show Department Available Resources', def: false},
+	    {key: 'show_dept_assigned_resources', text: 'Show Department Assigned Resources', def: false},
 	    {key: 'show_dept_percent_work_load', text: 'Show Department % Work Load', def: true},
 	    {key: 'show_dept_accumulated_overload', text: 'Show Department Accumulated Overload', def: false}
 	]

@@ -66,8 +66,6 @@ set main_sql "
 	where	main_p.parent_id is null and
 		sub_p.tree_sortkey between main_p.tree_sortkey and tree_right(main_p.tree_sortkey)
 		$main_where
-		-- FOR TESTING ONLY - LIMIT TO ONE PROJECT TO IMPROVE PERFORMANCE
-		-- and main_p.project_id in (171036) -- Fraber Test 2015
 "
 set sql "
 	select	*
@@ -87,6 +85,8 @@ db_foreach main_p $sql {
 	set year $date_comps(year)
 	set week_of_year $date_comps(week_of_year)
 	set dow $date_comps(day_of_week)
+	set week_after_start [expr ($j-$start_date_julian) / 7]
+	set week_after_start_padded [string range "000$week_after_start" end-2 end]
 
 	# Skip weekends
 	if {0 == $dow || 6 == $dow || 7 == $dow} { continue }
@@ -141,8 +141,10 @@ foreach pid [qsort [array names main_project_start_j_hash]] {
 	array set date_comps [util_memoize [list im_date_julian_to_components $j]]
 	set year $date_comps(year)
 	set week_of_year $date_comps(week_of_year)
+	set week_after_start [expr ($j-$start_j) / 7]
+	set week_after_start_padded [string range "000$week_after_start" end-2 end]
 
-	set key_week "$pid-$year-$week_of_year"
+	set key_week "$pid-$week_after_start_padded"
 	set perc_week 0.0
 	if {[info exists percentage_week_hash($key_week)]} { set perc_week $percentage_week_hash($key_week) }
 	set perc_week [expr $perc_week + $perc]

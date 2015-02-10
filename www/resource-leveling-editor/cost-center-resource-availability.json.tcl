@@ -230,7 +230,7 @@ switch $granularity {
 	    set assigned_list [join $assigned_days ", "]
 	    set cc_row_days [list "\n\t\"id\":$cc_id,
 \t\"cost_center_id\":$cc_id,
-\t\"cost_center_name\":\"$cost_center_name\",
+\t\"cost_center_name\":\"$cost_center_name<br>&nbsp;\",
 \t\"assigned_resources\":\"$assigned_resources\",
 \t\"available_days\":\[$available_list\],
 \t\"assigned_days\":\[$assigned_list\]
@@ -311,7 +311,7 @@ switch $granularity {
 	    set assigned_list [join $assigned_weeks ", "]
 	    set cc_row_weeks [list "\"id\":$cc_id,\
 \"cost_center_id\":$cc_id,\
-\"cost_center_name\":\"$cost_center_name\",\
+\"cost_center_name\":\"$cost_center_name<br>&nbsp;\",\
 \"assigned_resources\":\"$assigned_resources\",
 \"available_days\":\[$available_list\],
 \"assigned_days\":\[$assigned_list\]
