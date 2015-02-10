@@ -734,7 +734,7 @@ Ext.define('PO.view.resource_management.ResourceLevelingEditorProjectPanel', {
 	var atLeastOneProjectSelected = false
         me.objectStore.each(function(model) {
             var projectId = model.get('project_id');
-            var sel = me.preferenceStore.getPreferenceBoolean('project_selected.' + projectId);
+            var sel = me.preferenceStore.getPreferenceBoolean('project_selected.' + projectId, true);
             if (sel) { 
 		me.skipGridSelectionChange = true;
                 selModel.select(model, true); 
