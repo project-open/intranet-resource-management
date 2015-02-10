@@ -82,8 +82,6 @@ db_foreach main_p $sql {
 
     for {set j $start_date_julian} {$j <= $end_date_julian} {incr j} {
 	array set date_comps [util_memoize [list im_date_julian_to_components $j]]
-	set year $date_comps(year)
-	set week_of_year $date_comps(week_of_year)
 	set dow $date_comps(day_of_week)
 	set week_after_start [expr ($j-$start_date_julian) / 7]
 	set week_after_start_padded [string range "000$week_after_start" end-2 end]
@@ -91,25 +89,14 @@ db_foreach main_p $sql {
 	# Skip weekends
 	if {0 == $dow || 6 == $dow || 7 == $dow} { continue }
 
-
-	# Days
+	# Aggregate the subproject assignment per main project and day
 	set key "$main_project_id-$j"
 	set val 0.0
 	if {[info exists percentage_day_hash($key)]} { set val $percentage_day_hash($key) }
 	set val [expr $val + ($percentage / 100.0)]
 	set percentage_day_hash($key) $val
-
-	# Weeks
-	set key_week "$main_project_id-$year-$week_of_year"
-	set val 0.0
-	if {[info exists percentage_week_hash($key_week)]} { set val $percentage_week_hash($key_week) }
-        set val [expr $val + ($percentage / 100.0)]
-        set percentage_week_hash($key_week) $val
     }
 }
-
-# ad_return_complaint 1 [array get percentage_day_hash]
-# ad_return_complaint 1 [lsort [array names percentage_day_hash]]
 
 # ---------------------------------------------------------------
 # Format result as JSON
@@ -138,12 +125,8 @@ foreach pid [qsort [array names main_project_start_j_hash]] {
 
 
 	# Aggregate values per week
-	array set date_comps [util_memoize [list im_date_julian_to_components $j]]
-	set year $date_comps(year)
-	set week_of_year $date_comps(week_of_year)
 	set week_after_start [expr ($j-$start_j) / 7]
 	set week_after_start_padded [string range "000$week_after_start" end-2 end]
-
 	set key_week "$pid-$week_after_start_padded"
 	set perc_week 0.0
 	if {[info exists percentage_week_hash($key_week)]} { set perc_week $percentage_week_hash($key_week) }
