@@ -350,7 +350,7 @@ Ext.define('PO.view.resource_management.AbstractGanttEditor', {
         for (var i = 0, ln = items.length; i < ln; i++) {
             var sprite = items[i];
             if (!sprite) continue;
-	    if (!sprite.model) continue;                // Only check for sprites with a (project) model
+            if (!sprite.model) continue;                // Only check for sprites with a (project) model
             if ("rect" != sprite.type) continue;
 
             var bbox = sprite.getBBox();
@@ -794,14 +794,14 @@ Ext.define('PO.view.resource_management.ResourceLevelingEditorProjectPanel', {
     onObjectDnD: function(fromSprite, toSprite, diffPoint) {
         var me = this;
         console.log('PO.view.resource_management.ResourceLevelingEditorProjectPanel.onProjectMove: '+
-		    fromSprite+' -> '+toSprite+', [' + diffPoint+']');
+                    fromSprite+' -> '+toSprite+', [' + diffPoint+']');
 
         if (null == fromSprite) { return; } // Something went completely wrong...
         if (null != toSprite && fromSprite != toSprite) {
             me.onCreateDependency(fromSprite, toSprite);            // dropped on another sprite - create dependency
         } else {
             me.onProjectMove(fromSprite, diffPoint[0]);            // Dropped on empty space or on the same bar
-	}
+        }
     },
 
     /**
@@ -857,80 +857,84 @@ Ext.define('PO.view.resource_management.ResourceLevelingEditorProjectPanel', {
         var toProjectId = toProjectModel.get('project_id');			// String value!
         if (null == toProjectId) { return; }				// Something went wrong...
 
-        // Load the tasks of the first project
-        var fromTaskTreeStore = Ext.create('PO.store.timesheet.TaskTreeStore', {autoSync: false, writer: false});
-        fromTaskTreeStore.getProxy().extraParams = { project_id: fromProjectId };
-        fromTaskTreeStore.load();
+        // Create the stores if necessary
+        if (!me.dependencyFromTaskTreeStore) {
+            me.dependencyFromTaskTreeStore = Ext.create('PO.store.timesheet.TaskTreeStore', {autoSync: false, writer: false});
+            me.dependencyToTaskTreeStore = Ext.create('PO.store.timesheet.TaskTreeStore', {autoSync: false, writer: false});
+        }
 
-        var toTaskTreeStore = Ext.create('PO.store.timesheet.TaskTreeStore', {autoSync: false, writer: false});
-        toTaskTreeStore.getProxy().extraParams = { project_id: toProjectId };
-        toTaskTreeStore.load();
+        // Load the two main projects into the tree stores
+        me.dependencyFromTaskTreeStore.getProxy().extraParams = { project_id: fromProjectId };
+        me.dependencyFromTaskTreeStore.load();
+        me.dependencyToTaskTreeStore.getProxy().extraParams = { project_id: toProjectId };
+        me.dependencyToTaskTreeStore.load();
 
-        var fromProjectTree = Ext.create('Ext.tree.Panel', {
-            title:				false,
-            width:				290,
-            height:				300,
-            region:				'west',
-            useArrows:			true,
-            rootVisible:			false,
-            store:				fromTaskTreeStore,
-            viewConfig: {plugins: {ptype: 'treeviewdragdrop'}},
-            columns: [{xtype: 'treecolumn', text: 'Create Dependency From:', flex: 2, dataIndex: 'project_name'}]
-        });
+        if (!me.dependencyFromProjectTree) {
+            me.dependencyFromProjectTree = Ext.create('Ext.tree.Panel', {
+                title:				false,
+                width:				290,
+                height:				300,
+                region:				'west',
+                useArrows:			true,
+                rootVisible:			false,
+                store:				me.dependencyFromTaskTreeStore,
+                viewConfig: {plugins: {ptype: 'treeviewdragdrop'}},
+                columns: [{xtype: 'treecolumn', text: 'Create Dependency From:', flex: 2, dataIndex: 'project_name'}]
+            });
         
-        var toProjectTree = Ext.create('Ext.tree.Panel', {
-            title:				false,
-            width:				290,
-            height:				300,
-            region:				'east',
-            useArrows:			true,
-            rootVisible:			false,
-            store:				toTaskTreeStore,
-            viewConfig: {plugins: {ptype: 'treeviewdragdrop'}},
-            columns: [{xtype: 'treecolumn', text: 'Create Dependency To:', flex: 2, dataIndex: 'project_name'}]
-        });
-        
+            me.dependencyToProjectTree = Ext.create('Ext.tree.Panel', {
+                title:				false,
+                width:				290,
+                height:				300,
+                region:				'east',
+                useArrows:			true,
+                rootVisible:			false,
+                store:				me.dependencyToTaskTreeStore,
+                viewConfig: {plugins: {ptype: 'treeviewdragdrop'}},
+                columns: [{xtype: 'treecolumn', text: 'Create Dependency To:', flex: 2, dataIndex: 'project_name'}]
+            });
+        }
+
         /**
          * Create a pop-up window showing the two 
          * project trees, allowing to create a task-to-task
          * dependency link.
          */
-        var popupWindow = Ext.create('Ext.window.Window', {
-            title: 'Create a dependency between two projects',
-            modal: true,          // Should we mask everything behind the window?
-            width: 600,
-            height: 400,
-            layout: 'border',
-            items: [
-                fromProjectTree,
-                toProjectTree
-            ]
-        });
+        if (!me.dependencyPopupWindow) {
+            me.dependencyPopupWindow = Ext.create('Ext.window.Window', {
+                title: 'Create a dependency between two projects',
+                modal: true,          // Should we mask everything behind the window?
+                width: 600,
+                height: 400,
+                layout: 'border',
+                items: [
+                    me.dependencyFromProjectTree,
+                    me.dependencyToProjectTree
+                ]
+            });
 
-        // Catch the "drop" of the drag-and-drop in order to
-        // create the link
-        toProjectTree.getView().on({
-            'drop': function(node, data, toModel, dropPosition, eOpts) { 
-                console.log('PO.view.resource_management.AbstractGanttEditor.drop!!!'); 
-                var fromModel = data.records[0];
-                if (null == fromModel) { return; }
-        	
-                // Create a new dependency object
-                var dependency = new Ext.create('PO.model.timesheet.TimesheetTaskDependency', {
-                    task_id_one: fromProjectId,
-                    task_id_two: toProjectId
-                });
-                dependency.save();
+            // Catch the "drop" of the drag-and-drop in order to
+            // create the link
+            me.dependencyToProjectTree.getView().on({
+                'drop': function(node, data, toModel, dropPosition, eOpts) { 
+                    console.log('PO.view.resource_management.AbstractGanttEditor.drop!!!'); 
+                    var fromModel = data.records[0];
+                    if (null == fromModel) { return; }
+        	    
+                    // Create a new dependency object
+                    var dependency = new Ext.create('PO.model.timesheet.TimesheetTaskDependency', {
+                	task_id_one: fromProjectId,
+                	task_id_two: toProjectId
+                    });
+                    dependency.save();
+                    me.dependencyPopupWindow.hide();
+                    
+                },
+                'scope': me.dependencyToProjectTree
+            });
+        }
 
-		// Close the popup window and manuall clean up
-		// the drag-and-drop components inside
-		// fromProjectTree.destroy();
-		popupWindow.destroy();
-            },
-            'scope': toProjectTree
-        });
-
-        popupWindow.show(true);
+        me.dependencyPopupWindow.show(true);
 
     },
 
