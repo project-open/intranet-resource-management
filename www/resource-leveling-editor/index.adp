@@ -27,7 +27,8 @@ Ext.require([
     'Ext.data.*',
     'Ext.grid.*',
     'Ext.tree.*',
-    'PO.controller.StoreLoadCoordinator'
+    'PO.controller.StoreLoadCoordinator',
+    'PO.model.timesheet.TimesheetTaskDependency'
 ]);
 
 Ext.define('PO.model.resource_management.ProjectResourceLoadModel', {
@@ -301,22 +302,29 @@ Ext.define('PO.view.resource_management.AbstractGanttEditor', {
      */
     onMouseUp: function(e) {
         var me = this;
-        if (!me.dndEnabled) { return; }
+        if (!me.dndEnabled) { return; }						// DnD is disabled for CostCenter bars
+        if (me.dndBasePoint == null) { return; }				// No DnD? At least inconsistent...
 
-        if (me.dndBasePoint == null) { return; }
         var point = me.getMousePoint(e);
         console.log('PO.view.resource_management.AbstractGanttEditor.onMouseUp: '+point);
 
+        // Check where the user has dropped the mouse
+        var dropSprite = me.getSpriteForPoint(point);
+        if (dropSprite == me.dndBaseSprite) { dropSprite = null; }		// Dropped on the same sprite? => normal drop
+
         // Reset the offset when just clicking
         var xDiff = point[0] - me.dndBasePoint[0];
-        if (0 == xDiff) {
+        var yDiff = point[1] - me.dndBasePoint[1];
+        if (0 == Math.abs(xDiff) + Math.abs(yDiff)) {
             // Single click - nothing
         } else {
             // Fire event in order to notify listerns about the move
             var model = me.dndBaseSprite.model;
-            me.fireEvent('objectdnd', me.dndBaseSprite, model, xDiff);
+            var diffPoint = [xDiff,yDiff]
+            me.fireEvent('objectdnd', me.dndBaseSprite, dropSprite, diffPoint);
         }
 
+        // Stop DnD'ing
         me.dndBasePoint = null;					// Stop dragging
         me.dndBaseSprite = null;
         me.dndShadowSprite.destroy();
@@ -342,6 +350,7 @@ Ext.define('PO.view.resource_management.AbstractGanttEditor', {
         for (var i = 0, ln = items.length; i < ln; i++) {
             var sprite = items[i];
             if (!sprite) continue;
+	    if (!sprite.model) continue;                // Only check for sprites with a (project) model
             if ("rect" != sprite.type) continue;
 
             var bbox = sprite.getBBox();
@@ -703,7 +712,7 @@ Ext.define('PO.view.resource_management.ResourceLevelingEditorProjectPanel', {
 
         // Catch the event that the object got moved
         me.on({
-            'objectdnd': me.onProjectMove,
+            'objectdnd': me.onObjectDnD,
             'resize': me.redraw,
             'scope': this
         });
@@ -731,27 +740,27 @@ Ext.define('PO.view.resource_management.ResourceLevelingEditorProjectPanel', {
         console.log('PO.view.resource_management.ResourceLevelingEditorProjectPanel.onProjectGridViewReady');
         var selModel = me.objectPanel.getSelectionModel();
 
-	var atLeastOneProjectSelected = false
+        var atLeastOneProjectSelected = false
         me.objectStore.each(function(model) {
             var projectId = model.get('project_id');
             var sel = me.preferenceStore.getPreferenceBoolean('project_selected.' + projectId, true);
             if (sel) { 
-		me.skipGridSelectionChange = true;
+                me.skipGridSelectionChange = true;
                 selModel.select(model, true); 
-		me.skipGridSelectionChange = false;
-		atLeastOneProjectSelected = true;
+                me.skipGridSelectionChange = false;
+                atLeastOneProjectSelected = true;
             }
         });
 
-	if (!atLeastOneProjectSelected) {
+        if (!atLeastOneProjectSelected) {
             selModel.selectAll(true);
-	}
+        }
         me.redraw();
     },
 
     onProjectGridSelectionChange: function(selModel, models, eOpts) {
         var me = this;
-	if (me.skipGridSelectionChange) { return; }
+        if (me.skipGridSelectionChange) { return; }
         console.log('PO.view.resource_management.ResourceLevelingEditorProjectPanel.onProjectGridSelectionChange');
 
         me.objectStore.each(function(model) {
@@ -777,13 +786,32 @@ Ext.define('PO.view.resource_management.ResourceLevelingEditorProjectPanel', {
     },
 
 
+
+    /**
+     * Deal with a Drag-and-Drop operation
+     * and distinguish between the various types.
+     */
+    onObjectDnD: function(fromSprite, toSprite, diffPoint) {
+        var me = this;
+        console.log('PO.view.resource_management.ResourceLevelingEditorProjectPanel.onProjectMove: '+
+		    fromSprite+' -> '+toSprite+', [' + diffPoint+']');
+
+        if (null == fromSprite) { return; } // Something went completely wrong...
+        if (null != toSprite && fromSprite != toSprite) {
+            me.onCreateDependency(fromSprite, toSprite);            // dropped on another sprite - create dependency
+        } else {
+            me.onProjectMove(fromSprite, diffPoint[0]);            // Dropped on empty space or on the same bar
+	}
+    },
+
     /**
      * Move the project forward or backward in time.
      * This function is called by onMouseUp as a
      * successful "drop" action of a drag-and-drop.
      */
-    onProjectMove: function(baseSprite, projectModel, xDiff) {
+    onProjectMove: function(projectSprite, xDiff) {
         var me = this;
+        var projectModel = projectSprite.model;
         if (!projectModel) return;
         console.log('PO.view.resource_management.ResourceLevelingEditorProjectPanel.onProjectMove: '+projectModel.get('id') + ', ' + xDiff);
 
@@ -804,8 +832,106 @@ Ext.define('PO.view.resource_management.ResourceLevelingEditorProjectPanel', {
 
         // Reload the Cost Center Resource Load Store with the new selected/changed projects
         me.costCenterResourceLoadStore.loadWithProjectData(me.objectStore);
-
         me.redraw();
+    },
+
+
+    /**
+     * Create a task dependency between two two projects
+     * This function is called by onMouseUp as a
+     * successful "drop" action if the drop target is
+     * another project.
+     */
+    onCreateDependency: function(fromSprite, toSprite) {
+        var me = this;
+        var fromProjectModel = fromSprite.model;
+        var toProjectModel = toSprite.model;
+        if (null == fromProjectModel) return;
+        if (null == toProjectModel) return;
+        console.log('PO.view.resource_management.ResourceLevelingEditorProjectPanel.onProjectMove: '+fromProjectModel.get('id')+' -> '+toProjectModel.get('id'));
+
+        // The user dropped on another sprite.
+        // Try connecting the two projects via a task dependency
+        var fromProjectId = fromProjectModel.get('project_id');		// String value!
+        if (null == fromProjectId) { return; }				// Something went wrong...
+        var toProjectId = toProjectModel.get('project_id');			// String value!
+        if (null == toProjectId) { return; }				// Something went wrong...
+
+        // Load the tasks of the first project
+        var fromTaskTreeStore = Ext.create('PO.store.timesheet.TaskTreeStore', {autoSync: false, writer: false});
+        fromTaskTreeStore.getProxy().extraParams = { project_id: fromProjectId };
+        fromTaskTreeStore.load();
+
+        var toTaskTreeStore = Ext.create('PO.store.timesheet.TaskTreeStore', {autoSync: false, writer: false});
+        toTaskTreeStore.getProxy().extraParams = { project_id: toProjectId };
+        toTaskTreeStore.load();
+
+        var fromProjectTree = Ext.create('Ext.tree.Panel', {
+            title:				false,
+            width:				290,
+            height:				300,
+            region:				'west',
+            useArrows:			true,
+            rootVisible:			false,
+            store:				fromTaskTreeStore,
+            viewConfig: {plugins: {ptype: 'treeviewdragdrop'}},
+            columns: [{xtype: 'treecolumn', text: 'Create Dependency From:', flex: 2, dataIndex: 'project_name'}]
+        });
+        
+        var toProjectTree = Ext.create('Ext.tree.Panel', {
+            title:				false,
+            width:				290,
+            height:				300,
+            region:				'east',
+            useArrows:			true,
+            rootVisible:			false,
+            store:				toTaskTreeStore,
+            viewConfig: {plugins: {ptype: 'treeviewdragdrop'}},
+            columns: [{xtype: 'treecolumn', text: 'Create Dependency To:', flex: 2, dataIndex: 'project_name'}]
+        });
+        
+        /**
+         * Create a pop-up window showing the two 
+         * project trees, allowing to create a task-to-task
+         * dependency link.
+         */
+        var popupWindow = Ext.create('Ext.window.Window', {
+            title: 'Create a dependency between two projects',
+            modal: true,          // Should we mask everything behind the window?
+            width: 600,
+            height: 400,
+            layout: 'border',
+            items: [
+                fromProjectTree,
+                toProjectTree
+            ]
+        });
+
+        // Catch the "drop" of the drag-and-drop in order to
+        // create the link
+        toProjectTree.getView().on({
+            'drop': function(node, data, toModel, dropPosition, eOpts) { 
+                console.log('PO.view.resource_management.AbstractGanttEditor.drop!!!'); 
+                var fromModel = data.records[0];
+                if (null == fromModel) { return; }
+        	
+                // Create a new dependency object
+                var dependency = new Ext.create('PO.model.timesheet.TimesheetTaskDependency', {
+                    task_id_one: fromProjectId,
+                    task_id_two: toProjectId
+                });
+                dependency.save();
+
+		// Close the popup window and manuall clean up
+		// the drag-and-drop components inside
+		// fromProjectTree.destroy();
+		popupWindow.destroy();
+            },
+            'scope': toProjectTree
+        });
+
+        popupWindow.show(true);
+
     },
 
     /**
@@ -1027,9 +1153,9 @@ Ext.define('PO.view.resource_management.ResourceLevelingEditorCostCenterPanel', 
         // Draw availability percentage
         var availableDays = costCenter.get('available_days');		// Array of available days since report_start_date
         if (me.preferenceStore.getPreferenceBoolean('show_dept_available_resources', true)) {
-            var maxAvailableDays = parseFloat(""+costCenter.get('assigned_resources')); // Should be the maximum of availableDays
+            var maxAvailableDays = parseFloat(""+costCenter.get('assigned_resources'));			// Should be the maximum of availableDays
             var template = new Ext.Template("<div><b>Resource Capacity</b>:<br>{value} out of {maxValue} resources are available in department '{cost_center_name}' between {startDate} and {endDate}.<br></div>");
-            me.graphOnGanttBar(spriteBar, costCenter, availableDays, maxAvailableDays, new Date(startTime), 'blue', template);
+            me.graphOnGanttBar(spriteBar, costCenter, availableDays, maxAvailableDays * 2.0, new Date(startTime), 'blue', template);
         }
 
         // *************************************************
@@ -1038,7 +1164,7 @@ Ext.define('PO.view.resource_management.ResourceLevelingEditorCostCenterPanel', 
         if (me.preferenceStore.getPreferenceBoolean('show_dept_assigned_resources', true)) {
             var maxAssignedDays = parseFloat(""+costCenter.get('assigned_resources'));
             var template = new Ext.Template("<div><b>Resource Assignment</b>:<br>{value} out of {maxValue} resources are assigned to projects in department '{cost_center_name}' between {startDate} and {endDate}.<br></div>");
-            me.graphOnGanttBar(spriteBar, costCenter, assignedDays, maxAssignedDays, new Date(startTime), 'red', template);
+            me.graphOnGanttBar(spriteBar, costCenter, assignedDays, maxAssignedDays * 2.0, new Date(startTime), 'brown', template);
         }
 
         // *************************************************
@@ -1062,7 +1188,7 @@ Ext.define('PO.view.resource_management.ResourceLevelingEditorCostCenterPanel', 
                 loadDays.push(loadPercentage);
             }
             var template = new Ext.Template("<div><b>Work Load</b>:<br>The work load is at {value}% out of 100% available in department {cost_center_name} beween {startDate} and {endDate}.<br></div>");
-            me.graphOnGanttBar(spriteBar, costCenter, loadDays, maxLoadPercentage, new Date(startTime), 'green', template);
+            me.graphOnGanttBar(spriteBar, costCenter, loadDays, maxLoadPercentage * 2.0, new Date(startTime), 'green', template);
         }
         
         // *************************************************
@@ -1080,7 +1206,7 @@ Ext.define('PO.view.resource_management.ResourceLevelingEditorCostCenterPanel', 
                 if (accLoad > maxAccLoad) { maxAccLoad = accLoad; }
             }
             var template = new Ext.Template("<div><b>Accumulated Overload</b>:<br>There are {value} days of planned work not yet finished in department {cost_center_name} on {startDate}.<br></div>");
-            me.graphOnGanttBar(spriteBar, costCenter, accLoadDays, maxAccLoad, new Date(startTime), 'purple', template);
+            me.graphOnGanttBar(spriteBar, costCenter, accLoadDays, maxAccLoad * 2.0, new Date(startTime), 'purple', template);
         }
     }
 });
@@ -1281,7 +1407,11 @@ function launchApplication(){
                         var url = model.get('preference_url');
                         if (url != '@page_url@') { return; }
                         model.destroy();
-                    })
+                    });
+
+                    // senchaPreferenceStore.removeAll();
+                    // resourceLevelingEditorProjectPanel.onProjectGridViewReady();
+                    location.reload();					// Just reload the entire screen...
                 }
             }, '-'
         ]
