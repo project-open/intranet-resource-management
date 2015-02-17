@@ -917,16 +917,28 @@ Ext.define('PO.view.resource_management.ResourceLevelingEditorProjectPanel', {
             // create the link
             me.dependencyToProjectTree.getView().on({
                 'drop': function(node, data, toModel, dropPosition, eOpts) { 
-                    console.log('PO.view.resource_management.AbstractGanttEditor.drop!!!'); 
+                    console.log('PO.view.resource_management.AbstractGanttEditor.drop');
                     var fromModel = data.records[0];
                     if (null == fromModel) { return; }
         	    
+                    var fromTaskId = fromModel.get('id');
+                    var toTaskId = toModel.get('id');
+                    console.log('PO.view.resource_management.AbstractGanttEditor.drop: '+fromTaskId+' -> '+toTaskId);
+
                     // Create a new dependency object
                     var dependency = new Ext.create('PO.model.timesheet.TimesheetTaskDependency', {
-                	task_id_one: fromProjectId,
-                	task_id_two: toProjectId
+                	task_id_one: fromTaskId,
+                	task_id_two: toTaskId
                     });
-                    dependency.save();
+                    dependency.save({
+                	success: function(a, b, c, d, e, f) {
+                	    console.log('PO.view.resource_management.AbstractGanttEditor.drop: successfully created dependency');
+                	},
+                	failure: function(dependencyModel, operation) {
+                	    var message = operation.request.scope.reader.jsonData.message;
+                	    Ext.Msg.alert('Error creating dependency', message);
+                	}
+                    });
                     me.dependencyPopupWindow.hide();
                     
                 },
