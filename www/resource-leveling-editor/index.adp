@@ -699,6 +699,7 @@ Ext.define('PO.view.resource_management.ResourceLevelingEditorProjectPanel', {
     requires: ['PO.view.resource_management.AbstractGanttEditor'],
 
     costCenterResourceLoadStore: null,				// Reference to cost center store, set during init
+    taskDependencyStore: null,				// Reference to cost center store, set during init
     skipGridSelectionChange: false,				// Temporaritly disable updates
 
     /**
@@ -724,6 +725,12 @@ Ext.define('PO.view.resource_management.ResourceLevelingEditorProjectPanel', {
             'viewready': me.onProjectGridViewReady,
             'selectionchange': me.onProjectGridSelectionChange,
             'sortchange': me.onProjectGridSelectionChange,
+            'scope': this
+        });
+
+        // Redraw dependency arrows when loaded
+        me.taskDependencyStore.on({
+            'load': me.onTaskDependencyStoreChange,
             'scope': this
         });
 
@@ -974,7 +981,66 @@ Ext.define('PO.view.resource_management.ResourceLevelingEditorProjectPanel', {
             me.drawProjectBar(model);
         });
 
+	// Draw the dependency arrows between the Gantt bars
+	me.taskDependencyStore.each(function(depModel) {
+	    me.drawTaskDependency(depModel);
+	});
+
         console.log('PO.view.resource_management.ResourceLevelingEditorProjectPanel.redraw: Finished');
+    },
+
+    /**
+     * Draw a single bar for a project or task
+     */
+    drawTaskDependency: function(dependencyModel) {
+	console.log('PO.view.resource_management.ResourceLevelingEditorProjectPanel.drawTaskDependency: '+dependencyModel.get('id'));
+        var me = this;
+        var surface = me.surface;
+
+	var taskOneId = dependencyModel.get('task_id_one');       // string!
+	var taskTwoId = dependencyModel.get('task_id_two');       // string!
+	var mainProjectOneId = dependencyModel.get('main_project_id_one');       // string!
+	var mainProjectTwoId = dependencyModel.get('main_project_id_two');       // string!
+
+	// Search for the Gantt bars corresponding to the main projects
+        var items = me.surface.items.items;
+	var mainProjectBarOne = null;
+	var mainProjectBarTwo = null;
+        for (var i = 0, ln = items.length; i < ln; i++) {
+            var sprite = items[i];
+            if (!sprite) continue;
+            if (!sprite.model) continue;                // Only check for sprites with a (project) model
+
+	    if (sprite.model.get('id') == mainProjectOneId) { mainProjectBarOne = sprite; }
+	    if (sprite.model.get('id') == mainProjectTwoId) { mainProjectBarTwo = sprite; }
+        }
+
+	if (null == mainProjectBarOne || null == mainProjectBarTwo) {
+//	    Ext.Msg.alert('Task Dependencies', 'Did not find sprite for main_project_id');
+	    console.log('Task Dependencies' + 'Did not find sprite for main_project_id');
+	    return;
+	}
+
+        var fromBBox = mainProjectBarOne.getBBox();
+        var toBBox = mainProjectBarTwo.getBBox();
+
+	var fromTaskEndDate = new Date(dependencyModel.get('task_one_end_date').substring(0,10));
+	var toTaskStartDate = new Date(dependencyModel.get('task_two_start_date').substring(0,10));
+	var fromTaskEndX = me.date2x(fromTaskEndDate);
+	var toTaskStartX = me.date2x(toTaskStartDate);
+
+	var color = 'blue';
+	if (toTaskStartX < fromTaskEndX) { color = 'red'; }
+
+	var spriteBar = surface.add({
+            type: 'path',
+            stroke: color,
+            'stroke-width': 1,
+            fill: 'url(#gradientId)',
+            path: 'M '+ fromTaskEndX + ',' + fromBBox.y
+                + 'L '+ toTaskStartX + ',' + toBBox.y
+        }).show(true);
+
     },
 
     /**
@@ -1025,6 +1091,10 @@ Ext.define('PO.view.resource_management.ResourceLevelingEditorProjectPanel', {
         }
 
         if (me.debug) { console.log('PO.view.resource_management.ResourceLevelingEditorProjectPanel.drawProjectBar: Finished'); }
+    },
+
+    onTaskDependencyStoreChange: function() {
+        console.log('PO.view.resource_management.ResourceLevelingEditorProjectPanel.onTaskDependencyStoreChange: Starting');
     }
 
 });
@@ -1239,6 +1309,7 @@ function launchApplication(){
     var projectResourceLoadStore = Ext.StoreManager.get('projectResourceLoadStore');
     var costCenterResourceLoadStore = Ext.StoreManager.get('costCenterResourceLoadStore');
     var senchaPreferenceStore = Ext.StoreManager.get('senchaPreferenceStore');
+    var timesheetTaskDependencyStore = Ext.StoreManager.get('timesheetTaskDependencyStore');
 
     var numProjects = projectResourceLoadStore.getCount();
     var numCostCenters = costCenterResourceLoadStore.getCount();
@@ -1360,6 +1431,7 @@ function launchApplication(){
         reportStartDate: new Date(report_start_date),
         reportEndDate: new Date(report_end_date),
         preferenceStore: senchaPreferenceStore,
+	taskDependencyStore: timesheetTaskDependencyStore,
 
         // Reference to the CostCenter store
         costCenterResourceLoadStore: costCenterResourceLoadStore
@@ -1648,6 +1720,7 @@ Ext.onReady(function() {
     var projectResourceLoadStore = Ext.create('PO.store.resource_management.ProjectResourceLoadStore');
     var costCenterResourceLoadStore = Ext.create('PO.store.resource_management.CostCenterResourceLoadStore');
     var senchaPreferenceStore = Ext.create('PO.store.user.SenchaPreferenceStore');
+    var timesheetTaskDependencyStore = Ext.create('PO.store.timesheet.TimesheetTaskDependencyStore');
 
     // Wait for both the project and cost-center store
     // before launching the application. We need the
@@ -1684,6 +1757,31 @@ Ext.onReady(function() {
     });
 
     senchaPreferenceStore.load();
+
+/*
+    // Load inter-project dependencies.
+    // We use a relatively complex query to select out only those
+    // dependencies that cross main projects
+    var dependencyQuery = "dependency_id in (" + 
+	"select	d.dependency_id " + 
+	"from	im_timesheet_task_dependencies d, " + 
+		"im_projects p_one, " + 
+		"im_projects p_two, " + 
+		"im_projects main_one, " + 
+		"im_projects main_two " + 
+	"where	p_one.project_id = d.task_id_one and " + 
+		"p_two.project_id = d.task_id_two and " + 
+		"main_one.tree_sortkey = tree_root_key(p_one.tree_sortkey) and " + 
+		"main_two.tree_sortkey = tree_root_key(p_two.tree_sortkey) and " +
+		"main_one.project_id != main_two.project_id" + 
+	")";
+    timesheetTaskDependencyStore.getProxy().extraParams = { format: 'json', query: dependencyQuery };
+    timesheetTaskDependencyStore.load();
+    */
+
+    timesheetTaskDependencyStore.getProxy().url = '/intranet-reporting/view';
+    timesheetTaskDependencyStore.getProxy().extraParams = { format: 'json', report_code: 'rest_inter_project_task_dependencies' };
+    timesheetTaskDependencyStore.load();
 
 });
 
