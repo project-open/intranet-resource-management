@@ -1026,20 +1026,40 @@ Ext.define('PO.view.resource_management.ResourceLevelingEditorProjectPanel', {
 
 	var fromTaskEndDate = new Date(dependencyModel.get('task_one_end_date').substring(0,10));
 	var toTaskStartDate = new Date(dependencyModel.get('task_two_start_date').substring(0,10));
-	var fromTaskEndX = me.date2x(fromTaskEndDate);
-	var toTaskStartX = me.date2x(toTaskStartDate);
+
+	var fromX = me.date2x(fromTaskEndDate);
+	var toX = me.date2x(toTaskStartDate);
+	var fromY = fromBBox.y;
+	var toY = toBBox.y
+
+	// Correct the start/end Y position
+	if (toY > fromY) { fromY = fromBBox.y + fromBBox.height; }
+	if (toY < fromY) { toY = toBBox.y + toBBox.height; }
 
 	var color = 'blue';
-	if (toTaskStartX < fromTaskEndX) { color = 'red'; }
+	if (toX < fromX) { color = 'red'; }
 
 	var spriteBar = surface.add({
             type: 'path',
             stroke: color,
             'stroke-width': 1,
             fill: 'url(#gradientId)',
-            path: 'M '+ fromTaskEndX + ',' + fromBBox.y
-                + 'L '+ toTaskStartX + ',' + toBBox.y
+            path: 'M '+ fromX + ',' + fromY
+                + 'L '+ toX + ',' + toY
         }).show(true);
+
+/*
+        var s = 5;
+	var line = me.surface.add({
+            type: 'path',
+            stroke: color,
+            'shape-rendering': 'crispy-edges',
+            'stroke-width': 1,
+            path: 'M '+ (fromX) + ',' + (fromY)
+                + 'L '+ (toX+s)   + ',' + (fromY)
+                + 'L '+ (toX+s)   + ',' + (toY)
+        }).show(true);
+*/
 
     },
 
