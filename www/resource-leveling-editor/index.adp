@@ -190,7 +190,7 @@ Ext.define('PO.view.resource_management.AbstractGanttEditor', {
     // Size of the Gantt diagram
     ganttSurfaceWidth: 1500,
     ganttSurfaceHeight: 300,
-    ganttBarHeight: 15,
+    ganttBarHeight: 12,
 
     // Start of the date axis
     reportStartDate: null,				// Needs to be set during init
@@ -820,7 +820,7 @@ Ext.define('PO.view.resource_management.ResourceLevelingEditorProjectPanel', {
         var me = this;
         var projectModel = projectSprite.model;
         if (!projectModel) return;
-        console.log('PO.view.resource_management.ResourceLevelingEditorProjectPanel.onProjectMove: '+projectModel.get('id') + ', ' + xDiff);
+        console.log('PO.view.resource_management.ResourceLevelingEditorProjectPanel.onProjectMove: ');
 
         var bBox = me.dndBaseSprite.getBBox();
         var diffTime = Math.floor(1.0 * xDiff * (me.axisEndDate.getTime() - me.axisStartDate.getTime()) / (me.axisEndX - me.axisStartX));
@@ -828,6 +828,12 @@ Ext.define('PO.view.resource_management.ResourceLevelingEditorProjectPanel', {
         var startTime = new Date(projectModel.get('start_date')).getTime();
         var endTime = new Date(projectModel.get('end_date')).getTime();
 
+	// Save original start- and end time in non-model variables
+	if (!projectModel.orgStartTime) {
+	    projectModel.orgStartTime = startTime;
+	    projectModel.orgEndTime = endTime;
+	}
+	
         startTime = startTime + diffTime;
         endTime = endTime + diffTime;
 
@@ -1001,6 +1007,7 @@ Ext.define('PO.view.resource_management.ResourceLevelingEditorProjectPanel', {
 	var taskTwoId = dependencyModel.get('task_id_two');       // string!
 	var mainProjectOneId = dependencyModel.get('main_project_id_one');       // string!
 	var mainProjectTwoId = dependencyModel.get('main_project_id_two');       // string!
+	var s = 5;                                                               // Arrow head size
 
 	// Search for the Gantt bars corresponding to the main projects
         var items = me.surface.items.items;
@@ -1016,50 +1023,79 @@ Ext.define('PO.view.resource_management.ResourceLevelingEditorProjectPanel', {
         }
 
 	if (null == mainProjectBarOne || null == mainProjectBarTwo) {
-//	    Ext.Msg.alert('Task Dependencies', 'Did not find sprite for main_project_id');
 	    console.log('Task Dependencies' + 'Did not find sprite for main_project_id');
 	    return;
 	}
 
+	// Get the Y coordinates from the bounding boxes
         var fromBBox = mainProjectBarOne.getBBox();
         var toBBox = mainProjectBarTwo.getBBox();
+	var startY = fromBBox.y;
+	var endY = toBBox.y
 
+	// Get the X coordinates from the start- and end dates of the linked tasks
 	var fromTaskEndDate = new Date(dependencyModel.get('task_one_end_date').substring(0,10));
 	var toTaskStartDate = new Date(dependencyModel.get('task_two_start_date').substring(0,10));
 
-	var fromX = me.date2x(fromTaskEndDate);
-	var toX = me.date2x(toTaskStartDate);
-	var fromY = fromBBox.y;
-	var toY = toBBox.y
+	// Check if projects have been moved
+	var mainProjectModelOne = mainProjectBarOne.model;
+	var mainProjectModelTwo = mainProjectBarTwo.model;
+	if (null == mainProjectBarOne || null == mainProjectBarTwo) {
+	    Ext.Msg.alert('Task Dependencies', 'Found null model');
+	    return;
+	}
 
-	// Correct the start/end Y position
-	if (toY > fromY) { fromY = fromBBox.y + fromBBox.height; }
-	if (toY < fromY) { toY = toBBox.y + toBBox.height; }
+	// Move the start and end date of the _tasks_, according to the shift of the main project
+	if (mainProjectModelOne.orgStartTime) {
+	    var mainProjectOneDiff = new Date(mainProjectModelOne.get('start_date').substring(0,10)).getTime() - mainProjectModelOne.orgStartTime;
+	    var fromTaskEndDate = new Date(fromTaskEndDate.getTime() + mainProjectOneDiff);
+	}
+	if (mainProjectModelTwo.orgStartTime) {
+	    var mainProjectTwoDiff = new Date(mainProjectModelTwo.get('start_date').substring(0,10)).getTime() - mainProjectModelTwo.orgStartTime;
+	    var toTaskStartDate = new Date(toTaskStartDate.getTime() + mainProjectTwoDiff);
+	}
 
-	var color = 'blue';
-	if (toX < fromX) { color = 'red'; }
+	var startX = me.date2x(fromTaskEndDate);
+	var endX = me.date2x(toTaskStartDate);
 
-	var spriteBar = surface.add({
+	// Set the vertical start point to Correct the start/end Y position
+	// and the direction of the arrow head
+	var sDirected = null;
+	if (endY > startY) { 
+	    startY = fromBBox.y + fromBBox.height; 
+	    sDirected = -s;            // Draw "normal" arrowhead pointing downwards
+	} else { 
+	    endY = toBBox.y + toBBox.height; 
+	    sDirected = +s;            // Draw arrowhead pointing upward
+	}
+
+	// Color: Arrows are black if dependencies are OK, or red otherwise
+	var color = '#222';
+	if (endX < startX) { color = 'red'; }
+
+	// Draw the arrow head (filled)
+        var arrowHead = me.surface.add({
             type: 'path',
             stroke: color,
-            'stroke-width': 1,
-            fill: 'url(#gradientId)',
-            path: 'M '+ fromX + ',' + fromY
-                + 'L '+ toX + ',' + toY
+            fill: color,
+            'stroke-width': 0.5,
+            path: 'M '+ (endX)   + ',' + (endY)            // point of arrow head
+                + 'L '+ (endX-s) + ',' + (endY + sDirected)
+                + 'L '+ (endX+s) + ',' + (endY + sDirected)
+                + 'L '+ (endX)   + ',' + (endY)
         }).show(true);
 
-/*
-        var s = 5;
-	var line = me.surface.add({
+        // Draw the main connection line between start and end.
+        var line = me.surface.add({
             type: 'path',
             stroke: color,
             'shape-rendering': 'crispy-edges',
-            'stroke-width': 1,
-            path: 'M '+ (fromX) + ',' + (fromY)
-                + 'L '+ (toX+s)   + ',' + (fromY)
-                + 'L '+ (toX+s)   + ',' + (toY)
+            'stroke-width': 0.5,
+            path: 'M '+ (startX) + ',' + (startY)
+                + 'L '+ (startX) + ',' + (startY - sDirected)
+                + 'L '+ (endX)   + ',' + (endY + sDirected * 2)
+                + 'L '+ (endX)   + ',' + (endY + sDirected)
         }).show(true);
-*/
 
     },
 
