@@ -1604,12 +1604,21 @@ function launchApplication(){
         id: 'helpMenu',
         style: {overflow: 'visible'},     // For the Combo popup
         items: [{
-            text: 'Reset Help',
-            handler: function() {
-                console.log('helpMenuOnResetHelp');
-            }
-        }, '-']
+            text: 'Resource Leveling Editor Home',
+	    href: 'http://www.project-open.org/en/page_intranet_resource_management_leveling_index',
+	    hrefTarget: '_blank'
+        }, '-', {
+            text: 'Configuration',
+	    href: 'http://www.project-open.org/en/page_intranet_resource_management_leveling_index#configuration',
+	    hrefTarget: '_blank'
+        }, {
+            text: 'Project Dependencies',
+	    href: 'http://www.project-open.org/en/page_intranet_resource_management_leveling_index#dependencies',
+	    hrefTarget: '_blank'
+	}]
     });
+  
+
 
     // Setup the configMenu items
     var confSetupStore = Ext.create('Ext.data.Store', {
@@ -1688,41 +1697,50 @@ function launchApplication(){
                 text: 'OK',
                 icon: '/intranet/images/navbar_default/disk.png',
                 tooltip: 'Save the project to the ]po[ back-end',
+		hidden: true,
                 id: 'buttonSave'
             }, {
                 icon: '/intranet/images/navbar_default/folder_go.png',
                 tooltip: 'Load a project from he ]po[ back-end',
+		hidden: true,
                 id: 'buttonLoad'
             }, {
-                xtype: 'tbseparator'
+                xtype: 'tbseparator',
+		hidden: true
             }, {
                 icon: '/intranet/images/navbar_default/add.png',
                 tooltip: 'Add a new task',
+		hidden: true,
                 id: 'buttonAdd'
             }, {
                 icon: '/intranet/images/navbar_default/delete.png',
                 tooltip: 'Delete a task',
+		hidden: true,
                 id: 'buttonDelete'
             }, {
-                xtype: 'tbseparator'
+                xtype: 'tbseparator',
+		hidden: true
             }, {
                 icon: '/intranet/images/navbar_default/arrow_left.png',
                 tooltip: 'Reduce Indent',
+		hidden: true,
                 id: 'buttonReduceIndent'
             }, {
                 icon: '/intranet/images/navbar_default/arrow_right.png',
                 tooltip: 'Increase Indent',
+		hidden: true,
                 id: 'buttonIncreaseIndent'
             }, {
                 xtype: 'tbseparator'
             }, {
                 icon: '/intranet/images/navbar_default/link_add.png',
                 tooltip: 'Add dependency',
+		hidden: true,
                 id: 'buttonAddDependency'
             }, {
                 icon: '/intranet/images/navbar_default/link_break.png',
                 tooltip: 'Break dependency',
-                disabled: true,
+		hidden: true,
                 id: 'buttonBreakDependency'
             }, '->' , {
                 icon: '/intranet/images/navbar_default/zoom_in.png',
@@ -1732,13 +1750,16 @@ function launchApplication(){
                     width: 300,
                     text: '<p>Zoom in time axis</p>'
                 },
+		hidden: true,
                 id: 'buttonZoomIn'
             }, {
                 icon: '/intranet/images/navbar_default/zoom_out.png',
                 tooltip: 'Zoom out of time axis',
+		hidden: true,
                 id: 'buttonZoomOut'
             }, {
-                xtype: 'tbseparator'
+                xtype: 'tbseparator',
+		hidden: true
             }, {
                 text: 'Help',
                 icon: '/intranet/images/navbar_default/help.png',
