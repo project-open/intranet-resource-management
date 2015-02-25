@@ -842,12 +842,12 @@ Ext.define('PO.view.resource_management.ResourceLevelingEditorProjectPanel', {
 			dependencyModel.destroy({
 			    success: function() {
 				console.log('Dependency destroyed');
+				me.redraw();
 			    },
 			    failure: function(model, operation) {
 				console.log('Error destroying dependency: '+operation.request.proxy.reader.rawData.message);
 			    }
 			});
-			me.redraw();
                     }
                 }]
             });
@@ -1017,20 +1017,23 @@ Ext.define('PO.view.resource_management.ResourceLevelingEditorProjectPanel', {
 			    dependency.save({
                 		success: function(depModel, operation) {
                 		    console.log('PO.view.resource_management.AbstractGanttEditor.createDependency: successfully created dependency');
+				    
+				    // Reload the store, because the store gets extra information from the data-source
+				    me.taskDependencyStore.reload({
+					callback: function(records, operation, result) {
+					    console.log('taskDependencyStore.reload');
+					    me.redraw();
+					}
+				    });
                 		},
                 		failure: function(depModel, operation) {
                 		    var message = operation.request.scope.reader.jsonData.message;
                 		    Ext.Msg.alert('Error creating dependency', message);
                 		}
 			    });
-			    me.taskDependencyStore.reload({
-				callback: function(records, operation, result) {
-				    console.log('taskDependencyStore.reload');
-				    me.dependencyPopupWindow.hide();
-				    me.redraw();
-				}
-			    });
 
+			    // Hide the modal window independen on success or failure
+			    me.dependencyPopupWindow.hide();
 			}
 		    }
                 ]
