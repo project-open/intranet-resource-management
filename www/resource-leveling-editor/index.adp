@@ -224,7 +224,7 @@ Ext.define('PO.view.resource_management.AbstractGanttEditor', {
         me.axisEndDate = me.reportEndDate;
 
         // New Event: Drag-and-Drop for a Gantt bar
-        this.addEvents('objectdnd');
+        this.addEvents('spritednd', 'spriterightclick');
 
         // Drag & Drop on the "surface"
         me.on({
@@ -259,6 +259,13 @@ Ext.define('PO.view.resource_management.AbstractGanttEditor', {
         var baseSprite = me.getSpriteForPoint(point);
         console.log('PO.view.resource_management.AbstractGanttEditor.onMouseDown: '+point+' -> ' + baseSprite);
         if (baseSprite == null) { return; }
+
+        if (e.button == 2) {
+            // Right-click on sprite
+            me.fireEvent('spriterightclick', e, baseSprite);
+            baseSprite = null;
+            return;
+        }
 
         var bBox = baseSprite.getBBox();
         var surface = me.surface;
@@ -321,7 +328,7 @@ Ext.define('PO.view.resource_management.AbstractGanttEditor', {
             // Fire event in order to notify listerns about the move
             var model = me.dndBaseSprite.model;
             var diffPoint = [xDiff,yDiff]
-            me.fireEvent('objectdnd', me.dndBaseSprite, dropSprite, diffPoint);
+            me.fireEvent('spritednd', me.dndBaseSprite, dropSprite, diffPoint);
         }
 
         // Stop DnD'ing
@@ -341,9 +348,6 @@ Ext.define('PO.view.resource_management.AbstractGanttEditor', {
 
         var result = [];
 
-        if (y <= me.axisHeight) { return 'axis1'; }
-        if (y > me.axisHeight && y <= 2*me.axisHeight) { return 'axis2'; }
-
         var items = me.surface.items.items;
         console.log('getSpriteForPoint: items.length='+items.length);
 
@@ -351,7 +355,7 @@ Ext.define('PO.view.resource_management.AbstractGanttEditor', {
             var sprite = items[i];
             if (!sprite) continue;
             if (!sprite.model) continue;                // Only check for sprites with a (project) model
-            if ("rect" != sprite.type) continue;
+//            if ("rect" != sprite.type) continue;
 
             var bbox = sprite.getBBox();
             if (bbox.x > x) continue;
@@ -382,7 +386,7 @@ Ext.define('PO.view.resource_management.AbstractGanttEditor', {
      */
     calcGanttBarYPosition: function(model) {
         var me = this;
-        var objectPanelView = me.objectPanel.getView();						// The "view" for the GridPanel, containing HTML elements
+        var objectPanelView = me.objectPanel.getView();						// The "view" for the GridPanel with HTML elements
         var projectNodeHeight = objectPanelView.getNode(0).getBoundingClientRect().height;	// Height of a project node
         var projectYFirstProject = objectPanelView.getNode(0).getBoundingClientRect().top;	// Y position of the very first project
         var centerOffset = (projectNodeHeight - me.ganttBarHeight) / 2.0;			// Small offset in order to center Gantt
@@ -473,7 +477,7 @@ Ext.define('PO.view.resource_management.AbstractGanttEditor', {
                 }).show(true);
 
                 // Format a ToolTip based on the provided template,
-                // the values of the current segment 
+                // the values of the current segment
                 // and the model of the object shown.
                 if (undefined !== tooltipTemplate) {
                     var data = {};
@@ -701,6 +705,7 @@ Ext.define('PO.view.resource_management.ResourceLevelingEditorProjectPanel', {
     costCenterResourceLoadStore: null,				// Reference to cost center store, set during init
     taskDependencyStore: null,				// Reference to cost center store, set during init
     skipGridSelectionChange: false,				// Temporaritly disable updates
+    dependencyContextMenu: null,
 
     /**
      * Starts the main editor panel as the right-hand side
@@ -713,7 +718,8 @@ Ext.define('PO.view.resource_management.ResourceLevelingEditorProjectPanel', {
 
         // Catch the event that the object got moved
         me.on({
-            'objectdnd': me.onObjectDnD,
+            'spritednd': me.onSpriteDnD,
+            'spriterightclick': me.onSpriteRightClick,
             'resize': me.redraw,
             'scope': this
         });
@@ -751,9 +757,9 @@ Ext.define('PO.view.resource_management.ResourceLevelingEditorProjectPanel', {
         me.objectStore.each(function(model) {
             var projectId = model.get('project_id');
             var sel = me.preferenceStore.getPreferenceBoolean('project_selected.' + projectId, true);
-            if (sel) { 
+            if (sel) {
                 me.skipGridSelectionChange = true;
-                selModel.select(model, true); 
+                selModel.select(model, true);
                 me.skipGridSelectionChange = false;
                 atLeastOneProjectSelected = true;
             }
@@ -775,13 +781,13 @@ Ext.define('PO.view.resource_management.ResourceLevelingEditorProjectPanel', {
             var prefSelected = me.preferenceStore.getPreferenceBoolean('project_selected.' + projectId, true);
             if (selModel.isSelected(model)) {
                 model.set('projectGridSelected', 1);
-                if (!prefSelected) { 
+                if (!prefSelected) {
                     me.preferenceStore.setPreference('@page_url@', 'project_selected.' + projectId, 'true');
                 }
             } else {
                 model.set('projectGridSelected', 0);
                 if (prefSelected) {
-                    me.preferenceStore.setPreference('@page_url@', 'project_selected.' + projectId, 'false'); 
+                    me.preferenceStore.setPreference('@page_url@', 'project_selected.' + projectId, 'false');
                 }
             }
         })
@@ -792,15 +798,80 @@ Ext.define('PO.view.resource_management.ResourceLevelingEditorProjectPanel', {
         me.redraw();
     },
 
+    /**
+     * The user has right-clicked on a sprite.
+     */
+    onSpriteRightClick: function(event, sprite) {
+        var me = this;
+        console.log('PO.view.resource_management.ResourceLevelingEditorProjectPanel.onSpriteRightClick: '+ sprite);
+        if (null == sprite) { return; }                             // Something went completely wrong...
+
+        var className = sprite.model.$className;
+	switch(className) {
+        case 'PO.model.timesheet.TimesheetTaskDependency': 
+	    this.onDependencyRightClick(event, sprite);
+	    break;
+        case 'PO.model.resource_management.ProjectResourceLoadModel':
+	    this.onProjectRightClick(event, sprite);
+	    break;
+        default:
+	    alert('Undefined model class: '+className);
+	}
+    },
+
+    /**
+     * The user has right-clicked on a dependency.
+     */
+    onDependencyRightClick: function(event, sprite) {
+        var me = this;
+        console.log('PO.view.resource_management.ResourceLevelingEditorProjectPanel.onDependencyRightClick: '+ sprite);
+        if (null == sprite) { return; }                             // Something went completely wrong...
+	var dependencyModel = sprite.model;
+
+        // Menu for right-clicking a dependency arrow.
+        if (!me.dependencyContextMenu) {
+            me.dependencyContextMenu = Ext.create('Ext.menu.Menu', {
+                id: 'dependencyContextMenu',
+                style: {overflow: 'visible'},     // For the Combo popup
+                items: [{
+                    text: 'Delete Dependency',
+                    handler: function() {
+                	console.log('dependencyContextMenu.deleteDependency: ');
+
+			me.taskDependencyStore.remove(dependencyModel);           // Remove from store
+			dependencyModel.destroy({
+			    success: function() {
+				console.log('Dependency destroyed');
+			    },
+			    failure: function(model, operation) {
+				console.log('Error destroying dependency: '+operation.request.proxy.reader.rawData.message);
+			    }
+			});
+			me.redraw();
+                    }
+                }]
+            });
+        }
+        me.dependencyContextMenu.showAt(event.getXY());
+    },
+
+    /**
+     * The user has right-clicked on a project bar
+     */
+    onProjectRightClick: function(event, sprite) {
+        var me = this;
+        console.log('PO.view.resource_management.ResourceLevelingEditorProjectPanel.onProjectRightClick: '+ sprite);
+        if (null == sprite) { return; }                             // Something went completely wrong...
+    },
 
 
     /**
      * Deal with a Drag-and-Drop operation
      * and distinguish between the various types.
      */
-    onObjectDnD: function(fromSprite, toSprite, diffPoint) {
+    onSpriteDnD: function(fromSprite, toSprite, diffPoint) {
         var me = this;
-        console.log('PO.view.resource_management.ResourceLevelingEditorProjectPanel.onProjectMove: '+
+        console.log('PO.view.resource_management.ResourceLevelingEditorProjectPanel.onSpriteDnD: '+
                     fromSprite+' -> '+toSprite+', [' + diffPoint+']');
 
         if (null == fromSprite) { return; } // Something went completely wrong...
@@ -828,12 +899,12 @@ Ext.define('PO.view.resource_management.ResourceLevelingEditorProjectPanel', {
         var startTime = new Date(projectModel.get('start_date')).getTime();
         var endTime = new Date(projectModel.get('end_date')).getTime();
 
-	// Save original start- and end time in non-model variables
-	if (!projectModel.orgStartTime) {
-	    projectModel.orgStartTime = startTime;
-	    projectModel.orgEndTime = endTime;
-	}
-	
+        // Save original start- and end time in non-model variables
+        if (!projectModel.orgStartTime) {
+            projectModel.orgStartTime = startTime;
+            projectModel.orgEndTime = endTime;
+        }
+
         startTime = startTime + diffTime;
         endTime = endTime + diffTime;
 
@@ -891,10 +962,9 @@ Ext.define('PO.view.resource_management.ResourceLevelingEditorProjectPanel', {
                 useArrows:			true,
                 rootVisible:			false,
                 store:				me.dependencyFromTaskTreeStore,
-                viewConfig: {plugins: {ptype: 'treeviewdragdrop'}},
                 columns: [{xtype: 'treecolumn', text: 'Create Dependency From:', flex: 2, dataIndex: 'project_name'}]
             });
-        
+
             me.dependencyToProjectTree = Ext.create('Ext.tree.Panel', {
                 title:				false,
                 width:				290,
@@ -903,13 +973,12 @@ Ext.define('PO.view.resource_management.ResourceLevelingEditorProjectPanel', {
                 useArrows:			true,
                 rootVisible:			false,
                 store:				me.dependencyToTaskTreeStore,
-                viewConfig: {plugins: {ptype: 'treeviewdragdrop'}},
                 columns: [{xtype: 'treecolumn', text: 'Create Dependency To:', flex: 2, dataIndex: 'project_name'}]
             });
         }
 
         /**
-         * Create a pop-up window showing the two 
+         * Create a pop-up window showing the two
          * project trees, allowing to create a task-to-task
          * dependency link.
          */
@@ -922,40 +991,49 @@ Ext.define('PO.view.resource_management.ResourceLevelingEditorProjectPanel', {
                 layout: 'border',
                 items: [
                     me.dependencyFromProjectTree,
-                    me.dependencyToProjectTree
+                    me.dependencyToProjectTree,
+		    {
+			xtype: 'button',
+			text: 'Create Dependency',
+			region: 'south',
+			handler: function() {
+			    console.log('PO.view.resource_management.AbstractGanttEditor.CreateDependency');
+			    var fromSelModel = me.dependencyFromProjectTree.getSelectionModel();
+			    var toSelModel = me.dependencyToProjectTree.getSelectionModel();
+			    
+			    var fromModel = fromSelModel.getSelection()[0];
+			    var toModel = toSelModel.getSelection()[0];
+			    if (null == fromModel || null == toModel) { return; }
+			    
+			    var fromTaskId = fromModel.get('id');
+			    var toTaskId = toModel.get('id');
+			    console.log('PO.view.resource_management.AbstractGanttEditor.createDependency: '+fromTaskId+' -> '+toTaskId);
+			    
+			    // Create a new dependency object
+			    var dependency = new Ext.create('PO.model.timesheet.TimesheetTaskDependency', {
+                		task_id_one: fromTaskId,
+                		task_id_two: toTaskId
+			    });
+			    dependency.save({
+                		success: function(depModel, operation) {
+                		    console.log('PO.view.resource_management.AbstractGanttEditor.createDependency: successfully created dependency');
+                		},
+                		failure: function(depModel, operation) {
+                		    var message = operation.request.scope.reader.jsonData.message;
+                		    Ext.Msg.alert('Error creating dependency', message);
+                		}
+			    });
+			    me.taskDependencyStore.reload({
+				callback: function(records, operation, result) {
+				    console.log('taskDependencyStore.reload');
+				    me.dependencyPopupWindow.hide();
+				    me.redraw();
+				}
+			    });
+
+			}
+		    }
                 ]
-            });
-
-            // Catch the "drop" of the drag-and-drop in order to
-            // create the link
-            me.dependencyToProjectTree.getView().on({
-                'drop': function(node, data, toModel, dropPosition, eOpts) { 
-                    console.log('PO.view.resource_management.AbstractGanttEditor.drop');
-                    var fromModel = data.records[0];
-                    if (null == fromModel) { return; }
-        	    
-                    var fromTaskId = fromModel.get('id');
-                    var toTaskId = toModel.get('id');
-                    console.log('PO.view.resource_management.AbstractGanttEditor.drop: '+fromTaskId+' -> '+toTaskId);
-
-                    // Create a new dependency object
-                    var dependency = new Ext.create('PO.model.timesheet.TimesheetTaskDependency', {
-                	task_id_one: fromTaskId,
-                	task_id_two: toTaskId
-                    });
-                    dependency.save({
-                	success: function(a, b, c, d, e, f) {
-                	    console.log('PO.view.resource_management.AbstractGanttEditor.drop: successfully created dependency');
-                	},
-                	failure: function(dependencyModel, operation) {
-                	    var message = operation.request.scope.reader.jsonData.message;
-                	    Ext.Msg.alert('Error creating dependency', message);
-                	}
-                    });
-                    me.dependencyPopupWindow.hide();
-                    
-                },
-                'scope': me.dependencyToProjectTree
             });
         }
 
@@ -987,10 +1065,10 @@ Ext.define('PO.view.resource_management.ResourceLevelingEditorProjectPanel', {
             me.drawProjectBar(model);
         });
 
-	// Draw the dependency arrows between the Gantt bars
-	me.taskDependencyStore.each(function(depModel) {
-	    me.drawTaskDependency(depModel);
-	});
+        // Draw the dependency arrows between the Gantt bars
+        me.taskDependencyStore.each(function(depModel) {
+            me.drawTaskDependency(depModel);
+        });
 
         console.log('PO.view.resource_management.ResourceLevelingEditorProjectPanel.redraw: Finished');
     },
@@ -999,81 +1077,81 @@ Ext.define('PO.view.resource_management.ResourceLevelingEditorProjectPanel', {
      * Draw a single bar for a project or task
      */
     drawTaskDependency: function(dependencyModel) {
-	console.log('PO.view.resource_management.ResourceLevelingEditorProjectPanel.drawTaskDependency: '+dependencyModel.get('id'));
+        console.log('PO.view.resource_management.ResourceLevelingEditorProjectPanel.drawTaskDependency: '+dependencyModel.get('id'));
         var me = this;
         var surface = me.surface;
 
-	var taskOneId = dependencyModel.get('task_id_one');       // string!
-	var taskTwoId = dependencyModel.get('task_id_two');       // string!
-	var mainProjectOneId = dependencyModel.get('main_project_id_one');       // string!
-	var mainProjectTwoId = dependencyModel.get('main_project_id_two');       // string!
-	var s = 5;                                                               // Arrow head size
+        var taskOneId = dependencyModel.get('task_id_one');       // string!
+        var taskTwoId = dependencyModel.get('task_id_two');       // string!
+        var mainProjectOneId = dependencyModel.get('main_project_id_one');       // string!
+        var mainProjectTwoId = dependencyModel.get('main_project_id_two');       // string!
+        var s = 5;                                                               // Arrow head size
 
-	// Search for the Gantt bars corresponding to the main projects
+        // Search for the Gantt bars corresponding to the main projects
         var items = me.surface.items.items;
-	var mainProjectBarOne = null;
-	var mainProjectBarTwo = null;
+        var mainProjectBarOne = null;
+        var mainProjectBarTwo = null;
         for (var i = 0, ln = items.length; i < ln; i++) {
             var sprite = items[i];
             if (!sprite) continue;
             if (!sprite.model) continue;                // Only check for sprites with a (project) model
 
-	    if (sprite.model.get('id') == mainProjectOneId) { mainProjectBarOne = sprite; }
-	    if (sprite.model.get('id') == mainProjectTwoId) { mainProjectBarTwo = sprite; }
+            if (sprite.model.get('id') == mainProjectOneId) { mainProjectBarOne = sprite; }
+            if (sprite.model.get('id') == mainProjectTwoId) { mainProjectBarTwo = sprite; }
         }
 
-	if (null == mainProjectBarOne || null == mainProjectBarTwo) {
-	    console.log('Task Dependencies' + 'Did not find sprite for main_project_id');
-	    return;
-	}
+        if (null == mainProjectBarOne || null == mainProjectBarTwo) {
+            console.log('Task Dependencies' + 'Did not find sprite for main_project_id');
+            return;
+        }
 
-	// Get the Y coordinates from the bounding boxes
+        // Get the Y coordinates from the bounding boxes
         var fromBBox = mainProjectBarOne.getBBox();
         var toBBox = mainProjectBarTwo.getBBox();
-	var startY = fromBBox.y;
-	var endY = toBBox.y
+        var startY = fromBBox.y;
+        var endY = toBBox.y
 
-	// Get the X coordinates from the start- and end dates of the linked tasks
-	var fromTaskEndDate = new Date(dependencyModel.get('task_one_end_date').substring(0,10));
-	var toTaskStartDate = new Date(dependencyModel.get('task_two_start_date').substring(0,10));
+        // Get the X coordinates from the start- and end dates of the linked tasks
+        var fromTaskEndDate = new Date(dependencyModel.get('task_one_end_date').substring(0,10));
+        var toTaskStartDate = new Date(dependencyModel.get('task_two_start_date').substring(0,10));
 
-	// Check if projects have been moved
-	var mainProjectModelOne = mainProjectBarOne.model;
-	var mainProjectModelTwo = mainProjectBarTwo.model;
-	if (null == mainProjectBarOne || null == mainProjectBarTwo) {
-	    Ext.Msg.alert('Task Dependencies', 'Found null model');
-	    return;
-	}
+        // Check if projects have been moved
+        var mainProjectModelOne = mainProjectBarOne.model;
+        var mainProjectModelTwo = mainProjectBarTwo.model;
+        if (null == mainProjectBarOne || null == mainProjectBarTwo) {
+            Ext.Msg.alert('Task Dependencies', 'Found null model');
+            return;
+        }
 
-	// Move the start and end date of the _tasks_, according to the shift of the main project
-	if (mainProjectModelOne.orgStartTime) {
-	    var mainProjectOneDiff = new Date(mainProjectModelOne.get('start_date').substring(0,10)).getTime() - mainProjectModelOne.orgStartTime;
-	    var fromTaskEndDate = new Date(fromTaskEndDate.getTime() + mainProjectOneDiff);
-	}
-	if (mainProjectModelTwo.orgStartTime) {
-	    var mainProjectTwoDiff = new Date(mainProjectModelTwo.get('start_date').substring(0,10)).getTime() - mainProjectModelTwo.orgStartTime;
-	    var toTaskStartDate = new Date(toTaskStartDate.getTime() + mainProjectTwoDiff);
-	}
+        // Move the start and end date of the _tasks_, according to the shift of the main project
+        if (mainProjectModelOne.orgStartTime) {
+            var mainProjectOneDiff = new Date(mainProjectModelOne.get('start_date').substring(0,10)).getTime() - mainProjectModelOne.orgStartTime;
+            var fromTaskEndDate = new Date(fromTaskEndDate.getTime() + mainProjectOneDiff);
+        }
+        if (mainProjectModelTwo.orgStartTime) {
+            var mainProjectTwoDiff = new Date(mainProjectModelTwo.get('start_date').substring(0,10)).getTime() - mainProjectModelTwo.orgStartTime;
+            var toTaskStartDate = new Date(toTaskStartDate.getTime() + mainProjectTwoDiff);
+        }
 
-	var startX = me.date2x(fromTaskEndDate);
-	var endX = me.date2x(toTaskStartDate);
+        var startX = me.date2x(fromTaskEndDate);
+        var endX = me.date2x(toTaskStartDate);
 
-	// Set the vertical start point to Correct the start/end Y position
-	// and the direction of the arrow head
-	var sDirected = null;
-	if (endY > startY) { 
-	    startY = fromBBox.y + fromBBox.height; 
-	    sDirected = -s;            // Draw "normal" arrowhead pointing downwards
-	} else { 
-	    endY = toBBox.y + toBBox.height; 
-	    sDirected = +s;            // Draw arrowhead pointing upward
-	}
+        // Set the vertical start point to Correct the start/end Y position
+        // and the direction of the arrow head
+        var sDirected = null;
+        if (endY > startY) {
+            startY = fromBBox.y + fromBBox.height;
+            sDirected = -s;            // Draw "normal" arrowhead pointing downwards
+        } else {
+            endY = toBBox.y + toBBox.height;
+            sDirected = +s;            // Draw arrowhead pointing upward
+        }
 
-	// Color: Arrows are black if dependencies are OK, or red otherwise
-	var color = '#222';
-	if (endX < startX) { color = 'red'; }
+        // Color: Arrows are black if dependencies are OK, or red otherwise
+        var color = '#222';
+        if (endX < startX) { color = 'red'; }
 
-	// Draw the arrow head (filled)
+        // Draw the arrow head (filled)
         var arrowHead = me.surface.add({
             type: 'path',
             stroke: color,
@@ -1084,9 +1162,10 @@ Ext.define('PO.view.resource_management.ResourceLevelingEditorProjectPanel', {
                 + 'L '+ (endX+s) + ',' + (endY + sDirected)
                 + 'L '+ (endX)   + ',' + (endY)
         }).show(true);
+        arrowHead.model = dependencyModel;
 
         // Draw the main connection line between start and end.
-        var line = me.surface.add({
+        var arrowLine = me.surface.add({
             type: 'path',
             stroke: color,
             'shape-rendering': 'crispy-edges',
@@ -1096,7 +1175,7 @@ Ext.define('PO.view.resource_management.ResourceLevelingEditorProjectPanel', {
                 + 'L '+ (endX)   + ',' + (endY + sDirected * 2)
                 + 'L '+ (endX)   + ',' + (endY + sDirected)
         }).show(true);
-
+        arrowLine.model = dependencyModel;
     },
 
     /**
@@ -1332,7 +1411,7 @@ Ext.define('PO.view.resource_management.ResourceLevelingEditorCostCenterPanel', 
             var template = new Ext.Template("<div><b>Work Load</b>:<br>The work load is at {value}% out of 100% available in department {cost_center_name} beween {startDate} and {endDate}.<br></div>");
             me.graphOnGanttBar(spriteBar, costCenter, loadDays, maxLoadPercentage * 2.0, new Date(startTime), 'green', template);
         }
-        
+
         // *************************************************
         // Accumulated Load percentage
         if (me.preferenceStore.getPreferenceBoolean('show_dept_accumulated_overload', true)) {
@@ -1459,6 +1538,7 @@ function launchApplication(){
         preferenceStore: senchaPreferenceStore
     });
 
+
     // Drawing area for for Gantt Bars
     var resourceLevelingEditorProjectPanel = Ext.create('PO.view.resource_management.ResourceLevelingEditorProjectPanel', {
         title: false,
@@ -1487,81 +1567,48 @@ function launchApplication(){
         reportStartDate: new Date(report_start_date),
         reportEndDate: new Date(report_end_date),
         preferenceStore: senchaPreferenceStore,
-	taskDependencyStore: timesheetTaskDependencyStore,
+        taskDependencyStore: timesheetTaskDependencyStore,
 
         // Reference to the CostCenter store
         costCenterResourceLoadStore: costCenterResourceLoadStore
     });
 
-    /**
-     * Help Drop-down
-     */
-    // Define the model for a State
-    Ext.regModel('State', {
-        fields: [
-            {type: 'string', name: 'abbr'},
-            {type: 'string', name: 'name'},
-            {type: 'string', name: 'slogan'}
-    ]
-    });
-
-// The data store holding the states
-    var store = Ext.create('Ext.data.Store', {
-        model: 'State',
-        data: [
-            { 'abbr': 'cat', 'name': 'Catalonia', 'slogan': 'Hi' },
-            { 'abbr': 'cat', 'name': 'Catalonia', 'slogan': 'Hi' }
-        ]
-    });
-
-    var helpComponent = Ext.create('Ext.form.ComboBox', {
-        emptyText: 'Help Topics',
-        displayField: 'name',
-        width: 300,
-        labelWidth: 130,
-        store: store,
-        queryMode: 'local',
-        typeAhead: true,
-        listConfig : {
-            getInnerTpl : function() {
-                return '<div class="x-combo-list-item"><img src="' + Ext.BLANK_IMAGE_URL + '" class="chkCombo-default-icon chkCombo" /> {abbr} - {name} </div>';
-            }
-        }
-    });
-
-
-    var configurationMenuOnItemCheck = function(item, checked){
-        console.log('configurationMenuOnItemCheck: item.id='+item.id);
+    var configMenuOnItemCheck = function(item, checked){
+        console.log('configMenuOnItemCheck: item.id='+item.id);
         senchaPreferenceStore.setPreference('@page_url@', item.id, checked);
         resourceLevelingEditorProjectPanel.redraw();
         resourceLevelingEditorCostCenterPanel.redraw();
     }
 
-    var configurationMenu = Ext.create('Ext.menu.Menu', {
+    var configMenu = Ext.create('Ext.menu.Menu', {
         id: 'configMenu',
-        style: {
-            overflow: 'visible'     // For the Combo popup
-        },
-        items: [
-            {
+        style: {overflow: 'visible'},     // For the Combo popup
+        items: [{
                 text: 'Reset Configuration',
                 handler: function() {
-                    console.log('configurationMenuOnResetConfiguration');
+                    console.log('configMenuOnResetConfiguration');
                     senchaPreferenceStore.each(function(model) {
                         var url = model.get('preference_url');
                         if (url != '@page_url@') { return; }
                         model.destroy();
                     });
-
-                    // senchaPreferenceStore.removeAll();
-                    // resourceLevelingEditorProjectPanel.onProjectGridViewReady();
-                    location.reload();					// Just reload the entire screen...
+                    location.reload();					// Just reload the entire HTTP page...
                 }
-            }, '-'
-        ]
+        }, '-']
     });
 
-    // Setup the configurationMenu items
+    var helpMenu = Ext.create('Ext.menu.Menu', {
+        id: 'helpMenu',
+        style: {overflow: 'visible'},     // For the Combo popup
+        items: [{
+            text: 'Reset Help',
+            handler: function() {
+                console.log('helpMenuOnResetHelp');
+            }
+        }, '-']
+    });
+
+    // Setup the configMenu items
     var confSetupStore = Ext.create('Ext.data.Store', {
         fields: ['key', 'text', 'def'],
         data : [
@@ -1584,9 +1631,9 @@ function launchApplication(){
             id: key,
             text: model.get('text'),
             checked: checked,
-            checkHandler: configurationMenuOnItemCheck
+            checkHandler: configMenuOnItemCheck
         });
-        configurationMenu.add(item);
+        configMenu.add(item);
     });
 
     /*
@@ -1644,7 +1691,7 @@ function launchApplication(){
                 tooltip: 'Load a project from he ]po[ back-end',
                 id: 'buttonLoad'
             }, {
-                xtype: 'tbseparator' 
+                xtype: 'tbseparator'
             }, {
                 icon: '/intranet/images/navbar_default/add.png',
                 tooltip: 'Add a new task',
@@ -1654,7 +1701,7 @@ function launchApplication(){
                 tooltip: 'Delete a task',
                 id: 'buttonDelete'
             }, {
-                xtype: 'tbseparator' 
+                xtype: 'tbseparator'
             }, {
                 icon: '/intranet/images/navbar_default/arrow_left.png',
                 tooltip: 'Reduce Indent',
@@ -1672,10 +1719,11 @@ function launchApplication(){
             }, {
                 icon: '/intranet/images/navbar_default/link_break.png',
                 tooltip: 'Break dependency',
+                disabled: true,
                 id: 'buttonBreakDependency'
             }, '->' , {
                 icon: '/intranet/images/navbar_default/zoom_in.png',
-                tooltip: { 
+                tooltip: {
                     target: 'buttonZoomIn',
                     title: 'Title',
                     width: 300,
@@ -1686,14 +1734,16 @@ function launchApplication(){
                 icon: '/intranet/images/navbar_default/zoom_out.png',
                 tooltip: 'Zoom out of time axis',
                 id: 'buttonZoomOut'
-            }, 
-            helpComponent,
-            {
-                xtype: 'tbseparator' 
+            }, {
+                xtype: 'tbseparator'
+            }, {
+                text: 'Help',
+                icon: '/intranet/images/navbar_default/help.png',
+                menu: helpMenu
             }, {
                 text: 'Configuration',
                 icon: '/intranet/images/navbar_default/cog.png',
-                menu: configurationMenu
+                menu: configMenu
             }
         ],
         renderTo: renderDiv
@@ -1765,6 +1815,10 @@ function launchApplication(){
 Ext.onReady(function() {
     Ext.QuickTips.init();
 
+    Ext.getDoc().on('contextmenu', function(ev) {
+        ev.preventDefault();
+    });
+
     // Show splash screen while the stores are loading
     var renderDiv = Ext.get('resource_level_editor_div');
     var splashScreen = renderDiv.mask('Loading data');
@@ -1813,27 +1867,6 @@ Ext.onReady(function() {
     });
 
     senchaPreferenceStore.load();
-
-/*
-    // Load inter-project dependencies.
-    // We use a relatively complex query to select out only those
-    // dependencies that cross main projects
-    var dependencyQuery = "dependency_id in (" + 
-	"select	d.dependency_id " + 
-	"from	im_timesheet_task_dependencies d, " + 
-		"im_projects p_one, " + 
-		"im_projects p_two, " + 
-		"im_projects main_one, " + 
-		"im_projects main_two " + 
-	"where	p_one.project_id = d.task_id_one and " + 
-		"p_two.project_id = d.task_id_two and " + 
-		"main_one.tree_sortkey = tree_root_key(p_one.tree_sortkey) and " + 
-		"main_two.tree_sortkey = tree_root_key(p_two.tree_sortkey) and " +
-		"main_one.project_id != main_two.project_id" + 
-	")";
-    timesheetTaskDependencyStore.getProxy().extraParams = { format: 'json', query: dependencyQuery };
-    timesheetTaskDependencyStore.load();
-    */
 
     timesheetTaskDependencyStore.getProxy().url = '/intranet-reporting/view';
     timesheetTaskDependencyStore.getProxy().extraParams = { format: 'json', report_code: 'rest_inter_project_task_dependencies' };

@@ -152,7 +152,8 @@ SELECT im_report_new (
 	220,								-- report_sort_order
 	(select menu_id from im_menus where label = 'reporting-rest'),	-- parent_menu_id
 '
-select	d.*,
+select	d.dependency_id as id,
+	d.*,
 	main_one.project_id as main_project_id_one,
 	main_two.project_id as main_project_id_two,
 	p_one.start_date as task_one_start_date,
