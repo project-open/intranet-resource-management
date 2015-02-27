@@ -1451,7 +1451,7 @@ function launchApplication(){
     var numCostCenters = costCenterResourceLoadStore.getCount();
     var numProjectsPlusCostCenters = numProjects + numCostCenters;
 
-    var gridWidth = 300;
+    var gridWidth = 400;
 
     // Height of grids and Gantt Panels
     var projectCellHeight = 27;
@@ -1460,8 +1460,9 @@ function launchApplication(){
     var listCostCenterAddOnHeight = 11;
     var projectGridHeight = listProjectsAddOnHeight + projectCellHeight * (1 + numProjects);
     var costCenterGridHeight = listCostCenterAddOnHeight + costCenterCellHeight * (1 + numCostCenters);
+    var linkImageSrc = '/intranet/images/navbar_default/link.png';
 
-    var projectGridSelectionModel = Ext.create('Ext.selection.CheckboxModel');
+    var projectGridSelectionModel = Ext.create('Ext.selection.CheckboxModel', {checkOnly: true});
     var projectGrid = Ext.create('Ext.grid.Panel', {
         title: false,
         region: 'west',
@@ -1478,14 +1479,25 @@ function launchApplication(){
         },{
             text: 'Start',
             dataIndex: 'start_date',
-            width: 100
+            width: 80
         },{
             text: 'End',
             dataIndex: 'end_date',
             width: 80,
             hidden: true
         }],
-        shrinkWrap: true
+        shrinkWrap: true,
+	listeners: {
+            // Catch clicks on the grid cells
+            cellclick: function(gridView, cellEl, colIdx, projectModel, rowEl, rowIdx, event) {
+		var fieldName = gridView.getGridColumns()[colIdx].dataIndex;
+		if ('project_name' != fieldName) { return; }
+
+                var projectId = projectModel.get('project_id');
+                var url = '/intranet/projects/view?project_id=' + projectId;
+                window.open(url);                       // Open project in new browser tab
+            }
+	}
     });
 
     var costCenterGrid = Ext.create('Ext.grid.Panel', {
