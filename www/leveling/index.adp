@@ -1451,7 +1451,7 @@ function launchApplication(){
     var numCostCenters = costCenterResourceLoadStore.getCount();
     var numProjectsPlusCostCenters = numProjects + numCostCenters;
 
-    var gridWidth = 400;
+    var gridWidth = 350;
 
     // Height of grids and Gantt Panels
     var projectCellHeight = 27;
@@ -1662,9 +1662,78 @@ function launchApplication(){
      * Main Panel that contains the three other panels
      * (projects, departments and gantt bars)
      */
+    Ext.define('PO.view.resource_management.ButtonBar', {
+	extend: 'Ext.toolbar.Toolbar',
+	resourceLevelingEditorProjectPanel: null,
+	initComponent: function() {
+            this.callParent(arguments);
+	    console.log('ButtonBar: initComponent');
+	}
+    });
+
+    var buttonBar = Ext.create('PO.view.resource_management.ButtonBar', {
+	dock: 'top',
+	resourceLevelingEditorProjectPanel: resourceLevelingEditorProjectPanel,
+        items: [
+            {
+                text: 'Save',
+                icon: '/intranet/images/navbar_default/disk.png',
+                tooltip: 'Save the project to the ]po[ back-end',
+                hidden: false,
+		disabled: true,
+                id: 'buttonSave'
+            }, {
+                id: 'buttonZoomIn',
+		text: 'Zoom in',
+                icon: '/intranet/images/navbar_default/zoom_in.png',
+                tooltip: 'Zoom in time axis',
+		handler: function() {
+		    // Reload the page with the duplicate time interval
+		    var params = Ext.urlDecode(location.search.substring(1));
+		    var reportStartTime = new Date(params.report_start_date).getTime();
+		    var reportEndTime = new Date(params.report_end_date).getTime();
+		    var diffTime = Math.floor((reportEndTime - reportStartTime) / 4);
+		    var reportStartDate = new Date(reportStartTime + diffTime);
+		    var reportEndDate = new Date(reportEndTime - diffTime);
+		    params.report_start_date = reportStartDate.toISOString().substring(0,10);
+		    params.report_end_date = reportEndDate.toISOString().substring(0,10);
+		    var url = window.location.pathname + '?' + Ext.Object.toQueryString(params);
+		    window.location = url;
+		},
+                hidden: false
+            }, {
+                id: 'buttonZoomOut',
+		text: 'Zoom out',
+                icon: '/intranet/images/navbar_default/zoom_out.png',
+                tooltip: 'Zoom out of time axis',
+		handler: function() {
+		    // Reload the page with the duplicate time interval
+		    var params = Ext.urlDecode(location.search.substring(1));
+		    var reportStartTime = new Date(params.report_start_date).getTime();
+		    var reportEndTime = new Date(params.report_end_date).getTime();
+		    var diffTime = Math.floor((reportEndTime - reportStartTime) / 2);
+		    var reportStartDate = new Date(reportStartTime - diffTime);
+		    var reportEndDate = new Date(reportEndTime + diffTime);
+		    params.report_start_date = reportStartDate.toISOString().substring(0,10);
+		    params.report_end_date = reportEndDate.toISOString().substring(0,10);
+		    var url = window.location.pathname + '?' + Ext.Object.toQueryString(params);
+		    window.location = url;
+		},
+                hidden: false
+            }, '->', {
+                text: 'Help',
+                icon: '/intranet/images/navbar_default/help.png',
+                menu: helpMenu
+            }, {
+                text: 'Configuration',
+                icon: '/intranet/images/navbar_default/cog.png',
+                menu: configMenu
+            }
+        ]
+    });
+
     var buttonPanelHeight = 40;
     var borderPanelHeight = buttonPanelHeight + costCenterGridHeight + projectGridHeight;
-
     var sideBar = Ext.get('sidebar');					// ]po[ left side bar component
     var sideBarWidth = sideBar.getSize().width;
     var borderPanelWidth = Ext.getBody().getViewSize().width - sideBarWidth - 85;
@@ -1702,86 +1771,10 @@ function launchApplication(){
                 resourceLevelingEditorCostCenterPanel
             ]
         }],
-        tbar: [
-            {
-                text: 'OK',
-                icon: '/intranet/images/navbar_default/disk.png',
-                tooltip: 'Save the project to the ]po[ back-end',
-                hidden: true,
-                id: 'buttonSave'
-            }, {
-                icon: '/intranet/images/navbar_default/folder_go.png',
-                tooltip: 'Load a project from he ]po[ back-end',
-                hidden: true,
-                id: 'buttonLoad'
-            }, {
-                xtype: 'tbseparator',
-                hidden: true
-            }, {
-                icon: '/intranet/images/navbar_default/add.png',
-                tooltip: 'Add a new task',
-                hidden: true,
-                id: 'buttonAdd'
-            }, {
-                icon: '/intranet/images/navbar_default/delete.png',
-                tooltip: 'Delete a task',
-                hidden: true,
-                id: 'buttonDelete'
-            }, {
-                xtype: 'tbseparator',
-                hidden: true
-            }, {
-                icon: '/intranet/images/navbar_default/arrow_left.png',
-                tooltip: 'Reduce Indent',
-                hidden: true,
-                id: 'buttonReduceIndent'
-            }, {
-                icon: '/intranet/images/navbar_default/arrow_right.png',
-                tooltip: 'Increase Indent',
-                hidden: true,
-                id: 'buttonIncreaseIndent'
-            }, {
-                xtype: 'tbseparator'
-            }, {
-                icon: '/intranet/images/navbar_default/link_add.png',
-                tooltip: 'Add dependency',
-                hidden: true,
-                id: 'buttonAddDependency'
-            }, {
-                icon: '/intranet/images/navbar_default/link_break.png',
-                tooltip: 'Break dependency',
-                hidden: true,
-                id: 'buttonBreakDependency'
-            }, '->' , {
-                icon: '/intranet/images/navbar_default/zoom_in.png',
-                tooltip: {
-                    target: 'buttonZoomIn',
-                    title: 'Title',
-                    width: 300,
-                    text: '<p>Zoom in time axis</p>'
-                },
-                hidden: true,
-                id: 'buttonZoomIn'
-            }, {
-                icon: '/intranet/images/navbar_default/zoom_out.png',
-                tooltip: 'Zoom out of time axis',
-                hidden: true,
-                id: 'buttonZoomOut'
-            }, {
-                xtype: 'tbseparator',
-                hidden: true
-            }, {
-                text: 'Help',
-                icon: '/intranet/images/navbar_default/help.png',
-                menu: helpMenu
-            }, {
-                text: 'Configuration',
-                icon: '/intranet/images/navbar_default/cog.png',
-                menu: configMenu
-            }
-        ],
+	dockedItems: [buttonBar],
         renderTo: renderDiv
     });
+
 
     var onResize = function (sideBarWidth) {
         console.log('launchApplication.onSideBarResize:');
