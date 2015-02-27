@@ -1,4 +1,4 @@
-# /packages/sencha-task-editor/www/resource-leveling-editor/index
+# /packages/sencha-task-editor/www/leveling/index
 #
 # Copyright (c) 2014 ]project-open[
 #
@@ -32,7 +32,7 @@ if {![im_permission $current_user_id "view_projects_all"]} {
 # ---------------------------------------------------------------
 
 set page_title [lang::message::lookup "" intranet-reporting.Resource_Leveling_Editor "Resource Leveling Editor"]
-set page_url "/intranet-resource-management/resource-leveling-editor/index"
+set page_url "/intranet-resource-management/leveling/index"
 set main_navbar_label "resource_management"
 set context_bar [im_context_bar $page_title]
 set return_url [im_url_with_query]
@@ -105,7 +105,7 @@ if {1} {
 }
 
 
-if {1} {
+if {0} {
     append filter_html "
   <tr>
 <td class=form-label valign=top>[lang::message::lookup "" intranet-core.Customer "Customer"]:</td>
@@ -114,7 +114,7 @@ if {1} {
     "
 }
 
-if {1} {
+if {0} {
 append filter_html "
   <tr>
     <td class=form-label>[_ intranet-core.Project_Type]:
@@ -127,7 +127,13 @@ append filter_html "
 "
 }
 
-if {1} {
+set programs_exist_p [im_column_exists im_projects program_id]
+if {$programs_exist_p} {
+    set programs_exist_p [db_string programs_exist_p "
+	select count(*) from (select distinct program_id from im_projects where program_id is not null) t
+    "]
+}
+if {$programs_exist_p} {
     append filter_html "
   <tr>
     <td class=form-label>[lang::message::lookup "" intranet-core.Program "Program"]:</td>
