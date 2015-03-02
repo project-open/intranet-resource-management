@@ -120,7 +120,7 @@ Ext.define('PO.store.resource_management.CostCenterResourceLoadStore', {
      * included projects, overriding the information stored in the
      * ]po[ database.
      */
-    loadWithProjectData: function(projectStore, callback) {
+    loadWithProjectData: function(projectStore, preferenceStore, callback) {
         var me = this;
         console.log('PO.store.resource_management.CostCenterResourceLoadStore.loadWithProjectData: starting');
         console.log(this);
@@ -136,10 +136,11 @@ Ext.define('PO.store.resource_management.CostCenterResourceLoadStore', {
         // Write the simulation start- and end dates as parameters to the store
         // As a result we will get the resource load with moved projects
         projectStore.each(function(model) {
-            var enabled = model.get('projectGridSelected');
-            if (0 === enabled) {
-                return;
-            }
+            var projectId = model.get('project_id');
+            var sel = preferenceStore.getPreferenceBoolean('project_selected.' + projectId, true);
+	    if (!sel) { 
+		return; 
+	    }
 
             var projectId = model.get('project_id');
             var startDate = model.get('start_date').substring(0,10);
@@ -700,10 +701,12 @@ Ext.define('PO.view.resource_management.ResourceLevelingEditorProjectPanel', {
     extend: 'PO.view.resource_management.AbstractGanttEditor',
     requires: ['PO.view.resource_management.AbstractGanttEditor'],
 
+    projectResourceLoadStore: null,
     costCenterResourceLoadStore: null,				// Reference to cost center store, set during init
     taskDependencyStore: null,				// Reference to cost center store, set during init
     skipGridSelectionChange: false,				// Temporaritly disable updates
     dependencyContextMenu: null,
+    preferenceStore: null,
 
     /**
      * Starts the main editor panel as the right-hand side
@@ -745,6 +748,7 @@ Ext.define('PO.view.resource_management.ResourceLevelingEditorProjectPanel', {
      * The list of projects is (finally...) ready to be displayed.
      * We need to wait until this one-time event in in order to
      * set the width of the surface and to perform the first redraw().
+     * Write the selection preferences into the SelModel.
      */
     onProjectGridViewReady: function() {
         var me = this;
@@ -764,8 +768,10 @@ Ext.define('PO.view.resource_management.ResourceLevelingEditorProjectPanel', {
         });
 
         if (!atLeastOneProjectSelected) {
+	    // This will also update the preferences(??)
             selModel.selectAll(true);
         }
+
         me.redraw();
     },
 
@@ -788,10 +794,10 @@ Ext.define('PO.view.resource_management.ResourceLevelingEditorProjectPanel', {
                     me.preferenceStore.setPreference('@page_url@', 'project_selected.' + projectId, 'false');
                 }
             }
-        })
+        });
 
         // Reload the Cost Center Resource Load Store with the new selected/changed projects
-        me.costCenterResourceLoadStore.loadWithProjectData(me.objectStore);
+        me.costCenterResourceLoadStore.loadWithProjectData(me.objectStore, me.preferenceStore);
 
         me.redraw();
     },
@@ -913,7 +919,7 @@ Ext.define('PO.view.resource_management.ResourceLevelingEditorProjectPanel', {
         projectModel.set('end_date', endDate.toISOString().substring(0,10));
 
         // Reload the Cost Center Resource Load Store with the new selected/changed projects
-        me.costCenterResourceLoadStore.loadWithProjectData(me.objectStore);
+        me.costCenterResourceLoadStore.loadWithProjectData(me.objectStore, me.preferenceStore);
         me.redraw();
     },
 
@@ -1056,7 +1062,7 @@ Ext.define('PO.view.resource_management.ResourceLevelingEditorProjectPanel', {
 
         // Draw project bars
         var objectPanelView = me.objectPanel.getView();			// The "view" for the GridPanel, containing HTML elements
-        var projectSelModel = me.objectPanel.getSelectionModel();
+        var projectSelModel = me.objectPanel.getSelectionModel();       // ToDo: Replace SelModel with preferences(??)
         me.objectStore.each(function(model) {
             var viewNode = objectPanelView.getNode(model);		// DIV with project name on the ProjectGrid for Y coo
             if (viewNode == null) { return; }				// hidden nodes/models don't have a viewNode
@@ -1243,6 +1249,8 @@ Ext.define('PO.view.resource_management.ResourceLevelingEditorProjectPanel', {
 Ext.define('PO.view.resource_management.ResourceLevelingEditorCostCenterPanel', {
     extend: 'PO.view.resource_management.AbstractGanttEditor',
     requires: ['PO.view.resource_management.AbstractGanttEditor'],
+
+    preferenceStore: null,
 
     /**
      * Starts the main editor panel as the right-hand side
@@ -1583,6 +1591,7 @@ function launchApplication(){
         taskDependencyStore: timesheetTaskDependencyStore,
 
         // Reference to the CostCenter store
+	projectResourceLoadStore: projectResourceLoadStore,
         costCenterResourceLoadStore: costCenterResourceLoadStore
     });
 
@@ -1885,15 +1894,18 @@ Ext.onReady(function() {
 
     // Load the project store and THEN load the costCenter store.
     // The Gantt panels will redraw() if stores are reloaded.
-    projectResourceLoadStore.load({
-        callback: function() {
-            console.log('PO.controller.StoreLoadCoordinator.projectResourceLoadStore: loaded');
-            // Now load the cost center load for the current
-            costCenterResourceLoadStore.loadWithProjectData(projectResourceLoadStore);
-        }
+    senchaPreferenceStore.load({
+	callback: function() {
+	    projectResourceLoadStore.load({
+		callback: function() {
+		    console.log('PO.controller.StoreLoadCoordinator.projectResourceLoadStore: loaded');
+		    // Now load the cost center load
+		    costCenterResourceLoadStore.loadWithProjectData(projectResourceLoadStore, senchaPreferenceStore);
+		}
+	    })
+	}
     });
 
-    senchaPreferenceStore.load();
 
     timesheetTaskDependencyStore.getProxy().url = '/intranet-reporting/view';
     timesheetTaskDependencyStore.getProxy().extraParams = { format: 'json', report_code: 'rest_inter_project_task_dependencies' };
