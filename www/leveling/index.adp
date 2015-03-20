@@ -1699,8 +1699,8 @@ function launchApplication(){
 		handler: function() {
 		    // Reload the page with the duplicate time interval
 		    var params = Ext.urlDecode(location.search.substring(1));
-		    var reportStartTime = new Date(params.report_start_date).getTime();
-		    var reportEndTime = new Date(params.report_end_date).getTime();
+		    var reportStartTime = new Date(report_start_date).getTime();
+		    var reportEndTime = new Date(report_end_date).getTime();
 		    var diffTime = Math.floor((reportEndTime - reportStartTime) / 4);
 		    var reportStartDate = new Date(reportStartTime + diffTime);
 		    var reportEndDate = new Date(reportEndTime - diffTime);
@@ -1718,8 +1718,8 @@ function launchApplication(){
 		handler: function() {
 		    // Reload the page with the duplicate time interval
 		    var params = Ext.urlDecode(location.search.substring(1));
-		    var reportStartTime = new Date(params.report_start_date).getTime();
-		    var reportEndTime = new Date(params.report_end_date).getTime();
+		    var reportStartTime = new Date(report_start_date).getTime();
+		    var reportEndTime = new Date(report_end_date).getTime();
 		    var diffTime = Math.floor((reportEndTime - reportStartTime) / 2);
 		    var reportStartDate = new Date(reportStartTime - diffTime);
 		    var reportEndDate = new Date(reportEndTime + diffTime);
