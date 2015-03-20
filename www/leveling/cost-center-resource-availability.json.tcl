@@ -35,6 +35,9 @@ set report_start_julian [im_date_ansi_to_julian $report_start_date]
 set report_end_julian [im_date_ansi_to_julian $report_end_date]
 
 
+
+#ad_return_complaint 1 $report_end_julian
+
 # ---------------------------------------------------------------
 # Calculate available resources per cost_center
 # ---------------------------------------------------------------
@@ -48,6 +51,7 @@ foreach cc_id [array names cc_hash] {
     array unset cc_values
     array set cc_values $cc_hash($cc_id)
     set availability_percent $cc_values(availability_percent)
+    if {"" == $availability_percent} { set availability_percent 0.0 }
 
     # Initialize the availability array for the interval 
     # and set the resource availability according to the cc base availability
@@ -205,6 +209,7 @@ switch $granularity {
 	    set cost_center_name $cc_values(cost_center_name)
 	    set assigned_resources_percent $cc_values(availability_percent)
 	    set assigned_resources [expr round($assigned_resources_percent * 10.0) / 1000.0]
+	    if {"" == $assigned_resources_percent} { set assigned_resources_percent 0.0 }
 
 	    set available_days [list]
 	    set assigned_days [list]
@@ -289,6 +294,7 @@ switch $granularity {
 	    array set cc_values $cc_hash($cc_id)
 	    set cost_center_name $cc_values(cost_center_name)
 	    set assigned_resources_percent $cc_values(availability_percent)
+	    if {"" == $assigned_resources_percent} { set assigned_resources_percent 0.0 }
 	    set assigned_resources [expr round($assigned_resources_percent) / 100.0]
 	    
 	    set available_weeks [list]
