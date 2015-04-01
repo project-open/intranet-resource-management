@@ -16,6 +16,7 @@ ad_page_contract {
     { end_date ""}
 }
 
+
 # ---------------------------------------------------------------
 # Defaults & Security
 # ---------------------------------------------------------------
@@ -25,6 +26,37 @@ if {![im_permission $current_user_id "view_projects_all"]} {
     ad_return_complaint 1 "You don't have permissions to see this page"
     ad_script_abort
 }
+
+
+# ---------------------------------------------------------------
+#
+# ---------------------------------------------------------------
+
+set method [string tolower [ns_conn method]]
+if {"post" == $method} {
+
+    if {![im_permission $current_user_id "edit_projects_all"]} {
+	ad_return_complaint 1 "You don't have permissions to edit_projects_all"
+	ad_script_abort
+    }
+
+    set body ""
+    set form_vars [ns_conn form]
+    foreach var [ad_ns_set_keys $header_vars] {
+        set value [ns_set get $form_vars $var]
+        append body "$var: $value\n"
+    }
+
+
+    ad_return_complaint 1 "<pre>$body</pre>"
+
+}
+
+
+
+
+
+
 
 # ---------------------------------------------------------------
 # Calculate resource load per day and main project

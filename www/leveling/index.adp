@@ -65,7 +65,7 @@ Ext.define('PO.store.resource_management.ProjectResourceLoadStore', {
     autoLoad:			false,
     pageSize:			100000,			// Load all projects, no matter what size(?)
     proxy: {
-        type:			'rest',			// Standard ]po[ REST interface for loading
+        type:			'ajax',			// Standard ]po[ REST interface for loading
         url:			'/intranet-resource-management/leveling/main-projects-forward-load.json',
         timeout:		300000,
         extraParams: {
@@ -75,10 +75,18 @@ Ext.define('PO.store.resource_management.ProjectResourceLoadStore', {
             granularity:	'@report_granularity@',	// 'week' or 'day'
             project_type_id:	report_project_type_id	// Only projects in status "active" (no substates)
         },
+        api: {
+            read:		'/intranet-resource-management/leveling/main-projects-forward-load.json',
+            update:		'/intranet-resource-management/leveling/main-projects-forward-load-update'
+        },
         reader: {
             type:		'json',			// Tell the Proxy Reader to parse JSON
             root:		'data',			// Where do the data start in the JSON file?
             totalProperty:	'total'			// Total number of tickets for pagination
+        },
+        writer: {
+            type:		'json', 
+            rootProperty:	'data' 
         }
     }
 });
@@ -1688,9 +1696,34 @@ function launchApplication(){
                 text: 'Save',
                 icon: '/intranet/images/navbar_default/disk.png',
                 tooltip: 'Save the project to the ]po[ back-end',
-                hidden: false,
-		disabled: true,
-                id: 'buttonSave'
+		disabled: false,
+                id: 'buttonSave',
+		handler: function() {
+		    // Save the currently modified projects
+		    Ext.Msg.show({
+			title: 'Save Project Schedule?',
+			msg: 'We will inform all affected project managers <br>about the changed schedule.',
+			buttons: Ext.Msg.OKCANCEL,
+			icon: Ext.Msg.QUESTION,
+			fn: function(button, text, opt) {
+			    // Save the store and launch workflows
+			    if ("ok" == button) {
+				projectResourceLoadStore.save({
+                                    success: function(a,b) {
+					console.log('PO.view.resource_management.ButtonBar: projectResourceLoadStore.save(): success');
+					resourceLevelingEditorProjectPanel.redraw();
+					resourceLevelingEditorCostCenterPanel.redraw();
+                                    },
+                                    failure: function(depModel, operation) {
+					console.log('PO.view.resource_management.ButtonBar: projectResourceLoadStore.save(): failure');
+					var message = operation.request.scope.reader.jsonData.message;
+					Ext.Msg.alert('Error creating dependency', message);
+                                    }
+				});
+			    }
+			}
+		    });
+		}
             }, {
                 id: 'buttonZoomIn',
 		text: 'Zoom in',
