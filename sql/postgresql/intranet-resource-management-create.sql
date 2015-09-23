@@ -67,12 +67,12 @@ BEGIN
 
     v_menu := im_menu__new (
         null,                   -- p_menu_id
-        ''acs_object'',         -- object_type
+        ''im_menu'',         -- object_type
         now(),                  -- creation_date
         null,                   -- creation_user
         null,                   -- creation_ip
         null,                   -- context_id
-        ''intranet-reporting'', -- package_name
+        ''intranet-resource-management'', -- package_name
         ''reporting-pm'',	-- label
         ''Project Management'',		-- name
         ''/intranet-reporting/'', -- url
@@ -128,7 +128,7 @@ SELECT im_component_plugin__new (
 	null,					-- creation_ip
 	null,					-- context_id
 	'Resource Availability Component',	-- plugin_name
-	'intranet-ganttproject',		-- package_name
+	'intranet-resource-management',		-- package_name
 	'bottom',				-- location
 	'/intranet/member-add',			-- page_url
 	null,					-- view_name
