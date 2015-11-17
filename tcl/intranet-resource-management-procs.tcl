@@ -408,7 +408,7 @@ ad_proc -public im_resource_mgmt_resource_planning {
     set sigma "&Sigma;"
     set page_url "/intranet-resource-management/resources-planning"
 
-    set current_user_id [ad_get_user_id]
+    set current_user_id [ad_conn user_id]
     set return_url [im_url_with_query]
 
     set clicks([clock clicks -milliseconds]) null
@@ -2680,7 +2680,7 @@ ad_proc im_resource_mgmt_resource_planning_add_member_component { } {
     # Security
     # Check that the user has the right to "read" the group Freelancers
   
-    set user_id [ad_get_user_id]
+    set user_id [ad_conn user_id]
     set perm_p [db_string freelance_read "select im_object_permission_p([im_profile_freelancers], :user_id, 'read')"]
     if {"t" != $perm_p} {
         return ""

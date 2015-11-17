@@ -17,7 +17,7 @@ ad_page_contract {
 # Defaults & Permissions
 # ----------------------------------------------------
 
-set current_user_id [ad_get_user_id]
+set current_user_id [ad_conn user_id]
 if {![im_permission $current_user_id view_users]} { 
     set json "{\"success\": false, \"message\": \"Insufficient permissions - you need view_users.\" }"
     doc_return 200 "text/html" $json
