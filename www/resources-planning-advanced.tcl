@@ -122,7 +122,7 @@ if {"" == $html} {
 
 set filter_html "
 <form method=get name=projects_filter action='$page_url'>
-[export_form_vars start_idx order_by how_many view_name include_subprojects_p letter]
+[export_vars -form {start_idx order_by how_many view_name include_subprojects_p letter}]
 <table border=0 cellpadding=0 cellspacing=1>
 "
 
