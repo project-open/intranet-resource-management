@@ -970,8 +970,8 @@ ad_proc -public im_resource_mgmt_resource_planning {
 
 	# Add a line without project, only for the user
 	if {$user_id != $old_user_id} {
-	    ns_log NOTICE "intranet-resource-management-procs::main_projects_sql -- -------------------------------------------------------------------------------"
-	    ns_log NOTICE "intranet-resource-management-procs::main_projects_sql - Building left_scale - Adding: $user_name ($user_id) - (old_user_id=$old_user_id)"
+	    ns_log Notice "intranet-resource-management-procs::main_projects_sql -- -------------------------------------------------------------------------------"
+	    ns_log Notice "intranet-resource-management-procs::main_projects_sql - Building left_scale - Adding: $user_name ($user_id) - (old_user_id=$old_user_id)"
 	    # remember the type of the object
 	    set otype_hash($user_id) "person"
 	    # append the user_id to the left_scale
@@ -1137,7 +1137,7 @@ ad_proc -public im_resource_mgmt_resource_planning {
     # At the same time build an array that shows the users total 
     # for a particular day: user_day_total_plannedhours_arr($user_id-$days_julian)
 
-    ns_log NOTICE "intranet-resource-management-procs::eval_user_percentage_list::planned_hours_sql - Evaluating PLANNED HOURS "
+    ns_log Notice "intranet-resource-management-procs::eval_user_percentage_list::planned_hours_sql - Evaluating PLANNED HOURS "
 
     db_foreach planned_hours_loop $planned_hours_sql {
 
@@ -1192,7 +1192,7 @@ ad_proc -public im_resource_mgmt_resource_planning {
 				and e.employee_id = object_id_two
 		"
 	
-		ns_log NOTICE "intranet-resource-management-procs::eval_user_percentage_list ------------------------------- START: project_id:$project_id --------------------------------------"		
+		ns_log Notice "intranet-resource-management-procs::eval_user_percentage_list ------------------------------- START: project_id:$project_id --------------------------------------"		
                 db_foreach user_list_sql $user_sql {
 
 		    # If no availability, we assume 100% 
@@ -1200,22 +1200,22 @@ ad_proc -public im_resource_mgmt_resource_planning {
 
 		    set total_user_percentages [expr $total_user_percentages + $user_percentage]
 		    lappend user_percentage_list [list $user_id $user_percentage $availability]
-		    ns_log NOTICE "intranet-resource-management-procs::eval_user_percentage_list::user_id:$user_id"			    
+		    ns_log Notice "intranet-resource-management-procs::eval_user_percentage_list::user_id:$user_id"			    
 		    
 		    if {[im_profile::member_p -profile_id [im_profile_skill_profile] -user_id $user_id]} {
-			ns_log NOTICE "intranet-resource-management-procs::eval_user_percentage_list::(SKILL PROFILE USER), percentage_skill_profiles:$percentage_skill_profiles"
+			ns_log Notice "intranet-resource-management-procs::eval_user_percentage_list::(SKILL PROFILE USER), percentage_skill_profiles:$percentage_skill_profiles"
 			# Skill Profile User
 			set share_of_task 1.0
 			if {0.0 != $percentage_skill_profiles && "0" != $user_percentage && "" != $user_percentage } {
 			    set total_user_percentages_skill_profile_users [expr $total_user_percentages_skill_profile_users + $user_percentage]
 			    lappend user_percentage_list_skill_profile_users [list $user_id $user_percentage]
-			    ns_log NOTICE "intranet-resource-management-procs::eval_user_percentage_list::Found 0.0 -> share_of_task(old): $share_of_task"			    
+			    ns_log Notice "intranet-resource-management-procs::eval_user_percentage_list::Found 0.0 -> share_of_task(old): $share_of_task"			    
 			    set share_of_task [expr $user_percentage / $percentage_skill_profiles]
-			    ns_log NOTICE "intranet-resource-management-procs::eval_user_percentage_list::Found 0.0 -> share_of_task(new): $share_of_task"			    			    
+			    ns_log Notice "intranet-resource-management-procs::eval_user_percentage_list::Found 0.0 -> share_of_task(new): $share_of_task"			    			    
 			}
-			ns_log NOTICE "intranet-resource-management-procs::eval_user_percentage_list::user_percentage:$user_percentage - share_of_task:$share_of_task * percentage_non_skill_profiles:$percentage_non_skill_profiles"
+			ns_log Notice "intranet-resource-management-procs::eval_user_percentage_list::user_percentage:$user_percentage - share_of_task:$share_of_task * percentage_non_skill_profiles:$percentage_non_skill_profiles"
 			set user_percentage [expr $user_percentage - $share_of_task * $percentage_non_skill_profiles]
-			ns_log NOTICE "intranet-resource-management-procs::eval_user_percentage_list::Result user_percentage for user_id: $user_id: $user_percentage"
+			ns_log Notice "intranet-resource-management-procs::eval_user_percentage_list::Result user_percentage for user_id: $user_id: $user_percentage"
 		    } else {
 			# Regular employee
 			if { "0.0" != $user_percentage && "0" != $user_percentage && "" != $user_percentage } {
@@ -1261,7 +1261,7 @@ ad_proc -public im_resource_mgmt_resource_planning {
 #                    set total_user_percentages 100
                 }
 
-                ns_log NOTICE "intranet-resource-management-procs::eval_user_percentage_list ------------------------------- STOP: project_id:$project_id --------------------------------------"
+                ns_log Notice "intranet-resource-management-procs::eval_user_percentage_list ------------------------------- STOP: project_id:$project_id --------------------------------------"
 		# Store the number of users this task has
 		set number_of_users_on_task $user_ctr
 
@@ -1285,7 +1285,7 @@ ad_proc -public im_resource_mgmt_resource_planning {
 		set workdays [util_memoize [list im_absence_working_days_weekend_only -start_date "$start_date" -end_date "$end_date"]]
 		set no_workdays [llength $workdays]
 
-		ns_log NOTICE "intranet-resource-management-procs::task_with_no_parent:distribute-over-no-workdays:project_id:$project_id: no_workdays:$no_workdays, no of users: $user_ctr"
+		ns_log Notice "intranet-resource-management-procs::task_with_no_parent:distribute-over-no-workdays:project_id:$project_id: no_workdays:$no_workdays, no of users: $user_ctr"
 
 		# In case no workday is found, we assign all planned hours to the next workday
 		if { "0" == $no_workdays } {
@@ -1293,11 +1293,11 @@ ad_proc -public im_resource_mgmt_resource_planning {
 				# Find next workday - should be no longer than 2 days from start_date
 			    	set next_julian_end_date [im_date_julian_to_ansi [expr $end_date_julian_planned_hours + 2]] 				
 				set next_workday [db_string get_next_workday "select * from im_absences_working_days_period_weekend_only(:start_date::date, :next_julian_end_date::date) as series_days (days date) limit 1" -default 0]
-				ns_log NOTICE "Calculated next_workday: $next_workday, based on start_date: $start_date and next_julian_end_date: $next_julian_end_date for project_id: $project_id"
+				ns_log Notice "Calculated next_workday: $next_workday, based on start_date: $start_date and next_julian_end_date: $next_julian_end_date for project_id: $project_id"
 				set days_julian-startdate-ne-end-date $next_workday
 
 			} else { 
-				ns_log NOTICE "Found start_date=end_date: $project_id,$user_id<br>"				
+				ns_log Notice "Found start_date=end_date: $project_id,$user_id<br>"				
                                 set days_julian [dt_ansi_to_julian_single_arg "$start_date"]
 			}
 
@@ -1313,7 +1313,7 @@ ad_proc -public im_resource_mgmt_resource_planning {
 			    	if { "0" == $total_user_percentages } {
 				       # No percentage assignments, distribute hours equaly over all members 
 				       set no_planned_hours_to_assign [expr [expr $planned_units + 0] / $number_of_users_on_task]  
-				       ns_log NOTICE "intranet-resource-management-procs: no-workdays - total_user_percentages=0 for user_id: $user_id, day:$days_julian,project_id:$project_id" 
+				       ns_log Notice "intranet-resource-management-procs: no-workdays - total_user_percentages=0 for user_id: $user_id, day:$days_julian,project_id:$project_id" 
 			    	} else {
 				       if { "0" == $user_percentage || "" == $user_percentage } {
 				       	    # No percentage assigned 
@@ -1323,7 +1323,7 @@ ad_proc -public im_resource_mgmt_resource_planning {
 					   set no_planned_hours_to_assign [expr [expr $planned_units+0] * $user_percentage / $total_user_percentages * ([expr $user_availability+0]/100.0)] 
 				       }
 				}
-				ns_log NOTICE "intranet-resource-management-procs: 0 workdays::user_id:$user_id/day:$days_julian/project_id:$project_id -> hours to assign: $no_planned_hours_to_assign"
+				ns_log Notice "intranet-resource-management-procs: 0 workdays::user_id:$user_id/day:$days_julian/project_id:$project_id -> hours to assign: $no_planned_hours_to_assign"
 				# Done calculating number of hours to assign, now set arry 
                                 if { [info exists user_day_task_arr($user_id-$days_julian-$project_id)] } {
                                        set user_day_task_arr($user_id-$days_julian-$project_id) [expr $no_planned_hours_to_assign + $user_day_task_arr($user_id-$days_julian-$project_id)]
@@ -1370,8 +1370,8 @@ ad_proc -public im_resource_mgmt_resource_planning {
                         }
 		} else {
 			# Distribute hours over workdays 
-			ns_log NOTICE "intranet-resource-management-procs::task_with_no_parent:distribute-over-multiple-workdays::------------------------------- START: project_id:$project_id --------------------------------------"     
-			ns_log NOTICE "intranet-resource-management-procs::task_with_no_parent:distribute-over-multiple-workdays:: 
+			ns_log Notice "intranet-resource-management-procs::task_with_no_parent:distribute-over-multiple-workdays::------------------------------- START: project_id:$project_id --------------------------------------"     
+			ns_log Notice "intranet-resource-management-procs::task_with_no_parent:distribute-over-multiple-workdays:: 
 					project_id:$project_id: no_workdays:$no_workdays, no of users: $user_ctr, user_percentage_list:$user_percentage_list,planned_units:$planned_units"
 			set planned_units [expr $planned_units +0]
 			set no_workdays [expr $no_workdays +0]
@@ -1380,10 +1380,10 @@ ad_proc -public im_resource_mgmt_resource_planning {
 		    	# if { [string first "." $no_workdays] == -1 } { set no_workdays $no_workdays.0 }  
 
 			set hours_per_day [expr $planned_units / $no_workdays]
-			ns_log NOTICE "intranet-resource-management-procs::task_with_no_parent::distribute-over-multiple-workdays::planned_units:$planned_units / no_workdays:$no_workdays ${hours_per_day}/day to be distributed"
+			ns_log Notice "intranet-resource-management-procs::task_with_no_parent::distribute-over-multiple-workdays::planned_units:$planned_units / no_workdays:$no_workdays ${hours_per_day}/day to be distributed"
 			# A list of workdays (ANSI) found btw. start and end date. Example {2012-10-11 2012-10-12}
 			set workdays [util_memoize [list im_absence_working_days_weekend_only -start_date "$start_date" -end_date "$end_date"]]
-			ns_log NOTICE "intranet-resource-management-procs::task_with_no_parent:distribute-over-multiple-workdays::workdays:$workdays"
+			ns_log Notice "intranet-resource-management-procs::task_with_no_parent:distribute-over-multiple-workdays::workdays:$workdays"
 
 			foreach days $workdays {		
 			    set days_julian [dt_ansi_to_julian_single_arg "$days"]
@@ -1391,15 +1391,15 @@ ad_proc -public im_resource_mgmt_resource_planning {
 			    foreach user_id_percentage_pair $user_percentage_list {
 			    	set user_id [lindex $user_id_percentage_pair 0]
 				set user_percentage [lindex $user_id_percentage_pair 1]
-				ns_log NOTICE "intranet-resource-management-procs::task_with_no_parent:distribute-over-multiple-workdays Handling [im_name_from_user_id $user_id] $user_id"
+				ns_log Notice "intranet-resource-management-procs::task_with_no_parent:distribute-over-multiple-workdays Handling [im_name_from_user_id $user_id] $user_id"
                                 if { "0" == $total_user_percentages } {
                                        # No percentage assignments, distribute hours equaly over all members
                                        set no_planned_hours_to_assign [expr $hours_per_day / $number_of_users_on_task]
-				       ns_log NOTICE "intranet-resource-management-procs::No total_user_percentages found for user: [im_name_from_user_id $user_id]: -> assigning $no_planned_hours_to_assign hours to all users"
+				       ns_log Notice "intranet-resource-management-procs::No total_user_percentages found for user: [im_name_from_user_id $user_id]: -> assigning $no_planned_hours_to_assign hours to all users"
                                 } else {
                                        if { "0" == $user_percentage || "" == $user_percentage } {
                                             # No percentage assigned
-					    ns_log NOTICE "intranet-resource-management-procs:::task_with_no_parent:distribute-over-multiple-workdays No percentage found for user: $user_id -> assigning 0 hours"
+					    ns_log Notice "intranet-resource-management-procs:::task_with_no_parent:distribute-over-multiple-workdays No percentage found for user: $user_id -> assigning 0 hours"
                                             set no_planned_hours_to_assign 0
                                        } else {
 
@@ -1409,21 +1409,21 @@ ad_proc -public im_resource_mgmt_resource_planning {
 
 					    # Get % Assignment for this task 
 					    set percentage_assignment_employee [lindex [lindex [lsearch -all -inline $user_percentage_list_employee *${user_id}*] 0] 1]
-					    ns_log NOTICE "intranet-resource-management-procs::task_with_no_parent:distribute-over-multiple-workdays % Assigned of employee: $percentage_assignment_employee"
+					    ns_log Notice "intranet-resource-management-procs::task_with_no_parent:distribute-over-multiple-workdays % Assigned of employee: $percentage_assignment_employee"
 
 					    # Get % Availability of employee 
 					    set percentage_availability_employee [lindex [lindex [lsearch -all -inline $user_percentage_list_employee *${user_id}*] 0] 2]
-					    ns_log NOTICE "intranet-resource-management-procs::task_with_no_parent:distribute-over-multiple-workdays Availability % of employee: $percentage_availability_employee"
+					    ns_log Notice "intranet-resource-management-procs::task_with_no_parent:distribute-over-multiple-workdays Availability % of employee: $percentage_availability_employee"
 
-					    ns_log NOTICE "intranet-resource-management-procs::task_with_no_parent:distribute-over-multiple-workdays Calculating: ($hours_per_day * $user_percentage / $total_user_percentages) * ($percentage_availability_employee/100)"
+					    ns_log Notice "intranet-resource-management-procs::task_with_no_parent:distribute-over-multiple-workdays Calculating: ($hours_per_day * $user_percentage / $total_user_percentages) * ($percentage_availability_employee/100)"
                                             set no_planned_hours_to_assign [expr ($hours_per_day * $user_percentage / $total_user_percentages) * ([expr $percentage_availability_employee+0]/100.0)]
                                             # set no_planned_hours_to_assign [expr ($hours_per_day * $user_percentage / $total_user_percentages)]
 
-					    ns_log NOTICE "intranet-resource-management-procs::task_with_no_parent:distribute-over-multiple-workdays Assigning: $no_planned_hours_to_assign hours to user [im_name_from_user_id $user_id]"
+					    ns_log Notice "intranet-resource-management-procs::task_with_no_parent:distribute-over-multiple-workdays Assigning: $no_planned_hours_to_assign hours to user [im_name_from_user_id $user_id]"
                                        }
                                 }
 				
-				ns_log NOTICE "intranet-resource-management-procs::task_with_no_parent:distribute-over-multiple-workdays Assigning $no_planned_hours_to_assign hours to user: $user_id"
+				ns_log Notice "intranet-resource-management-procs::task_with_no_parent:distribute-over-multiple-workdays Assigning $no_planned_hours_to_assign hours to user: $user_id"
 
                                 if { [info exists user_day_task_arr($user_id-$days_julian-$project_id)] } {
                                         set user_day_task_arr($user_id-$days_julian-$project_id) [expr $no_planned_hours_to_assign + $user_day_task_arr($user_id-$days_julian-$project_id)]
@@ -1469,8 +1469,8 @@ ad_proc -public im_resource_mgmt_resource_planning {
 				incr user_ctr
 			    }
         		}; # for each workday
-			ns_log NOTICE "intranet-resource-management-procs::task_with_no_parent:distribute-over-multiple-workdays:: $project_id, $start_date, $end_date, workdays: $no_workdays, users: $user_list, Planned Units: $planned_units<br>$out"
-			ns_log NOTICE "intranet-resource-management-procs::task_with_no_parent:distribute-over-multiple-workdays::------------------------------- STOP: project_id:$project_id --------------------------------------"     
+			ns_log Notice "intranet-resource-management-procs::task_with_no_parent:distribute-over-multiple-workdays:: $project_id, $start_date, $end_date, workdays: $no_workdays, users: $user_list, Planned Units: $planned_units<br>$out"
+			ns_log Notice "intranet-resource-management-procs::task_with_no_parent:distribute-over-multiple-workdays::------------------------------- STOP: project_id:$project_id --------------------------------------"     
 		}; # IF "0" == $no_workdays / else 		    	
 	}; # IF $calc_day_p 
 
@@ -1498,9 +1498,9 @@ ad_proc -public im_resource_mgmt_resource_planning {
     # ------------------------------------------------------------------------------------------------------------------------------------
 
     db_foreach percentage_loop $percentage_sql {
-	ns_log NOTICE "intranet-resource-management-procs::percentage_sql: -----------------------------------------------------------------------------------------------------------------------"
-        ns_log NOTICE "intranet-resource-management-procs::percentage_sql: project_id:$project_id child_start_date_julian: $child_start_date_julian, child_end_date_julian: $child_end_date_julian"
-	ns_log NOTICE "intranet-resource-management-procs::percentage_sql: "
+	ns_log Notice "intranet-resource-management-procs::percentage_sql: -----------------------------------------------------------------------------------------------------------------------"
+        ns_log Notice "intranet-resource-management-procs::percentage_sql: project_id:$project_id child_start_date_julian: $child_start_date_julian, child_end_date_julian: $child_end_date_julian"
+	ns_log Notice "intranet-resource-management-procs::percentage_sql: "
 	# sanity check for empty start/end date
 	if {""==$start_date_julian || ""==$end_date_julian} {
 	    ad_return_complaint 1 "Empty date found. Please verify start/end date of Project ID: <a href='/intranet/projects/view?project_id=$project_id'>$project_id</a>" 
@@ -1508,23 +1508,23 @@ ad_proc -public im_resource_mgmt_resource_planning {
 
 	# Skip if no data
 	if {"" == $child_start_date_julian} { 
-	    ns_log NOTICE "intranet-resource-management-procs::percentage_sql: Found empty child_end_start_julian, not setting perc_day_hash/perc_week_hash"
+	    ns_log Notice "intranet-resource-management-procs::percentage_sql: Found empty child_end_start_julian, not setting perc_day_hash/perc_week_hash"
 	    continue 
 	}
 	if {"" == $child_end_date_julian} { 
-	    ns_log NOTICE "intranet-resource-management-procs::percentage_sql: Found empty child_end_date_julian, not setting perc_day_hash/perc_week_hash"
+	    ns_log Notice "intranet-resource-management-procs::percentage_sql: Found empty child_end_date_julian, not setting perc_day_hash/perc_week_hash"
 	    continue 
 	}
 	
 	# Loop through the days between start_date and end_data
 	for {set i $child_start_date_julian} {$i <= $child_end_date_julian} {incr i} {
-	    ns_log NOTICE "intranet-resource-management-procs::percentage_sql: Loop through the days between start_date and end_data: Handling Jday: $i"
+	    ns_log Notice "intranet-resource-management-procs::percentage_sql: Loop through the days between start_date and end_data: Handling Jday: $i"
 	    if {$i < $start_date_julian} { 
-		ns_log NOTICE "intranet-resource-management-procs::percentage_sql: Loop through the days between start_date and end_data: day < start_date_julian ($start_date_julian), leaving loop,nothing set perc_day_hash/perc_week_hash"
+		ns_log Notice "intranet-resource-management-procs::percentage_sql: Loop through the days between start_date and end_data: day < start_date_julian ($start_date_julian), leaving loop,nothing set perc_day_hash/perc_week_hash"
 		continue 
 	    }
 	    if {$i > $end_date_julian} { 
-		ns_log NOTICE "intranet-resource-management-procs::percentage_sql: Loop through the days between start_date and end_data: day > end_date_julian ($end_date_julian), leaving loop, nothing set perc_day_hash/perc_week_hash"
+		ns_log Notice "intranet-resource-management-procs::percentage_sql: Loop through the days between start_date and end_data: day > end_date_julian ($end_date_julian), leaving loop, nothing set perc_day_hash/perc_week_hash"
 		continue 
 	    }
 
@@ -1539,7 +1539,7 @@ ad_proc -public im_resource_mgmt_resource_planning {
 		    if {[info exists perc_day_hash($key)]} { set perc $perc_day_hash($key) }
 		    set perc [expr $perc + $percentage]
 		    set perc_day_hash($key) $perc
-		    ns_log NOTICE "intranet-resource-management-procs::percentage_sql: AGGREGATE DAY \$perc_day_hash : ${perc}% (key:$key)"
+		    ns_log Notice "intranet-resource-management-procs::percentage_sql: AGGREGATE DAY \$perc_day_hash : ${perc}% (key:$key)"
 		}
 
 		# Aggregate per week
@@ -1550,7 +1550,7 @@ ad_proc -public im_resource_mgmt_resource_planning {
 		    if {[info exists perc_week_hash($key)]} { set perc $perc_week_hash($key) }
 		    set perc [expr $perc + $percentage]
 		    set perc_week_hash($key) $perc
-		    ns_log NOTICE "intranet-resource-management-procs::percentage_sql: AGGREGATE WEEK \$perc_week_hash: ${perc}% (key:$key)"
+		    ns_log Notice "intranet-resource-management-procs::percentage_sql: AGGREGATE WEEK \$perc_week_hash: ${perc}% (key:$key)"
 		}
 
 		# Check if there is a super-project and continue there.
@@ -1798,8 +1798,8 @@ ad_proc -public im_resource_mgmt_resource_planning {
     # Top scale is a list of lists like {{2006 01} {2006 02} ...}
     set top_scale {}
     set last_top_dim {}
-    ns_log NOTICE "intranet-resource-management-procs::DefineTopScale: -------------------------------------------------------------------------"
-    ns_log NOTICE "intranet-resource-management-procs::DefineTopScale: start_date_julian: $start_date_julian ([dt_julian_to_ansi $start_date_julian]), end_date_julian: $end_date_julian (([dt_julian_to_ansi $end_date_julian]))" 
+    ns_log Notice "intranet-resource-management-procs::DefineTopScale: -------------------------------------------------------------------------"
+    ns_log Notice "intranet-resource-management-procs::DefineTopScale: start_date_julian: $start_date_julian ([dt_julian_to_ansi $start_date_julian]), end_date_julian: $end_date_julian (([dt_julian_to_ansi $end_date_julian]))" 
 
     for {set i [dt_ansi_to_julian_single_arg $start_date_request]} {$i <= [dt_ansi_to_julian_single_arg $end_date_request]} {incr i} {
 	array unset date_hash
@@ -1820,7 +1820,7 @@ ad_proc -public im_resource_mgmt_resource_planning {
 	}
     }
 
-    ns_log NOTICE "intranet-resource-management-procs::DefineTopScale: Top Scale: $top_scale"
+    ns_log Notice "intranet-resource-management-procs::DefineTopScale: Top Scale: $top_scale"
 
     set clicks([clock clicks -milliseconds]) top_scale
 
@@ -2061,7 +2061,7 @@ ad_proc -public im_resource_mgmt_resource_planning {
 
 	# topscale example: {2011 9 01} {2011 9 02}
 	foreach top_entry $top_scale {
-	    ns_log NOTICE "intranet-resource-management-procs::output:WriteMatrixElements::------------------------------------------------------ Loop through top_scale"
+	    ns_log Notice "intranet-resource-management-procs::output:WriteMatrixElements::------------------------------------------------------ Loop through top_scale"
 
 	    set left_clicks(top_scale_start) [expr $left_clicks(top_scale_start) + [clock clicks] - $last_click]
 	    set last_click [clock clicks]
@@ -2080,7 +2080,7 @@ ad_proc -public im_resource_mgmt_resource_planning {
 
 	    # Calculate the julian date for today from top_vars
 	    set julian_date [util_memoize [list im_date_components_to_julian $top_vars $top_entry]]
-	    ns_log NOTICE "intranet-resource-management-procs::output:WriteMatrixElements:: Evaluating im_date_components_to_julian (top_vars: $top_vars // top_entry: $top_entry): $julian_date ([dt_julian_to_ansi $julian_date])"	    
+	    ns_log Notice "intranet-resource-management-procs::output:WriteMatrixElements:: Evaluating im_date_components_to_julian (top_vars: $top_vars // top_entry: $top_entry): $julian_date ([dt_julian_to_ansi $julian_date])"	    
 	    if {$julian_date == $last_julian} {
 		# We're with the second ... seventh entry of a week.
 		continue
@@ -2091,7 +2091,7 @@ ad_proc -public im_resource_mgmt_resource_planning {
 	    set left_clicks(top_scale_to_julian) [expr $left_clicks(top_scale_to_julian) + [clock clicks] - $last_click]
 	    set last_click [clock clicks]
 
-	    ns_log NOTICE "intranet-resource-management-procs::output:WriteMatrixElements:: Writing cell for julian_date: $julian_date ([dt_julian_to_ansi $julian_date] - user_id: $user_id"
+	    ns_log Notice "intranet-resource-management-procs::output:WriteMatrixElements:: Writing cell for julian_date: $julian_date ([dt_julian_to_ansi $julian_date] - user_id: $user_id"
 
 	    # -----------------------------------
 	    # Get the value for this cell 
@@ -2103,9 +2103,9 @@ ad_proc -public im_resource_mgmt_resource_planning {
 	    if { "percentage" == $calculation_mode } {
 		if {$calc_day_p} {
 		    set key "$user_id-$project_id-$julian_date"
-		    ns_log NOTICE "intranet-resource-management-procs::output:WriteMatrixElements::(Day) key:$user_id-$project_id-$julian_date - Value before: $val"
+		    ns_log Notice "intranet-resource-management-procs::output:WriteMatrixElements::(Day) key:$user_id-$project_id-$julian_date - Value before: $val"
 		    if {[info exists perc_day_hash($key)]} { set val $perc_day_hash($key) }
-		    ns_log NOTICE "intranet-resource-management-procs::output:WriteMatrixElements::(Day) key:$user_id-$project_id-$julian_date - Value after: $val"
+		    ns_log Notice "intranet-resource-management-procs::output:WriteMatrixElements::(Day) key:$user_id-$project_id-$julian_date - Value after: $val"
 		}
 		if { $calc_week_p } {
 		    set week_julian [util_memoize [list im_date_julian_to_week_julian $julian_date]]
@@ -2314,7 +2314,7 @@ ad_proc -public im_resource_mgmt_resource_planning {
 			append cell_html "</div>"
 		    } else {
 			#  "planned_hours" != $calculation_mode
-			ns_log NOTICE "intranet-resource-management-procs::output: Person ($user_id): calculation_mode != planned_hours - set cell_html: $val"
+			ns_log Notice "intranet-resource-management-procs::output: Person ($user_id): calculation_mode != planned_hours - set cell_html: $val"
 			if { [info exists weekend_hash($julian_date)] } {
 			    # This is a weekend, do not print values for SAT and SUN
 			    set cell_html "&nbsp;"
@@ -2327,7 +2327,7 @@ ad_proc -public im_resource_mgmt_resource_planning {
 
 	        default {
 		    # default line is showing project or task 
-		    ns_log NOTICE "intranet-resource-management-procs::output: Line is showing project or task"
+		    ns_log Notice "intranet-resource-management-procs::output: Line is showing project or task"
                     if { "percentage" == $calculation_mode } {
 			# set cell_html [util_memoize [list im_resource_mgmt_resource_planning_cell default $val "" "" "" $limit_height]]
 			set cell_html "${val}%"
@@ -2399,18 +2399,18 @@ ad_proc -public im_resource_mgmt_resource_planning {
 	# Decide if we need  to show this row 
 	# ----------------------------------------------------------------
 
-	ns_log NOTICE "intranet-resource-management-procs::output: Do we need to show this row?" 
+	ns_log Notice "intranet-resource-management-procs::output: Do we need to show this row?" 
 	
         switch $otype {
             person {
-		ns_log NOTICE "intranet-resource-management-procs::output:Person: Yes we show always"
+		ns_log Notice "intranet-resource-management-procs::output:Person: Yes we show always"
 		append department_row_html $department_row_html_tmp
             }
             im_project {
 		if { "percentage" == $calculation_mode } {
 		    append department_row_html $department_row_html_tmp
 		} else {
-		    ns_log NOTICE "intranet-resource-management-procs::output:Project: Checking if user is member of project ..."
+		    ns_log Notice "intranet-resource-management-procs::output:Project: Checking if user is member of project ..."
 		    # Is user even member of this project?  
 		    set user_is_project_member_p [db_string project_member_p "select count(*) from acs_rels where object_id_one = $oid and object_id_two =$user_id" -default 0]
 		    if { $user_is_project_member_p } {
@@ -2443,13 +2443,13 @@ ad_proc -public im_resource_mgmt_resource_planning {
 		    "
 			set found_task_p [db_string found_task_p $show_this_row_sql -default 0]
 			if { $found_task_p } {
-			    ns_log NOTICE "intranet-resource-management-procs::output:Project: User is member of project, showing line"
+			    ns_log Notice "intranet-resource-management-procs::output:Project: User is member of project, showing line"
 			    append department_row_html $department_row_html_tmp	
 			} else {
-			    ns_log NOTICE "intranet-resource-management-procs::output:Project: No task found with 'Planned hours'" 
+			    ns_log Notice "intranet-resource-management-procs::output:Project: No task found with 'Planned hours'" 
 			}	 
 		    } else {
-                        ns_log NOTICE "intranet-resource-management-procs::output:Project: User is not member of project, no output"
+                        ns_log Notice "intranet-resource-management-procs::output:Project: User is not member of project, no output"
 		    }
 		}
             } ; #im_project
@@ -2470,7 +2470,7 @@ ad_proc -public im_resource_mgmt_resource_planning {
 	set show_row_task_p 0
 
 	incr row_ctr
-	ns_log NOTICE "intranet-resource-management-procs::output: ENDING LOOP - row_ctr: $row_ctr"
+	ns_log Notice "intranet-resource-management-procs::output: ENDING LOOP - row_ctr: $row_ctr"
 
     }; # end loop user/project/task rows 
 
