@@ -23,7 +23,7 @@ set company_department_id [im_cost_center_company]
 # ----------------------------------------------------
 
 # Create a random ID for the diagram
-set diagram_rand [expr round(rand() * 100000000.0)]
+set diagram_rand [expr {round(rand() * 100000000.0)}]
 set diagram_id "employee_assignment_pie_chart_$diagram_rand"
 
 #ToDo: Eliminate deleted employees
@@ -47,7 +47,7 @@ db_foreach departments $department_sql {
     }
 
     if {"" != $employee_id} {
-	multirow append departments $employee_id [expr 1+$indent] $employee_name
+	multirow append departments $employee_id [expr {1+$indent}] $employee_name
     }
 }
 

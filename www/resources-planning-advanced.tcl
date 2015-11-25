@@ -41,7 +41,7 @@ ad_page_contract {
 
 im_permission_flush
 
-set user_id [ad_maybe_redirect_for_registration]
+set user_id [auth::require_login]
 if {![im_permission $user_id "view_projects_all"]} {
     ad_return_complaint 1 "You don't have permissions to see this page"
     ad_script_abort
@@ -135,7 +135,7 @@ if {0} {
     "
 }
 
-if { [empty_string_p $customer_id] } {
+if { $customer_id eq "" } {
     set customer_id 0
 }
 
@@ -307,7 +307,7 @@ append absence_color_codes "<div class=filter-title>&nbsp;[lang::message::lookup
 append absence_color_codes "<table cellpadding='5' cellspacing='5'>\n"
 append absence_color_codes "<tr><td>&nbsp;&nbsp;&nbsp;</td><td bgcolor='\#666699' style='padding:3px'>Planned hours</td></tr>\n"
 db_foreach cols $col_sql {
-    set index [expr $category_id - 5000]
+    set index [expr {$category_id - 5000}]
     set col [lindex $color_list $index]
     regsub -all " " $category "_" category_key
     set category_l10n [lang::message::lookup "" intranet-core.$category_key $category]

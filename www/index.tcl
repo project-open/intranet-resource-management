@@ -11,7 +11,7 @@ ad_page_contract {
 } {
 
 }
-set user_id [ad_maybe_redirect_for_registration]
+set user_id [auth::require_login]
 set page_title [lang::message::lookup "" intranet-resource-management.Resource_Management_Home "Resource Management Home"]
 set context_bar [im_context_bar $page_title]
 set return_url [im_url_with_query]

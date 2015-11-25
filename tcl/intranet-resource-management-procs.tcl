@@ -156,9 +156,9 @@ ad_proc -public im_resource_mgmt_resource_planning_cell {
     # (which would result in 0 height of the GIF...)
     set p 0
     catch {
-        set p [expr round((1.0 * $percentage) / 10.0)]
+        set p [expr {round((1.0 * $percentage) / 10.0)}]
     }
-    set p [expr round((1.0 * $percentage) / 10.0)]
+    set p [expr {round((1.0 * $percentage) / 10.0)}]
     if {0 == $p && $percentage > 0.0} { set p 1 }
 
     # 
@@ -175,7 +175,7 @@ ad_proc -public im_resource_mgmt_resource_planning_cell {
 	if { $limit_height_p } { 
 	    set percentage 10 
 	} else {
-	    set percentage [expr $percentage/5]
+	    set percentage [expr {$percentage/5}]
 	}
 	set result "<span class='img-cap' title='$title'>
 			<img src='/intranet/images/cleardot.gif' title='$title' alt='$title $appendix' border='0' height='$percentage' width='15' style='background-color:$color_code'>
@@ -203,9 +203,9 @@ ad_proc -public im_resource_mgmt_get_bar_color {
 		"gradient" {
 		    # http://stackoverflow.com/questions/340209/generate-colors-between-red-and-green-for-a-power-meter
 		    if { $val > 100 } { set val 100 }
-		    set val abs([expr $val - 100])		    
-		    set val [expr $val / 100]
-		    set h [expr $val * 0.38]
+		    set val abs([expr {$val - 100}])		    
+		    set val [expr {$val / 100}]
+		    set h [expr {$val * 0.38}]
 		    set s 0.9 			
     		    set b 0.9 			
 		    set bar_chart_color [hsv2hex $h $s $b]
@@ -241,8 +241,8 @@ ad_proc -public im_date_julian_to_components { julian_date } {
     if { $month_of_year < 10  } { set month_of_year [string trim $month_of_year 0]}	
 
     set first_year_julian [dt_ansi_to_julian $year 1 1]
-    set day_of_year [expr $julian_date - $first_year_julian + 1]
-    set quarter_of_year [expr 1 + int(($month_of_year-1) / 3)]
+    set day_of_year [expr {$julian_date - $first_year_julian + 1}]
+    set quarter_of_year [expr {1 + int(($month_of_year-1) / 3)}]
 
     set week_of_year [util_memoize [list db_string dow "select to_char(to_date('$julian_date', 'J'),'IW')"]]
     set day_of_week [util_memoize [list db_string dow "select extract(dow from to_date('$julian_date', 'J'))"]]
@@ -263,7 +263,7 @@ ad_proc -public im_date_julian_to_week_julian { julian_date } {
     Takes a Julian data and returns the julian date of the week's day "1" (=Monday)
 } {
     array set week_info [im_date_julian_to_components $julian_date]
-    set result [expr $julian_date - $week_info(day_of_week)]
+    set result [expr {$julian_date - $week_info(day_of_week)}]
 }
 
 
@@ -302,7 +302,7 @@ ad_proc -public im_date_components_to_julian { top_vars top_entry} {
     switch $top_vars {
 	"year week_of_year day_of_week" {
 	    catch {
-		set julian [dt_ansi_to_julian_single_arg [db_string get_iso_week_date "select (to_date('$year-$week_of_year', 'IYYY-IW')::date + interval '[expr $day_of_week-1]' day)::date;" -default 0]]
+		set julian [dt_ansi_to_julian_single_arg [db_string get_iso_week_date "select (to_date('$year-$week_of_year', 'IYYY-IW')::date + interval '[expr {$day_of_week-1}]' day)::date;" -default 0]]
 	    }
 	}
 	"year week_of_year" {
@@ -505,7 +505,7 @@ ad_proc -public im_resource_mgmt_resource_planning {
     }
 
     set where_clause [join $criteria " and\n\t\t\t"]
-    if { ![empty_string_p $where_clause] } {
+    if { $where_clause ne "" } {
 	set where_clause " and $where_clause"
     }
 
@@ -558,7 +558,7 @@ ad_proc -public im_resource_mgmt_resource_planning {
 	if {0 == $dow || 6 == $dow || 7 == $dow} { set weekend_hash($i) 5 }
 	
 	# Start of Week Julian
-	set start_of_week_julian_hash($i) [expr $i - $dow]
+	set start_of_week_julian_hash($i) [expr {$i - $dow}]
     }
     set clicks([clock clicks -milliseconds]) weekends
 
@@ -603,7 +603,7 @@ ad_proc -public im_resource_mgmt_resource_planning {
 		set key "$i-$owner_id"
 		set val ""
 		if {[info exists absences_hash($key)]} { set val $absences_hash($key) }
-		append val [expr $absence_type_id - 5000]
+		append val [expr {$absence_type_id - 5000}]
 		set absences_hash($key) $val
 	    }
 
@@ -613,7 +613,7 @@ ad_proc -public im_resource_mgmt_resource_planning {
 		set key "$week_julian-$owner_id"
 		set val ""
 		if {[info exists absences_hash($key)]} { set val $absences_hash($key) }
-		append val [expr $absence_type_id - 5000]
+		append val [expr {$absence_type_id - 5000}]
 		set absences_hash($key) $val
 	    }
 	}
@@ -876,7 +876,7 @@ ad_proc -public im_resource_mgmt_resource_planning {
 	set parent_hash($project_id) $parent_id
 	set has_children_hash($parent_id) 1
 	set name_hash($project_id) $project_name
-	set indent_hash($project_id) [expr $tree_level + 1]
+	set indent_hash($project_id) [expr {$tree_level + 1}]
 	set object_name_hash($project_id) $project_name
 	set object_type_hash($project_id) $object_type
 
@@ -932,9 +932,9 @@ ad_proc -public im_resource_mgmt_resource_planning {
 
 	#    set object_type_hash($task_id) "im_trans_task"
 	#    set object_name_hash($task_id) $task_name
-	#    set indent_hash($task_id) [expr 2+$tree_level]
+	#    set indent_hash($task_id) [expr {2+$tree_level}]
 
-	#    lappend hierarchy_lol [list $task_id $task_name [expr 1+$tree_level] [linsert $project_path end $task_id]]
+	#    lappend hierarchy_lol [list $task_id $task_name [expr {1+$tree_level}] [linsert $project_path end $task_id]]
 	# }
     }
 
@@ -1013,7 +1013,7 @@ ad_proc -public im_resource_mgmt_resource_planning {
 	    for {set i 0} {$i < [llength $project_path]} {incr i} {
 		set project_in_path_id [lindex $project_path $i]
 
-		if {$i == [expr [llength $project_path] - 1]} {
+		if {$i == [expr {[llength $project_path] - 1}]} {
 
 		    # We are at the last element of the project "path" - This is the project to display.
 		    set pid $project_in_path_id
@@ -1156,7 +1156,7 @@ ad_proc -public im_resource_mgmt_resource_planning {
 	    # Consider completion status of task 
 	    if { [info exists percent_completed] && $percent_completed > 0 } {
 		# removed based on conversation PENTAMINO 10/10/2012
-		# set planned_units [expr $planned_units - [expr $planned_units * $percent_completed / 100]]
+		# set planned_units [expr {$planned_units - [expr {$planned_units * $percent_completed / 100}]}]
 	    }
 
 	    # There are no other tasks having this task as a parent, so we pick only planned hours for those:
@@ -1198,7 +1198,7 @@ ad_proc -public im_resource_mgmt_resource_planning {
 		    # If no availability, we assume 100% 
 		    if { "" == $availability } { set availability 100 }
 
-		    set total_user_percentages [expr $total_user_percentages + $user_percentage]
+		    set total_user_percentages [expr {$total_user_percentages + $user_percentage}]
 		    lappend user_percentage_list [list $user_id $user_percentage $availability]
 		    ns_log Notice "intranet-resource-management-procs::eval_user_percentage_list::user_id:$user_id"			    
 		    
@@ -1207,11 +1207,11 @@ ad_proc -public im_resource_mgmt_resource_planning {
 			# Skill Profile User
 			set share_of_task 1.0
 			if {0.0 != $percentage_skill_profiles && "0" != $user_percentage && "" != $user_percentage } {
-			    set total_user_percentages_skill_profile_users [expr $total_user_percentages_skill_profile_users + $user_percentage]
+			    set total_user_percentages_skill_profile_users [expr {$total_user_percentages_skill_profile_users + $user_percentage}]
 			    lappend user_percentage_list_skill_profile_users [list $user_id $user_percentage]
-			    ns_log Notice "intranet-resource-management-procs::eval_user_percentage_list::Found 0.0 -> share_of_task(old): $share_of_task"			    
+			    ns_log Notice "intranet-resource-management-procs::eval_user_percentage_list::Found 0.0 -> share_of_task(old): $share_of_task"
 			    set share_of_task [expr $user_percentage / $percentage_skill_profiles]
-			    ns_log Notice "intranet-resource-management-procs::eval_user_percentage_list::Found 0.0 -> share_of_task(new): $share_of_task"			    			    
+			    ns_log Notice "intranet-resource-management-procs::eval_user_percentage_list::Found 0.0 -> share_of_task(new): $share_of_task"
 			}
 			ns_log Notice "intranet-resource-management-procs::eval_user_percentage_list::user_percentage:$user_percentage - share_of_task:$share_of_task * percentage_non_skill_profiles:$percentage_non_skill_profiles"
 			set user_percentage [expr $user_percentage - $share_of_task * $percentage_non_skill_profiles]
@@ -1219,7 +1219,7 @@ ad_proc -public im_resource_mgmt_resource_planning {
 		    } else {
 			# Regular employee
 			if { "0.0" != $user_percentage && "0" != $user_percentage && "" != $user_percentage } {
-			    set total_user_percentages_employee [expr $total_user_percentages_employee + $user_percentage]
+			    set total_user_percentages_employee [expr {$total_user_percentages_employee + $user_percentage}]
 			    lappend user_percentage_list_employee [list $user_id $user_percentage $availability]
 			}
 		    }
@@ -1266,7 +1266,7 @@ ad_proc -public im_resource_mgmt_resource_planning {
 		set number_of_users_on_task $user_ctr
 
 		# Add one to end date since this day is included  
-		set end_date_julian_planned_hours [expr $end_date_julian_planned_hours + 1]
+		set end_date_julian_planned_hours [expr {$end_date_julian_planned_hours + 1}]
 		# set end_date [db_string julian_date_select "select to_char( to_date($end_date_julian_planned_hours,'J'), 'YYYY-MM-DD') from dual"]
                 set end_date [im_date_julian_to_ansi  "$end_date_julian_planned_hours"]
 
@@ -1291,7 +1291,7 @@ ad_proc -public im_resource_mgmt_resource_planning {
 		if { "0" == $no_workdays } {
 			if { $start_date != $end_date} {
 				# Find next workday - should be no longer than 2 days from start_date
-			    	set next_julian_end_date [im_date_julian_to_ansi [expr $end_date_julian_planned_hours + 2]] 				
+			    	set next_julian_end_date [im_date_julian_to_ansi [expr {$end_date_julian_planned_hours + 2}]] 				
 				set next_workday [db_string get_next_workday "select * from im_absences_working_days_period_weekend_only(:start_date::date, :next_julian_end_date::date) as series_days (days date) limit 1" -default 0]
 				ns_log Notice "Calculated next_workday: $next_workday, based on start_date: $start_date and next_julian_end_date: $next_julian_end_date for project_id: $project_id"
 				set days_julian-startdate-ne-end-date $next_workday
@@ -1312,7 +1312,7 @@ ad_proc -public im_resource_mgmt_resource_planning {
 			        # ----------------------------------------
 			    	if { "0" == $total_user_percentages } {
 				       # No percentage assignments, distribute hours equaly over all members 
-				       set no_planned_hours_to_assign [expr [expr $planned_units + 0] / $number_of_users_on_task]  
+				       set no_planned_hours_to_assign [expr [expr $planned_units + 0] / $number_of_users_on_task]
 				       ns_log Notice "intranet-resource-management-procs: no-workdays - total_user_percentages=0 for user_id: $user_id, day:$days_julian,project_id:$project_id" 
 			    	} else {
 				       if { "0" == $user_percentage || "" == $user_percentage } {
@@ -1320,13 +1320,13 @@ ad_proc -public im_resource_mgmt_resource_planning {
 					    set no_planned_hours_to_assign 0 
 				       } else {
 				       	    # Calculate no_planned_hours based on percentage 	      
-					   set no_planned_hours_to_assign [expr [expr $planned_units+0] * $user_percentage / $total_user_percentages * ([expr $user_availability+0]/100.0)] 
+					   set no_planned_hours_to_assign [expr [expr {$planned_units+0}] * $user_percentage / $total_user_percentages * ([expr {$user_availability+0}]/100.0)] 
 				       }
 				}
 				ns_log Notice "intranet-resource-management-procs: 0 workdays::user_id:$user_id/day:$days_julian/project_id:$project_id -> hours to assign: $no_planned_hours_to_assign"
 				# Done calculating number of hours to assign, now set arry 
                                 if { [info exists user_day_task_arr($user_id-$days_julian-$project_id)] } {
-                                       set user_day_task_arr($user_id-$days_julian-$project_id) [expr $no_planned_hours_to_assign + $user_day_task_arr($user_id-$days_julian-$project_id)]
+                                       set user_day_task_arr($user_id-$days_julian-$project_id) [expr {$no_planned_hours_to_assign + $user_day_task_arr($user_id-$days_julian-$project_id)}]
                                 } else {
                                       set user_day_task_arr($user_id-$days_julian-$project_id) $no_planned_hours_to_assign
                                 }
@@ -1337,12 +1337,12 @@ ad_proc -public im_resource_mgmt_resource_planning {
 				set ctr 0
 				while {$loop} {
 				    set loop 0
-				    if {[exists_and_not_null parent_hash($super_project_id)]} {
+				    if {([info exists parent_hash($super_project_id)] && $parent_hash($super_project_id) ne "")} {
 					set parent_id $parent_hash($super_project_id)
 				    } else {
 					set parent_id ""
 				    } 
-				    if {$parent_id != ""} {
+				    if {$parent_id ne ""} {
 					set super_project_id $parent_id
 					set loop 1
 				    }
@@ -1355,14 +1355,14 @@ ad_proc -public im_resource_mgmt_resource_planning {
 				}
 
 				if { [info exists user_day_task_arr($user_id-$days_julian-$super_project_id)] } {
-					set user_day_task_arr($user_id-$days_julian-$super_project_id) [expr $no_planned_hours_to_assign + $user_day_task_arr($user_id-$days_julian-$super_project_id)]
+					set user_day_task_arr($user_id-$days_julian-$super_project_id) [expr {$no_planned_hours_to_assign + $user_day_task_arr($user_id-$days_julian-$super_project_id)}]
 				} else {
 					set user_day_task_arr($user_id-$days_julian-$super_project_id) $no_planned_hours_to_assign
 				}
 
 				# Set USER totals
 				if { [info exists user_day_total_plannedhours_arr($user_id-$days_julian)] } {
-				    set user_day_total_plannedhours_arr($user_id-$days_julian) [expr $user_day_task_arr($user_id-$days_julian-$project_id) + $user_day_total_plannedhours_arr($user_id-$days_julian)]
+				    set user_day_total_plannedhours_arr($user_id-$days_julian) [expr {$user_day_task_arr($user_id-$days_julian-$project_id) + $user_day_total_plannedhours_arr($user_id-$days_julian)}]
 				} else {
 	   			    set user_day_total_plannedhours_arr($user_id-$days_julian) $user_day_task_arr($user_id-$days_julian-$project_id)
 				}	
@@ -1373,8 +1373,8 @@ ad_proc -public im_resource_mgmt_resource_planning {
 			ns_log Notice "intranet-resource-management-procs::task_with_no_parent:distribute-over-multiple-workdays::------------------------------- START: project_id:$project_id --------------------------------------"     
 			ns_log Notice "intranet-resource-management-procs::task_with_no_parent:distribute-over-multiple-workdays:: 
 					project_id:$project_id: no_workdays:$no_workdays, no of users: $user_ctr, user_percentage_list:$user_percentage_list,planned_units:$planned_units"
-			set planned_units [expr $planned_units +0]
-			set no_workdays [expr $no_workdays +0]
+			set planned_units [expr {$planned_units +0}]
+			set no_workdays [expr {$no_workdays +0}]
 
 		    	# if { [string first "." $planned_units] == -1 } { set planned_units $planned_units.0 }  
 		    	# if { [string first "." $no_workdays] == -1 } { set no_workdays $no_workdays.0 }  
@@ -1414,7 +1414,6 @@ ad_proc -public im_resource_mgmt_resource_planning {
 					    # Get % Availability of employee 
 					    set percentage_availability_employee [lindex [lindex [lsearch -all -inline $user_percentage_list_employee *${user_id}*] 0] 2]
 					    ns_log Notice "intranet-resource-management-procs::task_with_no_parent:distribute-over-multiple-workdays Availability % of employee: $percentage_availability_employee"
-
 					    ns_log Notice "intranet-resource-management-procs::task_with_no_parent:distribute-over-multiple-workdays Calculating: ($hours_per_day * $user_percentage / $total_user_percentages) * ($percentage_availability_employee/100)"
                                             set no_planned_hours_to_assign [expr ($hours_per_day * $user_percentage / $total_user_percentages) * ([expr $percentage_availability_employee+0]/100.0)]
                                             # set no_planned_hours_to_assign [expr ($hours_per_day * $user_percentage / $total_user_percentages)]
@@ -1426,7 +1425,7 @@ ad_proc -public im_resource_mgmt_resource_planning {
 				ns_log Notice "intranet-resource-management-procs::task_with_no_parent:distribute-over-multiple-workdays Assigning $no_planned_hours_to_assign hours to user: $user_id"
 
                                 if { [info exists user_day_task_arr($user_id-$days_julian-$project_id)] } {
-                                        set user_day_task_arr($user_id-$days_julian-$project_id) [expr $no_planned_hours_to_assign + $user_day_task_arr($user_id-$days_julian-$project_id)]
+                                        set user_day_task_arr($user_id-$days_julian-$project_id) [expr {$no_planned_hours_to_assign + $user_day_task_arr($user_id-$days_julian-$project_id)}]
                                 } else {
                                         set user_day_task_arr($user_id-$days_julian-$project_id) $no_planned_hours_to_assign
                                 }
@@ -1437,12 +1436,12 @@ ad_proc -public im_resource_mgmt_resource_planning {
 				set ctr 0
 				while {$loop} {
 				    set loop 0
-				    if {[exists_and_not_null parent_hash($super_project_id)]} {
+				    if {([info exists parent_hash($super_project_id)] && $parent_hash($super_project_id) ne "")} {
 					set parent_id $parent_hash($super_project_id)
 				    } else {
 					set parent_id ""
 				    } 
-				    if {$parent_id != ""} {
+				    if {$parent_id ne ""} {
 					set super_project_id $parent_id
 					set loop 1
 				    }
@@ -1455,14 +1454,14 @@ ad_proc -public im_resource_mgmt_resource_planning {
 				}
 
 				if { [info exists user_day_task_arr($user_id-$days_julian-$super_project_id)] } {
-				    set user_day_task_arr($user_id-$days_julian-$super_project_id) [expr $no_planned_hours_to_assign + $user_day_task_arr($user_id-$days_julian-$super_project_id)]
+				    set user_day_task_arr($user_id-$days_julian-$super_project_id) [expr {$no_planned_hours_to_assign + $user_day_task_arr($user_id-$days_julian-$super_project_id)}]
 				} else {
 				    set user_day_task_arr($user_id-$days_julian-$super_project_id) $no_planned_hours_to_assign
 				}
 
 				# Set USER totals
 				if { [info exists user_day_total_plannedhours_arr($user_id-$days_julian)] } {
-				    set user_day_total_plannedhours_arr($user_id-$days_julian) [expr $user_day_task_arr($user_id-$days_julian-$project_id) + $user_day_total_plannedhours_arr($user_id-$days_julian)]
+				    set user_day_total_plannedhours_arr($user_id-$days_julian) [expr {$user_day_task_arr($user_id-$days_julian-$project_id) + $user_day_total_plannedhours_arr($user_id-$days_julian)}]
 				} else {
 				    set user_day_total_plannedhours_arr($user_id-$days_julian) $user_day_task_arr($user_id-$days_julian-$project_id)
 				}
@@ -1537,7 +1536,7 @@ ad_proc -public im_resource_mgmt_resource_planning {
 		    set key "$user_id-$pid-$i"
 		    set perc 0
 		    if {[info exists perc_day_hash($key)]} { set perc $perc_day_hash($key) }
-		    set perc [expr $perc + $percentage]
+		    set perc [expr {$perc + $percentage}]
 		    set perc_day_hash($key) $perc
 		    ns_log Notice "intranet-resource-management-procs::percentage_sql: AGGREGATE DAY \$perc_day_hash : ${perc}% (key:$key)"
 		}
@@ -1548,7 +1547,7 @@ ad_proc -public im_resource_mgmt_resource_planning {
 		    set key "$user_id-$pid-$week_julian"
 		    set perc 0
 		    if {[info exists perc_week_hash($key)]} { set perc $perc_week_hash($key) }
-		    set perc [expr $perc + $percentage]
+		    set perc [expr {$perc + $percentage}]
 		    set perc_week_hash($key) $perc
 		    ns_log Notice "intranet-resource-management-procs::percentage_sql: AGGREGATE WEEK \$perc_week_hash: ${perc}% (key:$key)"
 		}
@@ -1655,7 +1654,7 @@ ad_proc -public im_resource_mgmt_resource_planning {
 
 	# How many words does a translator translate per hour? 3000 words/day is assumed average.
 	# This factor may need adjustment depending on language pair (Japanese is a lot slower...)
-	# set words_per_hour [expr 3000.0 / $hours_per_day]
+	# set words_per_hour [expr {3000.0 / $hours_per_day}]
 
 	# How many words does a "standard" page have?
 	# set words_per_page 400.0
@@ -1671,43 +1670,43 @@ ad_proc -public im_resource_mgmt_resource_planning {
     # 	    }
     # 	    321 { 
     # 		#   321 | Day
-    # 		set task_hours [expr $task_units * $hours_per_day] 
+    # 		set task_hours [expr {$task_units * $hours_per_day}] 
     # 	    }
     # 	    322 { 
     # 		#   322 | Unit
     # 		# No idea how to convert a "unit"...
-    # 		set task_hours [expr $task_units * $hours_per_day] 
+    # 		set task_hours [expr {$task_units * $hours_per_day}] 
     # 	    }
     # 	    323 { 
     # 		#   323 | Page
-    # 		set task_hours [expr $task_units * $words_per_page / $words_per_hour] 
+    # 		set task_hours [expr {$task_units * $words_per_page / $words_per_hour}] 
     # 	    }
     # 	    324 { 
     # 		#   324 | S-Word
-    # 		set task_hours [expr $task_units / $words_per_hour] 
+    # 		set task_hours [expr {$task_units / $words_per_hour}] 
     # 	    }
     # 	    325 { 
     # 		#   325 | T-Word
     # 		# Here we should consider language specific conversion, but not yet...
-    # 		set task_hours [expr $task_units * $words_per_line / $words_per_hour] 
+    # 		set task_hours [expr {$task_units * $words_per_line / $words_per_hour}] 
     # 	    }
     # 	    326 { 
     # 		#   326 | S-Line
     # 		# Here we should consider language specific conversion, but not yet...
-    # 		set task_hours [expr $task_units * $words_per_line / $words_per_hour] 
+    # 		set task_hours [expr {$task_units * $words_per_line / $words_per_hour}] 
     # 	    }
     # 	    327 { 
     # 		#   327 | T-Line
     # 		# Should be adjusted to language specific swell
-    # 		set task_hours [expr $task_units * $words_per_line / $words_per_hour] 
+    # 		set task_hours [expr {$task_units * $words_per_line / $words_per_hour}] 
     # 	    }
     # 	    328 { 
     # 		#   328 | Week
-    # 		set task_hours [expr $task_units * 5 * $hours_per_day] 
+    # 		set task_hours [expr {$task_units * 5 * $hours_per_day}] 
     # 	    }
     # 	    329 { 
     # 		#   329 | Month
-    # 		set task_hours [expr $task_units * 22 * $hours_per_day] 
+    # 		set task_hours [expr {$task_units * 22 * $hours_per_day}] 
     # 	    }
     # 	    default {
     # 		# Strange UoM, maybe custom defined?
@@ -1718,10 +1717,10 @@ ad_proc -public im_resource_mgmt_resource_planning {
     # 	# Change the task_hours, depending on the transition to perform
     # 	# Editing and proof reading takes about 1/10 of the time of translation.
     # 	switch $transition {
-    # 	    trans { set task_hours [expr $task_hours * 1.0] }
-    # 	    edit  { set task_hours [expr $task_hours * 0.1] }
-    # 	    proof { set task_hours [expr $task_hours * 0.1] }
-    # 	    other { set task_hours [expr $task_hours * 1.0] }
+    # 	    trans { set task_hours [expr {$task_hours * 1.0}] }
+    # 	    edit  { set task_hours [expr {$task_hours * 0.1}] }
+    # 	    proof { set task_hours [expr {$task_hours * 0.1}] }
+    # 	    other { set task_hours [expr {$task_hours * 1.0}] }
     # 	}
 
 
@@ -1732,7 +1731,7 @@ ad_proc -public im_resource_mgmt_resource_planning {
     # 	set user_capacity_percent 100
 
     # 	# Calculate the percentage of time required for the task divided by the time available for the task.
-    # 	set percentage [expr round(10.0 * 100.0 * $task_hours / ($task_duration_days * $hours_per_day * $user_capacity_percent * 0.01)) / 10.0]
+    # 	set percentage [expr {round(10.0 * 100.0 * $task_hours / ($task_duration_days * $hours_per_day * $user_capacity_percent * 0.01)) / 10.0}]
 
     # 	ns_log Notice "im_resource_mgmt_resource_planning: trans_tasks: task_name=$task_name, org_size=$task_units 
     #                    [im_category_from_id $task_uom_id], transition=$transition, user_id=$user_id, task_hours=$task_hours, 
@@ -1756,7 +1755,7 @@ ad_proc -public im_resource_mgmt_resource_planning {
     # 		    set key "$user_id-$pid-$i"
     # 		    set perc 0
     # 		    if {[info exists perc_day_hash($key)]} { set perc $perc_day_hash($key) }
-    # 		    set perc [expr $perc + $percentage]
+    # 		    set perc [expr {$perc + $percentage}]
     # 		    set perc_day_hash($key) $perc
     # 		}
 		
@@ -1766,7 +1765,7 @@ ad_proc -public im_resource_mgmt_resource_planning {
     # 		    set key "$user_id-$pid-$week_julian"
     # 		    set perc 0
     # 		    if {[info exists perc_week_hash($key)]} { set perc $perc_week_hash($key) }
-    # 		    set perc [expr $perc + $percentage]
+    # 		    set perc [expr {$perc + $percentage}]
     # 		    set perc_week_hash($key) $perc
     # 		}
 		
@@ -1913,7 +1912,7 @@ ad_proc -public im_resource_mgmt_resource_planning {
         # Make it 100% when no value found -> ToDo: Print hint on bottom of report 
 	if { "" == $availability_user_perc } { set availability_user_perc 100 }
 
-	set hours_availability_user [expr $hours_per_day_glob * $availability_user_perc / 100 ]
+	set hours_availability_user [expr {$hours_per_day_glob * $availability_user_perc / 100 }]
 
 	set project_id [lindex $left_entry 1]
 
@@ -1968,7 +1967,7 @@ ad_proc -public im_resource_mgmt_resource_planning {
 	# ------------------------------------------------------------
 	# Start the row and show the left_scale values at the left
 
-	set class $rowclass([expr $row_ctr % 2])
+	set class $rowclass([expr {$row_ctr % 2}])
 	append department_row_html_tmp "<tr class=$class valign=bottom>\n"
 
 	if {[info exists object_type_hash($oid)]} { set otype $object_type_hash($oid) }
@@ -2113,7 +2112,7 @@ ad_proc -public im_resource_mgmt_resource_planning {
 		    set key "$user_id-$project_id-$week_julian"
 		    if {[info exists perc_week_hash($key)]} { set val $perc_week_hash($key) }
 		    if {"" == [string trim $val]} { set val 0 }
-		    set val [expr round($val / 7.0)]
+		    set val [expr {round($val / 7.0)}]
 		}
 	    } else {
 		# Show planned hours 
@@ -2124,7 +2123,7 @@ ad_proc -public im_resource_mgmt_resource_planning {
 			if { 0 == $hours_availability_user } {
 			     set val 0
 			} else {
-			    set val [expr 100 * $user_day_task_arr($key) / $hours_availability_user ] 
+			    set val [expr {100 * $user_day_task_arr($key) / $hours_availability_user }] 
 			}
 			set val_hours $user_day_task_arr($key)
 		    }
@@ -2179,27 +2178,27 @@ ad_proc -public im_resource_mgmt_resource_planning {
 
 			# Set values to calculate totals for planned hours (Company Level) 
 			if { [info exists totals_planned_hours_arr($column_ctr)] } {
-			    set totals_planned_hours_arr($column_ctr) [expr $totals_planned_hours_arr($column_ctr) + $acc_hours]     
+			    set totals_planned_hours_arr($column_ctr) [expr {$totals_planned_hours_arr($column_ctr) + $acc_hours}]     
 			} else {
 			    set totals_planned_hours_arr($column_ctr) $acc_hours     			    
 			}
 
 			# Set values to calculate totals for planned hours department 
 			if { [info exists totals_department_planned_hours_arr($column_ctr)] } {
-			    set totals_department_planned_hours_arr($column_ctr) [expr $totals_department_planned_hours_arr($column_ctr) + $acc_hours]     
+			    set totals_department_planned_hours_arr($column_ctr) [expr {$totals_department_planned_hours_arr($column_ctr) + $acc_hours}]     
 			} else {
 			    set totals_department_planned_hours_arr($column_ctr) $acc_hours
 			}
 			
 			# Accumulations planned hours user total  
 			if { "0" != $acc_hours } {
-			    set occupation_user_total [expr $occupation_user_total + $acc_hours]
+			    set occupation_user_total [expr {$occupation_user_total + $acc_hours}]
 			}
 			
 			# Accumulation absences 
 			if {[info exists absences_hash($absence_key)]} {
-			    set occupation_user [expr $occupation_user + $hours_per_absence * $availability_user_perc / 100]
-			    set occupation_user_total [expr $occupation_user_total + $occupation_user]
+			    set occupation_user [expr {$occupation_user + $hours_per_absence * $availability_user_perc / 100}]
+			    set occupation_user_total [expr {$occupation_user_total + $occupation_user}]
 			}
 
 			# Only if this row shows an employee, we add the number of hours
@@ -2208,18 +2207,18 @@ ad_proc -public im_resource_mgmt_resource_planning {
 
 			    if { ![info exists availability_user_perc] } { set availability_user_perc 100 }
 			    if { "" == $availability_user_perc } { set availability_user_perc 100 }
-			    set hours_availability_user [expr $hours_per_day_glob * $availability_user_perc / 100 ]
+			    set hours_availability_user [expr {$hours_per_day_glob * $availability_user_perc / 100 }]
 
 			    # Calculate company-total 
 			    if { [info exists totals_availability_arr($column_ctr)] } {
-				set totals_availability_arr($column_ctr) [expr $totals_availability_arr($column_ctr) + $hours_availability_user]
+				set totals_availability_arr($column_ctr) [expr {$totals_availability_arr($column_ctr) + $hours_availability_user}]
 			    } else {
 				set totals_availability_arr($column_ctr) $hours_availability_user
 			    }		    
 
 			    # Calculate Department-Total 
 			    if { [info exists totals_department_availability_arr($column_ctr)] } {
-				set totals_department_availability_arr($column_ctr) [expr $totals_department_availability_arr($column_ctr) + $hours_availability_user]
+				set totals_department_availability_arr($column_ctr) [expr {$totals_department_availability_arr($column_ctr) + $hours_availability_user}]
 			    } else {
 				set totals_department_availability_arr($column_ctr) $hours_availability_user
 			    }		    
@@ -2238,11 +2237,11 @@ ad_proc -public im_resource_mgmt_resource_planning {
 				    # Bar is composed of multiple bars  
 				    if { "0" != $acc_hours } { 
 		   		        # if absence exist, add hours of absence  
-					if {[info exists absences_hash($absence_key)]} { set acc_hours [expr $acc_hours + $hours_availability_user] }
+					if {[info exists absences_hash($absence_key)]} { set acc_hours [expr {$acc_hours + $hours_availability_user}] }
 					if { 0 == $hours_availability_user } {
 					    set bar_value 0
 					} else {
-					    set bar_value [expr 100*$acc_hours/$hours_availability_user]
+					    set bar_value [expr {100*$acc_hours/$hours_availability_user}]
 					}
 					set bar_color [im_resource_mgmt_get_bar_color "gradient" $bar_value]
 					append cell_html [im_resource_mgmt_resource_planning_cell "custom" $bar_value $bar_color "[format "%0.2f" $acc_hours][lang::message::lookup "" intranet-resource-management.HoursAbrv "h"]" "" 1]
@@ -2268,11 +2267,11 @@ ad_proc -public im_resource_mgmt_resource_planning {
 				    set hours_occupied_absence 0
 	                            if { [info exists absences_hash($absence_key)] } {
 					# There's an absence, calculate hours considering regular hours and employee availability 
-					set hours_occupied_absence [expr $hours_per_day_glob * $availability_user_perc / 100 ]
+					set hours_occupied_absence [expr {$hours_per_day_glob * $availability_user_perc / 100 }]
 				    } 
 				    
 				    # Total hours for absences and planned hours 
-				    set hours_occupied_total [expr $hours_occupied_absence + $acc_hours]
+				    set hours_occupied_total [expr {$hours_occupied_absence + $acc_hours}]
 	
 				    if { 0 == $hours_occupied_total } {
 				        set percent_hours_occupied 0				
@@ -2280,7 +2279,7 @@ ad_proc -public im_resource_mgmt_resource_planning {
 				         # Absences and planned hours are below the regular hours worked per day -> no availability 
 				         set percent_hours_occupied 100				    
 				    } else {
-				         set percent_hours_occupied [expr 100 * $hours_occupied_total / $hours_per_day_glob]				    
+				         set percent_hours_occupied [expr {100 * $hours_occupied_total / $hours_per_day_glob}]				    
 				    }    
 	
 	                            set bar_color [im_resource_mgmt_get_bar_color "traffic_light" $percent_hours_occupied]
@@ -2288,7 +2287,7 @@ ad_proc -public im_resource_mgmt_resource_planning {
 				    if { 0 == $hours_availability_user } {
                                         set perc_occupation_user_total 0
 				    } else {
-					set perc_occupation_user_total [expr 100 * $occupation_user_total / $hours_availability_user]
+					set perc_occupation_user_total [expr {100 * $occupation_user_total / $hours_availability_user}]
 				    }
 	                            append cell_html [im_resource_mgmt_resource_planning_cell "custom" $percent_hours_occupied $bar_color "$hours_occupied_total/$perc_occupation_user_total%" "" $limit_height]
 				}
@@ -2300,14 +2299,14 @@ ad_proc -public im_resource_mgmt_resource_planning {
 
 			# Set values to calculate totals for absences  
 			if { [info exists totals_absences_arr($column_ctr)] } {
-			    set totals_absences_arr($column_ctr) [expr $totals_absences_arr($column_ctr) + $occupation_user]     
+			    set totals_absences_arr($column_ctr) [expr {$totals_absences_arr($column_ctr) + $occupation_user}]     
 			} else {
 			    set totals_absences_arr($column_ctr) $occupation_user     			    
 			}
 
 			# Set values to calculate totals for absences department 
 			if { [info exists totals_department_absences_arr($column_ctr)] } {
-			    set totals_department_absences_arr($column_ctr) [expr $totals_department_absences_arr($column_ctr) + $occupation_user]     
+			    set totals_department_absences_arr($column_ctr) [expr {$totals_department_absences_arr($column_ctr) + $occupation_user}]     
 			} else {
 			    set totals_department_absences_arr($column_ctr) $occupation_user     			    
 			}
@@ -2521,13 +2520,13 @@ ad_proc -public im_resource_mgmt_resource_planning {
 	# Create Top Scale (Header)
 	# ------------------------------
 
-	for {set col 0} {$col <= [expr [llength $top_scale]-1]} { incr col } {
+	for {set col 0} {$col <= [expr {[llength $top_scale]-1}]} { incr col } {
 	    
 	    set scale_entry [lindex $top_scale $col]
 	    set scale_item [lindex $scale_entry $row]
 	    
 	    # Check if the previous item was of the same content
-	    set prev_scale_entry [lindex $top_scale [expr $col-1]]
+	    set prev_scale_entry [lindex $top_scale $col-1]
 	    set prev_scale_item [lindex $prev_scale_entry $row]
 
 	    # Check for the "sigma" sign. We want to display the sigma
@@ -2544,8 +2543,8 @@ ad_proc -public im_resource_mgmt_resource_planning {
 	    # This is the first entry of a new content.
 	    # Look forward to check if we can issue a "colspan" command
 	    set colspan 1
-	    set next_col [expr $col+1]
-	    while {$scale_item == [lindex [lindex $top_scale $next_col] $row]} {
+	    set next_col [expr {$col+1}]
+	    while {$scale_item == [lindex $top_scale $next_col $row]} {
 		incr next_col
 		incr colspan
 	    }
@@ -2563,7 +2562,7 @@ ad_proc -public im_resource_mgmt_resource_planning {
 	set col_l10n [lang::message::lookup "" "intranet-resource-management.Total" "Total"]
 	append header "<td class=rowtitle colspan=$left_scale_size align=right>$col_l10n</td>\n"
 
-	for {set col 0} {$col <= [expr [llength $top_scale]-1]} { incr col } {
+	for {set col 0} {$col <= [expr {[llength $top_scale]-1}]} { incr col } {
 	    # Check if column is a weekend 
 	    set julian_date [util_memoize [list im_date_components_to_julian $top_vars [lindex $top_scale $col]]]
 	    set day_of_week [util_memoize [list db_string dow "select extract(dow from to_date('$julian_date', 'J'))"]]
@@ -2599,8 +2598,8 @@ ad_proc -public im_resource_mgmt_resource_planning {
 		# set bar_chart [im_resource_mgmt_resource_planning_cell "custom" $val [im_resource_mgmt_get_bar_color $bar_type $val] "$val%" "" $limit_height ]
 
 		# Create bar chart 
-                set bar_color [im_resource_mgmt_get_bar_color "traffic_light" [expr $val - 100]]
-                set bar_chart [im_resource_mgmt_resource_planning_cell "custom" 0 $bar_color [expr 100-$val] "" $limit_height]
+                set bar_color [im_resource_mgmt_get_bar_color "traffic_light" [expr {$val - 100}]]
+                set bar_chart [im_resource_mgmt_resource_planning_cell "custom" 0 $bar_color [expr {100-$val}] "" $limit_height]
 
 	        append header "\t<td class='rowtitle' valign='bottom'>$bar_chart</td>\n"
         	# append header "\t<td class='rowtitle' valign='bottom'>$bar_chart<br>PH:$total_planned_hours<br>AB:$total_absences<br>AV:$total_availability</td>\n"
@@ -2831,7 +2830,7 @@ ad_proc -private write_department_row {
 	    set day_of_week [util_memoize [list db_string dow "select extract(dow from to_date('$julian_date', 'J'))"]]
 	    if {0 == $day_of_week} { set day_of_week 7 }
 	    if { "6" != $day_of_week && "7" != $day_of_week && "planned_hours" == $calculation_mode } {
-	            set total_department_occupancy [expr $totals_department_planned_hours_arr_loc($ctr) + $totals_department_absences_arr_loc($ctr)]
+	            set total_department_occupancy [expr {$totals_department_planned_hours_arr_loc($ctr) + $totals_department_absences_arr_loc($ctr)}]
 	            # Create bar showing availability
 	            if { 0 == $total_department_occupancy } {
 	                # no planned hours & no absences -> full availability
@@ -2840,13 +2839,13 @@ ad_proc -private write_department_row {
 	                append row_html "<td>[im_resource_mgmt_resource_planning_cell "custom" 0 $bar_color "0/0%" "" $limit_height]</td>\n"
 	            } else {
 	                # We have absences and planned hours -> Calculate availability
-	                set total_hours_department_occupancy [expr $totals_department_planned_hours_arr_loc($ctr) + $totals_department_absences_arr_loc($ctr)]
+	                set total_hours_department_occupancy [expr {$totals_department_planned_hours_arr_loc($ctr) + $totals_department_absences_arr_loc($ctr)}]
 	                set total_hours_department_occupancy_pretty [format "%0.1f" $total_hours_department_occupancy]
 
 			if {$totals_department_availability_arr_loc($ctr) eq 0} {
 			    set percentage_occupancy 0
 			} else {
-			    set percentage_occupancy [expr 100 * $total_hours_department_occupancy / $totals_department_availability_arr_loc($ctr)]
+			    set percentage_occupancy [expr {100 * $total_hours_department_occupancy / $totals_department_availability_arr_loc($ctr)}]
 			}
                         set percentage_occupancy [format "%0.1f" $percentage_occupancy]
 	                set bar_color [im_resource_mgmt_get_bar_color "traffic_light" $percentage_occupancy]

@@ -80,10 +80,10 @@ db_foreach employee_assignments $employee_assignments_sql {
     for {set i 0} {$i < $len} {incr i} {
 	set workday [lindex $workday_list $i]
 	if {100 != $workday} { continue }
-	set workday_sum [expr $workday_sum + $workday]
-	set absence_sum [expr $absence_sum + [lindex $absence_list $i]]
-	set billable_sum [expr $billable_sum + [lindex $billable_list $i]]
-	set nonbillable_sum [expr $nonbillable_sum + [lindex $nonbillable_list $i]]
+	set workday_sum [expr {$workday_sum + $workday}]
+	set absence_sum [expr {$absence_sum + [lindex $absence_list $i]}]
+	set billable_sum [expr {$billable_sum + [lindex $billable_list $i]}]
+	set nonbillable_sum [expr {$nonbillable_sum + [lindex $nonbillable_list $i]}]
     }
 }
 
@@ -98,11 +98,11 @@ multirow create mr name value
 if {0.0 == $workday_sum} {
     multirow append mr $invalid_data_l10n 1
 } else {
-    if {$billable_sum > 0} { multirow append mr $billable_l10n [expr 100.0 * $billable_sum / $workday_sum] }
-    if {$nonbillable_sum > 0} { multirow append mr $nonbillable_l10n [expr 100.0 * $nonbillable_sum / $workday_sum] }
-    if {$absence_sum > 0} { multirow append mr $absences_l10n [expr 100.0 * $absence_sum / $workday_sum] }
+    if {$billable_sum > 0} { multirow append mr $billable_l10n [expr {100.0 * $billable_sum / $workday_sum}] }
+    if {$nonbillable_sum > 0} { multirow append mr $nonbillable_l10n [expr {100.0 * $nonbillable_sum / $workday_sum}] }
+    if {$absence_sum > 0} { multirow append mr $absences_l10n [expr {100.0 * $absence_sum / $workday_sum}] }
 
-    set not_assigned_sum [expr 100.0 - 100.0 * $absence_sum / $workday_sum - 100.0 * $billable_sum / $workday_sum - 100.0 * $nonbillable_sum / $workday_sum]
+    set not_assigned_sum [expr {100.0 - 100.0 * $absence_sum / $workday_sum - 100.0 * $billable_sum / $workday_sum - 100.0 * $nonbillable_sum / $workday_sum}]
     if {$not_assigned_sum > 0} { multirow append mr $not_assigned_l10n $not_assigned_sum }
 }
 

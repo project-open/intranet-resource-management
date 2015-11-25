@@ -41,7 +41,7 @@ ad_page_contract {
 
 im_permission_flush
 
-set user_id [ad_maybe_redirect_for_registration]
+set user_id [auth::require_login]
 if {![im_permission $user_id "view_projects_all"]} {
     ad_return_complaint 1 "You don't have permissions to see this page"
     ad_script_abort
@@ -133,7 +133,7 @@ if {0} {
     "
 }
 
-if { [empty_string_p $customer_id] } {
+if { $customer_id eq "" } {
     set customer_id 0
 }
 
