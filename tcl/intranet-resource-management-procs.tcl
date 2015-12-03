@@ -1307,12 +1307,13 @@ ad_proc -public im_resource_mgmt_resource_planning {
 			    	set user_id [lindex $user_id_percentage_pair 0]
 				set user_percentage [lindex $user_id_percentage_pair 1]
 				set user_availability [lindex $user_id_percentage_pair 2]
+				if {"" eq $user_availability} { set user_availability 0 }
     			        # ----------------------------------------
 			        # calculate planned units for user:
 			        # ----------------------------------------
 			    	if { "0" == $total_user_percentages } {
 				       # No percentage assignments, distribute hours equaly over all members 
-				       set no_planned_hours_to_assign [expr [expr $planned_units + 0] / $number_of_users_on_task]
+				       set no_planned_hours_to_assign [expr $planned_units / $number_of_users_on_task]
 				       ns_log Notice "intranet-resource-management-procs: no-workdays - total_user_percentages=0 for user_id: $user_id, day:$days_julian,project_id:$project_id" 
 			    	} else {
 				       if { "0" == $user_percentage || "" == $user_percentage } {
@@ -1320,7 +1321,7 @@ ad_proc -public im_resource_mgmt_resource_planning {
 					    set no_planned_hours_to_assign 0 
 				       } else {
 				       	    # Calculate no_planned_hours based on percentage 	      
-					   set no_planned_hours_to_assign [expr [expr {$planned_units+0}] * $user_percentage / $total_user_percentages * ([expr {$user_availability+0}]/100.0)] 
+					   set no_planned_hours_to_assign [expr $planned_units * $user_percentage / $total_user_percentages * ($user_availability/100.0)] 
 				       }
 				}
 				ns_log Notice "intranet-resource-management-procs: 0 workdays::user_id:$user_id/day:$days_julian/project_id:$project_id -> hours to assign: $no_planned_hours_to_assign"
