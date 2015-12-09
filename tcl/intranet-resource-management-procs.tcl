@@ -1374,8 +1374,8 @@ ad_proc -public im_resource_mgmt_resource_planning {
 			ns_log Notice "intranet-resource-management-procs::task_with_no_parent:distribute-over-multiple-workdays::------------------------------- START: project_id:$project_id --------------------------------------"     
 			ns_log Notice "intranet-resource-management-procs::task_with_no_parent:distribute-over-multiple-workdays:: 
 					project_id:$project_id: no_workdays:$no_workdays, no of users: $user_ctr, user_percentage_list:$user_percentage_list,planned_units:$planned_units"
-			set planned_units [expr {$planned_units +0}]
-			set no_workdays [expr {$no_workdays +0}]
+			set planned_units [expr $planned_units+0]
+			set no_workdays [expr $no_workdays+0]
 
 		    	# if { [string first "." $planned_units] == -1 } { set planned_units $planned_units.0 }  
 		    	# if { [string first "." $no_workdays] == -1 } { set no_workdays $no_workdays.0 }  
