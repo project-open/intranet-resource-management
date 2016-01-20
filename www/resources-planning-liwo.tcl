@@ -316,7 +316,7 @@ set sub_navbar [im_sub_navbar \
 set left_navbar_html "
 	<div class='filter-block'>
         	<div class='filter-title'>
-	           #intranet-core.Filter_Projects#
+	           [_ intranet-core.Filter_Projects]
         	</div>
             	$filter_html
       	</div>
