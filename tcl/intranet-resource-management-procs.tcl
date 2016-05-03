@@ -18,6 +18,7 @@ ad_library {
 ad_proc -public im_resource_management_cost_centers {
     {-start_date ""}
     {-end_date ""}
+    {-limit_to_ccs_with_resources_p 1}
 } {
     Returns a Hash with the list of all cost_centers in the system
     with name and the "perpetually" available users (member of the 
@@ -26,25 +27,33 @@ ad_proc -public im_resource_management_cost_centers {
     # Variables of 
     set vars [im_rest_object_type_columns -include_acs_objects_p 0 -rest_otype "im_cost_center"]
 
+    set limit_to_ccs_with_data ""
+    if {$limit_to_ccs_with_resources_p} {
+	set limit_to_ccs_with_data "and av.availability_percent is not null"
+    }
+
     set cc_sql "
 	select	cc.cost_center_id as object_id,
 		cc.*,
-		t.availability_percent
-	from	im_cost_centers cc,
-		(select	e.department_id,
-			sum(e.availability) as availability_percent
-		from	im_employees e
-		where	e.employee_id in (
+		av.availability_percent
+	from	im_cost_centers cc
+		LEFT OUTER JOIN (
+			select	e.department_id,
+				sum(e.availability) as availability_percent
+			from	im_employees e
+			where	e.employee_id in (
 				select	r.object_id_two
 				from	acs_rels r,
 					membership_rels mr
 				where	r.rel_id = mr.rel_id and
 					r.object_id_one = -2 and
 					mr.member_state = 'approved'
-			)
-		group by	e.department_id
-		) t
-	where	t.department_id = cc.cost_center_id
+				)
+			group by e.department_id
+		) av ON cc.cost_center_id = av.department_id
+	where	1=1
+		$limit_to_ccs_with_data
+	order by cc.cost_center_code
     "
     db_foreach cost_centers $cc_sql {
 	array unset value_hash
