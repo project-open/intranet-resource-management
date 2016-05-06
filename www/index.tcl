@@ -20,6 +20,15 @@ set return_url [im_url_with_query]
 # Redirect to the main report
 # ad_returnredirect "/intranet-resource-management/resources-planning"
 
+
+# Variables for Portfolio Planner
+set report_start_date [db_string now "select now() from dual"]
+set report_end_date [db_string now "select now() + '2 years'::interval from dual"]
+set report_granularity "week"
+set report_project_type_id ""
+set report_program_id ""
+
+
 # ---------------------------------------------------------------
 # Sub-Navbar
 # ---------------------------------------------------------------
