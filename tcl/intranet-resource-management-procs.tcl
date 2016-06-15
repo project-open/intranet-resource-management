@@ -246,17 +246,19 @@ ad_proc -public im_date_julian_to_components { julian_date } {
     set ansi [dt_julian_to_ansi $julian_date]
     regexp {(....)-(..)-(..)} $ansi match year month_of_year day_of_month
 
-    # Trim zero for months JAN-SEPT
-    if { $month_of_year < 10  } { set month_of_year [string trim $month_of_year 0]}	
-
     set first_year_julian [dt_ansi_to_julian $year 1 1]
     set day_of_year [expr {$julian_date - $first_year_julian + 1}]
-    set quarter_of_year [expr {1 + int(($month_of_year-1) / 3)}]
-
     set week_of_year [util_memoize [list db_string dow "select to_char(to_date('$julian_date', 'J'),'IW')"]]
     set day_of_week [util_memoize [list db_string dow "select extract(dow from to_date('$julian_date', 'J'))"]]
     if {0 == $day_of_week} { set day_of_week 7 }
-   
+
+    # Trim zeros
+    if {"0" eq [string range $month_of_year 0 0]} { set month_of_year [string range $month_of_year 1 end] }
+    if {"0" eq [string range $week_of_year 0 0]} { set week_of_year [string range $week_of_year 1 end] }
+    if {"0" eq [string range $day_of_month 0 0]} { set day_of_month [string range $day_of_month 1 end] }
+
+    set quarter_of_year [expr {1 + int(($month_of_year-1) / 3)}]
+
     return [list year $year \
 		month_of_year $month_of_year \
 		day_of_month $day_of_month \
