@@ -199,35 +199,37 @@ ad_proc -public im_resource_mgmt_get_bar_color {
     mode
     val
 } {
-    - returns a color code considering package parameter etc. 
+    Returns a color code considering package parameter etc. 
 } {
+    if {"" eq $val} { set val 0 }
     # green: 33ff00; yellow: #FFFF00; red: #ff0000
 
-	switch $mode {
- 		"traffic_light" {
-			set bar_chart_color "\#33ff00"
-		        if { $val > 70 } { set bar_chart_color "\#FFFF00" }
-		        if { $val > 100 } { set bar_chart_color "\#ff0000" }
-		}
-		"gradient" {
-		    # http://stackoverflow.com/questions/340209/generate-colors-between-red-and-green-for-a-power-meter
-		    if { $val > 100 } { set val 100 }
-		    set val abs([expr {$val - 100}])		    
-		    set val [expr {$val / 100}]
-		    set h [expr {$val * 0.38}]
-		    set s 0.9 			
-    		    set b 0.9 			
-		    set bar_chart_color [hsv2hex $h $s $b]
-
-		    # fool extreme red & extreme green 
-		    if { $bar_chart_color == "#e61717" } {set bar_chart_color "#ff0000"}
-		    if { $bar_chart_color == "#17e651" } {set bar_chart_color "#33ff00"}
-
-		}
- 		default {
-			set bar_chart_color "\#666699"
-		}
+    switch $mode {
+	"traffic_light" {
+	    set bar_chart_color "\#33ff00"
+	    if { $val > 70 } { set bar_chart_color "\#FFFF00" }
+	    if { $val > 100 } { set bar_chart_color "\#ff0000" }
 	}
+	"gradient" {
+	    # http://stackoverflow.com/questions/340209/generate-colors-between-red-and-green-for-a-power-meter
+	    if { $val > 100 } { set val 100 }
+	    set val abs([expr {$val - 100}])		    
+	    set val [expr {$val / 100}]
+	    set h [expr {$val * 0.38}]
+	    set s 0.9 			
+	    set b 0.9 			
+	    set bar_chart_color [hsv2hex $h $s $b]
+
+	    # fool extreme red & extreme green 
+	    if { $bar_chart_color == "#e61717" } {set bar_chart_color "#ff0000"}
+	    if { $bar_chart_color == "#17e651" } {set bar_chart_color "#33ff00"}
+
+	}
+	default {
+	    set bar_chart_color "\#666699"
+	}
+    }
+
     return $bar_chart_color
 }
 
