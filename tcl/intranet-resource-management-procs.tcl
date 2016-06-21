@@ -201,7 +201,7 @@ ad_proc -public im_resource_mgmt_get_bar_color {
 } {
     Returns a color code considering package parameter etc. 
 } {
-    if {"" eq $val} { set val 0 }
+    if {![string is double $val]} { set val 0 }
     # green: 33ff00; yellow: #FFFF00; red: #ff0000
 
     switch $mode {
@@ -213,7 +213,7 @@ ad_proc -public im_resource_mgmt_get_bar_color {
 	"gradient" {
 	    # http://stackoverflow.com/questions/340209/generate-colors-between-red-and-green-for-a-power-meter
 	    if { $val > 100 } { set val 100 }
-	    set val abs([expr {$val - 100}])		    
+	    set val [expr abs($val - 100)]
 	    set val [expr {$val / 100}]
 	    set h [expr {$val * 0.38}]
 	    set s 0.9 			
