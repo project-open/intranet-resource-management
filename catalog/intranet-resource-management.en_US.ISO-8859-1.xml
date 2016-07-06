@@ -1,5 +1,8 @@
 <?xml version="1.0" encoding="ISO-8859-1"?>
 <message_catalog package_key="intranet-resource-management" locale="en_US" charset="ISO-8859-1">
 
+  <msg key="Home">Home</msg>
+  <msg key="Planning_Granularity">Planning Granularity</msg>
+  <msg key="Resource_Assignation__">Resource Assignation %</msg>
   <msg key="Resource_Management_Home">Resource Management Home</msg>
 </message_catalog>
