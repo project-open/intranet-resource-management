@@ -90,7 +90,7 @@ if {0 == $end_date || "" == $end_date} {
 # ------------------------------------------------------------
 # Contents
 
-set html [im_resource_mgmt_resource_planning \
+set html [im_resource_mgmt_resource_planning_percentage \
 	-start_date $start_date \
 	-end_date $end_date \
 	-top_vars $top_vars \
@@ -150,15 +150,12 @@ if {0} {
 if {1} {
     # Not yet supported: "year quarter_of_year", "Quarter"
     set top_var_options {
-	"year week_of_year day_of_week"
-	"Week and Day"
-	"year month_of_year day_of_month"
-	"Month and Day"
-	"year week_of_year"
-	"Week"
-	"year month_of_year"
-	"Month"
+	"year week_of_year day_of_week"		"Week and Day"
+	"year month_of_year day_of_month"	"Month and Day"
+	"year week_of_year"			"Week"
     }
+#	"year month_of_year"			"Month"
+
     append filter_html "
   <tr>
     <td class=form-label>[lang::message::lookup "" intranet-ganttproject.Top_Scale "Top Scale"]:</td>
