@@ -91,19 +91,17 @@ if {0 == $end_date || "" == $end_date} {
 # Contents
 
 set html [im_resource_mgmt_resource_planning_percentage \
-	-start_date $start_date \
-	-end_date $end_date \
+	-report_start_date $start_date \
+	-report_end_date $end_date \
 	-top_vars $top_vars \
-	-project_id $project_id \
-	-project_status_id $project_status_id \
-	-project_type_id $project_type_id \
-	-customer_id $customer_id \
-	-employee_cost_center_id $employee_cost_center_id \
-	-zoom $zoom \
-	-max_col $max_col \
-	-max_row $max_row \
+	-report_project_id $project_id \
+	-report_project_status_id $project_status_id \
+	-report_project_type_id $project_type_id \
+	-report_customer_id $customer_id \
+	-report_employee_cost_center_id $employee_cost_center_id \
 	-show_all_employees_p $show_all_employees_p \
-	-excluded_group_ids ""
+	-excluded_group_ids "" \
+	-page_url "/intranet-resource-management/resources-planning" \
 ]
 
 if {"" == $html} { 
