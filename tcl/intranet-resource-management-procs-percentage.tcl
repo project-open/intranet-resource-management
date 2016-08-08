@@ -276,10 +276,6 @@ ad_proc -public im_resource_mgmt_resource_planning_percentage {
 			u.user_id
     "
     db_foreach hierarchy $assignment_sql {
-	# Store the actual assignment
-	set key "$project_id-$user_id"
-	set assignment_hash($key) $percentage
-
 	# Calculate the list of children of each object
 	set children []
 	if {[info exists object_children_hash($parent_id)]} { set children $object_children_hash($parent_id) }
@@ -296,6 +292,13 @@ ad_proc -public im_resource_mgmt_resource_planning_percentage {
 	set main_project_hash($main_project_id) $main_project_id
 	set user_hash($user_id) $user_id
 	set object_availability_hash($project_id) ""
+
+	# Store the actual assignment
+	for {set j $child_start_julian} {$j < $child_end_julian} {incr j} {
+	    set key "$j-$project_id-$user_id"
+	    set assignment_hash($key) $percentage
+	}
+
     }
     set clicks([clock clicks -microseconds]) hierarchy
 
@@ -437,12 +440,13 @@ ad_proc -public im_resource_mgmt_resource_planning_percentage {
     # Check consistency: every parent should also include the assignments of it's children
     foreach key [array names assignment_hash] {
 	set tuple [split $key "-"]
-	set project_id [lindex $tuple 0]
-	set user_id [lindex $tuple 1]
+	set j [lindex $tuple 0]
+	set project_id [lindex $tuple 1]
+	set user_id [lindex $tuple 2]
 	set parent_id $project_parent_hash($project_id)
 	if {"" eq $parent_id} { continue }
 
-	set parent_key "$parent_id-$user_id"
+	set parent_key "$j-$parent_id-$user_id"
 	if {![info exists assignment_hash($parent_key)]} {
 	    append err_protocol "<li>Found a child project with more assignments that it's parent:<br>
             Project: #$project_id, parent: #$parent_id, user: $user_id"
@@ -457,29 +461,41 @@ ad_proc -public im_resource_mgmt_resource_planning_percentage {
     db_foreach aggregate_loop $assignment_sql {
 	# We get the rows ordered by tree_sortkey with main projects before their children.
 	# So we can directly aggregate along the hierarcy.
-	set pid $parent_id
-	while {"" ne $pid} {
-	    set key "$pid-$user_id"
-	    set assignment_hash($key) [expr $assignment_hash($key) + $percentage]
-	    set pid $project_parent_hash($pid)
-	}
 
-	# Aggregate per user
-	set key $user_id
-	set perc 0
-	if {[info exists assignment_hash($key)]} { set perc $assignment_hash($key) }
-	set assignment_hash($key) [expr $perc + $percentage]
+	# Store the actual assignment information
+	set key "$project_id-$user_id"
+	set project_user_assignment_hash($key) $percentage
 
-	# Aggregate per cost center
-	set department_id $user_department_hash($user_id)
-	set cnt 0
-	while {"" ne $department_id} {
-	    set perc 0
-	    if {[info exists assignment_hash($department_id)]} { set perc $assignment_hash($department_id) }
-	    set assignment_hash($department_id) [expr $perc + $percentage]
-	    set department_id $cc_parent_hash($department_id)
-	    incr cnt
-	    if {$cnt > 20} { ad_return_complaint 1 "Percentage report:<br>Infinite loop in dept matrix aggregation" }
+	# Aggregate assignments through the hierarchy per julian
+	for {set j $child_start_julian} {$j < $child_end_julian} {incr j} {
+
+	    set pid $parent_id
+	    while {"" ne $pid} {
+		set key "$j-$pid-$user_id"
+		set v 0
+		if {[info exists assignment_hash($key)]} { set v $assignment_hash($key) }
+		set assignment_hash($key) [expr $v + $percentage]
+		set pid $project_parent_hash($pid)
+	    
+		# Aggregate per user
+		set key "$j-$user_id"
+		set perc 0
+		if {[info exists assignment_hash($key)]} { set perc $assignment_hash($key) }
+		set assignment_hash($key) [expr $perc + $percentage]
+	    
+		# Aggregate per cost center
+		set department_id $user_department_hash($user_id)
+		set cnt 0
+		while {"" ne $department_id} {
+		    set key "$j-$department_id"
+		    set perc 0
+		    if {[info exists assignment_hash($key)]} { set perc $assignment_hash($key) }
+		    set assignment_hash($key) [expr $perc + $percentage]
+		    set department_id $cc_parent_hash($department_id)
+		    incr cnt
+		    if {$cnt > 20} { ad_return_complaint 1 "Percentage report:<br>Infinite loop in dept matrix aggregation" }
+		}
+	    }
 	}
     }
     set clicks([clock clicks -microseconds]) aggregate
@@ -497,14 +513,14 @@ ad_proc -public im_resource_mgmt_resource_planning_percentage {
     # - The leaf task
     #
     set left_dimension {}
-    foreach key [array names assignment_hash] {
+    foreach key [array names project_user_assignment_hash] {
 
 	set tuple [split $key "-"]
 	set project_id [lindex $tuple 0]
 	set user_id [lindex $tuple 1]
 	if {"" ne $user_id} {
 
-	    # Found a standard assignment: $project_id-$user_id: Calculate parent_list
+	    # Found a standard assignment: $j-$project_id-$user_id: Calculate parent_list
 	    set parent_list [list $project_id]
 	    set pid $project_parent_hash($project_id)
 	    while {"" ne $pid} {
@@ -600,7 +616,8 @@ ad_proc -public im_resource_mgmt_resource_planning_percentage {
     # Determine how many date rows (year, month, day, ...) we've got
     set first_cell [lindex $top_scale 0]
     set top_scale_rows [llength $first_cell]
-    set left_scale_size [llength [lindex $left_vars 0]]
+    # set left_scale_size [llength [lindex $left_vars 0]]
+    set left_scale_size 2; # just one col for object + one col for percentage
 
     ns_log Notice "percentage-report: top_scale=$top_scale"
     set clicks([clock clicks -microseconds]) top_scale
@@ -622,6 +639,18 @@ ad_proc -public im_resource_mgmt_resource_planning_percentage {
 	set object_id [lindex $left_entry end]
 	set object_type $object_type_hash($object_id)
 
+	# Extract project_id and user_id (if part of the left_entry...)
+	set project_id ""
+	set user_id ""
+	for {set i [expr [llength $left_entry]-1]} {$i > 0} {incr i -1} {
+	    set oid [lindex $left_entry $i]
+	    set otype $object_type_hash($oid)
+	    if {"im_project" eq $otype && "" eq $project_id} { set project_id $oid }
+	    if {"user" eq $otype && "" eq $user_id} { set user_id $oid }
+	}
+
+	# ToDo: extract user_id and project_id from left_entry
+
 	# Display +/- logic
 	set closed_p "c"
 	if {[info exists collapse_hash($object_id)]} { set closed_p $collapse_hash($object_id) }
@@ -641,7 +670,7 @@ ad_proc -public im_resource_mgmt_resource_planning_percentage {
 	if {!$object_has_children_p} { set collapse_html [util_memoize [list im_gif cleardot "" 0 9 9]] }
 
 	# Create cell
-	set indent_level [llength $left_entry]
+	set indent_level [expr [llength $left_entry] - 1]
 	set object_name $object_name_hash($object_id)
 	set object_url $url_hash($object_type)
 	set cell_html "$collapse_html $gif_hash($object_type) <a href='$object_url$object_id'>$object_name</a>"
@@ -669,7 +698,7 @@ ad_proc -public im_resource_mgmt_resource_planning_percentage {
 	    if {[info exists weekend_hash($j)]} {
 		append list_of_absences $weekend_hash($j)
 	    }
-	    set absence_key "$j-$user_id"
+	    set absence_key "$j-$object_id"
 	    if {[info exists absences_hash($absence_key)]} {
 		append list_of_absences $absences_hash($absence_key)
 	    }
@@ -681,7 +710,11 @@ ad_proc -public im_resource_mgmt_resource_planning_percentage {
 	    }
 	    
 	    # Check the percentage assignment
-	    set cell_html "x"
+	    set cell_html ""
+	    set key "$j-$object_id"
+	    if {[info exists assignment_hash($key)]} { append cell_html $assignment_hash($key) }
+	    set key "$j-$project_id-$user_id"
+	    if {[info exists assignment_hash($key)]} { append cell_html $assignment_hash($key) }
 
 	    append row_html "<td $col_attrib>$cell_html</td>\n"
 	}
