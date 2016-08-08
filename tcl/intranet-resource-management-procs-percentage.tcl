@@ -66,7 +66,7 @@ ad_proc -public im_resource_mgmt_resource_planning_percentage {
     set sigma "&Sigma;"
     set current_user_id [ad_conn user_id]
     set return_url [im_url_with_query]
-    set clicks([clock clicks -milliseconds]) null
+    set clicks([clock clicks -microseconds]) null
 
     # The list of users/projects opened already
     set user_name_link_opened {}
@@ -189,7 +189,7 @@ ad_proc -public im_resource_mgmt_resource_planning_percentage {
     db_foreach collapse $collapse_sql {
 	set collapse_hash($object_id) $open_p
     }
-    set clicks([clock clicks -milliseconds]) init
+    set clicks([clock clicks -microseconds]) init
 
 
     # ------------------------------------------------------------
@@ -209,7 +209,7 @@ ad_proc -public im_resource_mgmt_resource_planning_percentage {
 	# Start of Week Julian
 	set start_of_week_julian_hash($i) [expr $i - $dow]
     }
-    set clicks([clock clicks -milliseconds]) weekends
+    set clicks([clock clicks -microseconds]) weekends
 
 
     # ------------------------------------------------------------
@@ -220,7 +220,7 @@ ad_proc -public im_resource_mgmt_resource_planning_percentage {
 				 -report_end_date $report_end_date \
 				 -weekend_list [array get weekend_hash] \
     ]
-    set clicks([clock clicks -milliseconds]) absences
+    set clicks([clock clicks -microseconds]) absences
 
 
 
@@ -256,6 +256,20 @@ ad_proc -public im_resource_mgmt_resource_planning_percentage {
 			and r.rel_id = m.rel_id
 			and r.object_id_one = child.project_id
 			and r.object_id_two = u.user_id
+			and u.user_id not in (		-- only active natural persons
+				select member_id
+				from   group_distinct_member_map
+				where  group_id = [im_profile_skill_profile]
+			   UNION
+				select	u.user_id
+				from	users u,
+					acs_rels r,
+					membership_rels mr
+				where	r.rel_id = mr.rel_id and
+					r.object_id_two = u.user_id and
+					r.object_id_one = -2 and
+					mr.member_state != 'approved'
+			)
 			$where_clause
 		order by
 			child.tree_sortkey,
@@ -281,48 +295,100 @@ ad_proc -public im_resource_mgmt_resource_planning_percentage {
 	set project_level_hash($project_id) $level
 	set main_project_hash($main_project_id) $main_project_id
 	set user_hash($user_id) $user_id
+	set object_availability_hash($project_id) ""
     }
-    set clicks([clock clicks -milliseconds]) hierarchy
+    set clicks([clock clicks -microseconds]) hierarchy
+
+    # --------------------------------------------
+    ns_log Notice "percentage-report: Cost center information"
+    #
+    set cc_sql "
+	select	cc.*,
+		round(length(cc.cost_center_code) / 2) as indent_level,
+		coalesce((select sum(coalesce(e.availability, 0))
+		from	im_employees e
+		where	e.department_id = cc.cost_center_id and
+			e.employee_id not in (		-- only active natural persons
+				select member_id
+				from   group_distinct_member_map
+				where  group_id = [im_profile_skill_profile]
+			   UNION
+				select	u.user_id
+				from	users u,
+					acs_rels r,
+					membership_rels mr
+				where	r.rel_id = mr.rel_id and
+					r.object_id_two = u.user_id and
+					r.object_id_one = -2 and
+					mr.member_state != 'approved'
+			)
+		), 0) as resources_available_percent
+	from	im_cost_centers cc
+	where	1 = 1
+	order by cc.cost_center_code
+    "
+    db_foreach ccs $cc_sql {
+	set cc_parent_hash($cost_center_id) $parent_id
+	set cc_indent_hash $indent_level
+	set object_type_hash($cost_center_id) "im_cost_center"
+	set object_name_hash($cost_center_id) $cost_center_name
+
+	# Aggregate resources upward
+	set object_availability_hash($cost_center_id) $resources_available_percent
+	set parent_cc_id $parent_id
+	set cnt 0
+	while {"" ne $parent_cc_id} {
+	    set val $object_availability_hash($parent_cc_id)
+	    set val [expr $val + $resources_available_percent]
+	    set object_availability_hash($parent_cc_id) $val
+	    set parent_cc_id $cc_parent_hash($parent_cc_id)
+	    incr cnt
+	    if {$cnt > 20} { ad_return_complaint 1 "Percentage Report:<br>Infinite loop in dept aggregation" }
+	}
+    }
+    set clicks([clock clicks -microseconds]) department_hierarchy
 
 
-    # Get mame and department information about users.
+    # --------------------------------------------
+    ns_log Notice "percentage-report: User department information"
+    #
     set user_hash(0) 0
     set user_info_sql "
 	select	u.user_id,
-		e.department_id,
+		coalesce(e.department_id, :default_department) as department_id,
 		coalesce(e.availability, 100) as availability,
-		im_name_from_user_id(u.user_id) as user_name,
-		im_cost_center_name_from_id(e.department_id) as department_name
+		im_name_from_user_id(u.user_id) as user_name
 	from	users u
 		LEFT OUTER JOIN im_employees e ON (u.user_id = e.employee_id)
-	where	1 = 1
+	where	u.user_id not in (	     -- only natural active persons
+				select member_id
+				from   group_distinct_member_map
+				where  group_id = [im_profile_skill_profile]
+			   UNION
+				select	u.user_id
+				from	users u,
+					acs_rels r,
+					membership_rels mr
+				where	r.rel_id = mr.rel_id and
+					r.object_id_two = u.user_id and
+					r.object_id_one = -2 and
+					mr.member_state != 'approved'
+		)
     "
     if {1 eq $show_all_employees_p} {
 	append user_info_sql "and (u.user_id in (select member_id from group_distinct_member_map where group_id = [im_profile_employees])
                 OR u.user_id in ([join [array names user_hash] ","]))
         " 
-	append user_info_sql "and u.user_id not in (
-			select	u.user_id
-			from	users u,
-				acs_rels r,
-				membership_rels mr
-			where	r.rel_id = mr.rel_id and
-				r.object_id_two = u.user_id and
-				r.object_id_one = -2 and
-				mr.member_state != 'approved'
-        )"
     } else {
 	append user_info_sql "and u.user_id in ([join [array names user_hash] ","])" 
     }
     db_foreach user_info $user_info_sql {
 	set object_name_hash($user_id) $user_name
 	set object_type_hash($user_id) "user"
-	set object_name_hash($department_id) $department_name
-	set object_type_hash($department_id) "im_cost_center"
 	set user_department_hash($user_id) $department_id
-	set user_availability_hash($user_id) $availability
+	set object_availability_hash($user_id) $availability
     }
-    set clicks([clock clicks -milliseconds]) user_info
+    set clicks([clock clicks -microseconds]) user_info
 
     
     # ------------------------------------------------------------
@@ -382,13 +448,13 @@ ad_proc -public im_resource_mgmt_resource_planning_percentage {
             Project: #$project_id, parent: #$parent_id, user: $user_id"
 	}
     }
-    set clicks([clock clicks -milliseconds]) consistency
+    set clicks([clock clicks -microseconds]) consistency
 
 
     # ------------------------------------------------------------
     ns_log Notice "percentage-report: Aggregate percentage assignments up the project hierarchy"
     #
-    db_foreach aggregate $assignment_sql {
+    db_foreach aggregate_loop $assignment_sql {
 	# We get the rows ordered by tree_sortkey with main projects before their children.
 	# So we can directly aggregate along the hierarcy.
 	set pid $parent_id
@@ -398,20 +464,25 @@ ad_proc -public im_resource_mgmt_resource_planning_percentage {
 	    set pid $project_parent_hash($pid)
 	}
 
-	# After aggregating to the project hierarchy, we also need to aggregate per user and department
-	set department_id $user_department_hash($user_id)
-
+	# Aggregate per user
 	set key $user_id
 	set perc 0
 	if {[info exists assignment_hash($key)]} { set perc $assignment_hash($key) }
 	set assignment_hash($key) [expr $perc + $percentage]
 
-	set key $department_id
-	set perc 0
-	if {[info exists assignment_hash($key)]} { set perc $assignment_hash($key) }
-	set assignment_hash($key) [expr $perc + $percentage]
+	# Aggregate per cost center
+	set department_id $user_department_hash($user_id)
+	set cnt 0
+	while {"" ne $department_id} {
+	    set perc 0
+	    if {[info exists assignment_hash($department_id)]} { set perc $assignment_hash($department_id) }
+	    set assignment_hash($department_id) [expr $perc + $percentage]
+	    set department_id $cc_parent_hash($department_id)
+	    incr cnt
+	    if {$cnt > 20} { ad_return_complaint 1 "Percentage report:<br>Infinite loop in dept matrix aggregation" }
+	}
     }
-    set clicks([clock clicks -milliseconds]) aggregate
+    set clicks([clock clicks -microseconds]) aggregate
 
 
     # ------------------------------------------------------------------
@@ -433,7 +504,7 @@ ad_proc -public im_resource_mgmt_resource_planning_percentage {
 	set user_id [lindex $tuple 1]
 	if {"" ne $user_id} {
 
-	    # Standard key: $project_id-$user_id: Calculate parent_list
+	    # Found a standard assignment: $project_id-$user_id: Calculate parent_list
 	    set parent_list [list $project_id]
 	    set pid $project_parent_hash($project_id)
 	    while {"" ne $pid} {
@@ -442,38 +513,62 @@ ad_proc -public im_resource_mgmt_resource_planning_percentage {
 	    }
 	    
 	    lappend parent_list $user_id
-	    lappend parent_list $user_department_hash($user_id)
-	    set parent_list [lreverse $parent_list]
-	    lappend left_dimension $parent_list
+	    set cc_id $user_department_hash($user_id)
+
 	} else {
-	    # Special case: We've found either a user_id or a cc_id
+
+	    continue
+
+	    # Found a special assignment: Either a user_id or a cc_id
 	    set otype $object_type_hash($project_id)
 	    switch $otype {
 		"user" {
 		    set user_id $project_id
 		    set department_id $user_department_hash($user_id)
-		    lappend left_dimension [list $department_id $user_id]
+		    set parent_list [list $user_id]
+		    set cc_id $department_id
 		}
 		"im_cost_center" {
 		    set cc_id $project_id
-		    lappend left_dimension [list $cc_id]
 		}
 		default {
 		    ad_return_complaint 1 "Found a single-object assignment that is neither user nor cc"
 		}
 	    }
-	    continue
 	}
+
+	# Append the CC parents before adding to the left dimension. $cc_id was set above.
+	while {"" ne $cc_id} {
+	    lappend parent_list $cc_id
+	    set cc_id $cc_parent_hash($cc_id)
+	}
+	set parent_list [lreverse $parent_list]
+	lappend left_dimension $parent_list
+
     }
-    set left_dimension [qsort $left_dimension]
-    set clicks([clock clicks -milliseconds]) left_dimension
+    set clicks([clock clicks -microseconds]) left_dimension
+    # ad_return_complaint 1 "<pre>[join $left_dimension "\n"]</pre>"
+
+    # Sort the left dimension
+    set left_dimension_sorted [im_resource_management_sort_left_dimension \
+				   -lol $left_dimension \
+				   -object_type_list [array get object_type_hash]]
+    set clicks([clock clicks -microseconds]) sorted_left_dimension
+    # ad_return_complaint 1 "<pre>[join $left_dimension_sorted "\n"]</pre>"
+
+    # "Smoothen" the left dimension, in order to create "stairs" to each objects
+    # composed by it's super-objects
+    set left_dimension_smooth [im_resource_management_smoothen_left_dimension \
+				   -lol $left_dimension_sorted]
+    set clicks([clock clicks -microseconds]) smooth_left_scale
+    # ad_return_complaint 1 "<pre>[join $left_dimension_smooth "\n"]</pre>"
 
 
-    # ToDo: Eliminate "closed" elements of the dimension to build scale
-    set left_scale $left_dimension
-    set clicks([clock clicks -milliseconds]) left_scale
-#    ad_return_complaint 1 "<pre>[join $left_scale "\n"]</pre>"
-
+    # "Close" the left_dimension, according to user open/close actions
+    set left_scale_closed $left_dimension_smooth
+    set clicks([clock clicks -microseconds]) closed_left_scale
+    # ad_return_complaint 1 "<pre>[join $left_scale_closed "\n"]</pre>"
+    set left_scale $left_scale_closed
 
     # --------------------------------------------------
     ns_log Notice "percentage-report: Top Scale"
@@ -508,7 +603,7 @@ ad_proc -public im_resource_mgmt_resource_planning_percentage {
     set left_scale_size [llength [lindex $left_vars 0]]
 
     ns_log Notice "percentage-report: top_scale=$top_scale"
-    set clicks([clock clicks -milliseconds]) top_scale
+    set clicks([clock clicks -microseconds]) top_scale
 
 
     # -------------------------------------------------------------------------------------------
@@ -522,7 +617,6 @@ ad_proc -public im_resource_mgmt_resource_planning_percentage {
 	ns_log Notice "percentage-report: Write out table: left_entry=$left_entry"
 	# example for left scale: {dept_id user_id main_pid ... pid}
 	# {{12356} {12356 8858} {12356 8858 37450} {12356 8858 37450 37453} ...}
-
 
 	set row_html ""
 	set object_id [lindex $left_entry end]
@@ -543,8 +637,9 @@ ad_proc -public im_resource_mgmt_resource_planning_percentage {
 	if {[info exists object_children_hash($object_id)]} {
 	    set object_has_children_p [llength $object_children_hash($object_id)]
 	}
+	set object_has_children_p 1; # !!!
 	if {!$object_has_children_p} { set collapse_html [util_memoize [list im_gif cleardot "" 0 9 9]] }
-	
+
 	# Create cell
 	set indent_level [llength $left_entry]
 	set object_name $object_name_hash($object_id)
@@ -559,6 +654,9 @@ ad_proc -public im_resource_mgmt_resource_planning_percentage {
 	append row_html "<tr class=$class valign=bottom>\n"
 	append row_html "<td><nobr>$indent_html$cell_html</nobr></td>\n"
 
+	set avail $object_availability_hash($object_id)
+	if {"" ne $avail} { append avail "%" }
+	append row_html "<td>$avail</td>\n"
 
 	# ------------------------------------------------------------
 	ns_log Notice "percentage-report: Start writing out the matrix elements"
@@ -592,6 +690,7 @@ ad_proc -public im_resource_mgmt_resource_planning_percentage {
 	append matrix_html $row_html
 	incr row_ctr
     }
+    set clicks([clock clicks -microseconds]) write_matrix
 
 
     # ---------------------------------------------------------------------
@@ -645,27 +744,7 @@ ad_proc -public im_resource_mgmt_resource_planning_percentage {
 	}
 	append header_html "</tr>\n"
     }
-
-    # ------------------------------------------------------------
-    ns_log Notice "percentage-report: Profiling HTML"
-    #
-    set profiling_html ""
-    if {$debug_p} {
-	set profiling_html "<br>&nbsp;<br><table>\n"
-	set last_click 0
-	foreach click [lsort -integer [array names clicks]] {
-	    if {0 == $last_click} { 
-		set last_click $click 
-		set first_click $click
-	    }
-	    append profiling_html "<tr><td>$click</td><td>$clicks($click)</td><td>[expr ($click - $last_click) / 1000.0]</td></tr>\n"
-	    set last_click $click
-	}
-	append profiling_html "<tr><td> </td><td><b>Total</b></td><td>[expr ($last_click - $first_click) / 1000.0]</td></tr>\n"
-	append profiling_html "<tr><td colspan=3>&nbsp;</tr>\n"
-	append profiling_html "</table>\n"
-    }
-
+    set clicks([clock clicks -microseconds]) write_header
 
     # ------------------------------------------------------------
     # Close the table
@@ -684,13 +763,32 @@ ad_proc -public im_resource_mgmt_resource_planning_percentage {
     }
 
     append html $err_protocol
-    append html $profiling_html
-    set clicks([clock clicks -milliseconds]) close_table
+    set clicks([clock clicks -microseconds]) close_table
 
+
+    # ------------------------------------------------------------
+    ns_log Notice "percentage-report: Profiling HTML"
+    #
+    set profiling_html ""
+    if {$debug_p} {
+	set profiling_html "<br>&nbsp;<br><table>\n"
+	set last_click 0
+	foreach click [lsort -integer [array names clicks]] {
+	    if {0 == $last_click} { 
+		set last_click $click 
+		set first_click $click
+	    }
+	    append profiling_html "<tr><td>$click</td><td>$clicks($click)</td><td align=right>[expr ($click - $last_click) / 1000.0]</td></tr>\n"
+	    set last_click $click
+	}
+	append profiling_html "<tr><td> </td><td><b>Total</b></td><td align=right>[expr ($last_click - $first_click) / 1000.0]</td></tr>\n"
+	append profiling_html "<tr><td colspan=3>&nbsp;</tr>\n"
+	append profiling_html "</table>\n"
+    }
+
+    append html $profiling_html
     return $html
 }
-
-
 
 
 
@@ -753,3 +851,105 @@ ad_proc -public im_resource_mgmt_resource_planning_percentage_absences {
     return [array get absences_hash]
 }
 
+
+
+ad_proc -public im_resource_management_sort_left_dimension {
+    -lol
+    -object_type_list
+} {
+    Expects a list-of-lists composed of integer values representing 
+    cost centers, users, projects and tasks.
+    Returns the lol sorted according to the type of the objects in 
+    order: ccs, users, projects, tasks.
+} {
+    ns_log Notice "sort_left_dimension: lol=$lol"
+    array set object_type_hash $object_type_list
+    # ad_return_complaint 1 "<pre>[join $lol "\n"]</pre>"
+
+    # Go through the list-of-lists and add a prefix according to the object type.
+    # This way object type will take precedence over the object_id.
+    set otype_lol [list]
+
+    # Add a prefix to each object_id according to the object type
+    foreach l $lol {
+	set otype_l [list]
+	foreach oid $l {
+	    set otype $object_type_hash($oid)
+	    switch $otype {
+		user              { set i [expr 10000000 + $oid] }
+		im_cost_center    { set i [expr 20000000 + $oid] }
+		im_project        { set i [expr 30000000 + $oid] }
+		defalt            { ad_return_complaint 1 "im_resource_management_sort_left_dimension: unknown object type: '$otype'" }
+	    }
+	    lappend otype_l $i
+	}
+	lappend otype_lol $otype_l
+    }
+    # ad_return_complaint 1 "<pre>[join $otype_lol "\n"]</pre>"
+
+    # Use a plain string sort on the object_ids that have all the 
+    # same length and a prefix according to their object type
+    set otype_lol_sorted [qsort $otype_lol]
+    # ad_return_complaint 1 $otype_lol
+
+    # Remove the prefixes in order to restore the normal list
+    set lol [list]
+    foreach otype_l $otype_lol_sorted {
+	set l [list]
+	foreach otype_oid $otype_l {
+	    set oid [expr $otype_oid % 10000000]
+	    lappend l $oid
+	}
+	lappend lol $l
+    }
+
+#    ad_return_complaint 1 "<pre>[join $lol "\n"]</pre>"
+
+    return $lol
+}
+
+
+
+
+
+ad_proc -public im_resource_management_smoothen_left_dimension {
+    -lol
+} {
+    Expects a list-of-lists composed of integer values representing 
+    cost centers, users, projects and tasks. However, this list just
+    contains the final fine-grain assignments.
+    This procedure adds missing intermediate objects so that every
+    assignment is preceded by the hierarchy object CCs and other
+    objects leading to it.
+} {
+    ns_log Notice "sort_left_dimension: lol=$lol"
+    set result [list]
+    set last_l [list]
+    foreach l $lol {
+	ns_log Notice "smoothen_left_dimension: "
+	ns_log Notice "smoothen_left_dimension: l=$l: last_l=$last_l"
+
+	# Calculate the common part of l and last_l
+	set last_idx [llength $l]
+	set a [lrange $l 0 $last_idx]
+	set b [lrange $last_l 0 $last_idx]
+	while {$a ne $b && $last_idx > 0} {
+	    incr last_idx -1
+	    set a [lrange $l 0 $last_idx]
+	    set b [lrange $last_l 0 $last_idx]
+	}
+	set last_l $b
+	ns_log Notice "smoothen_left_dimension: l=$l: last_l=$last_l, idx=$last_idx, last_l=$last_l"
+
+	# Now add lines in order to get from last_l to l in "steps" of one object each.
+	# last_l has already been part of result, so we don't need to include it again.
+	while {[llength $last_l] < [llength $l]} {
+	    lappend last_l [lindex $l [llength $last_l]]
+	    lappend result $last_l
+	    ns_log Notice "smoothen_left_dimension: l=$l, last_l=$last_l: adding"
+	}
+	# Now last_l should be identical to l
+    }
+
+    return $result
+}
