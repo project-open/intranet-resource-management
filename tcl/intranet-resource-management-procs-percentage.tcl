@@ -35,7 +35,7 @@ ad_proc -public im_resource_mgmt_resource_planning_percentage {
     {-excluded_group_ids "" }
     {-return_url ""}
     {-page_url:required}
-    {-debug:boolean}
+    {-debug_p 1}
 } {
     Creates Resource Report 
 
@@ -51,7 +51,6 @@ ad_proc -public im_resource_mgmt_resource_planning_percentage {
 
     # Write iregularities to protocoll
     set err_protocol ""
-    set debug_p 1
 
     # Department to use, when user is not assigned to one 
     set company_cost_center [im_cost_center_company]
@@ -293,10 +292,10 @@ ad_proc -public im_resource_mgmt_resource_planning_percentage {
 	set user_hash($user_id) $user_id
 	set object_availability_hash($project_id) ""
 
-	# Store the actual assignment
-	for {set j $child_start_julian} {$j < $child_end_julian} {incr j} {
-	    set key "$j-$project_id-$user_id"
-	    set assignment_hash($key) $percentage
+	# Store the actual project-user assignment information
+	if {$percentage > 0} {
+	    set key "$project_id-$user_id"
+	    set project_user_assignment_hash($key) $percentage
 	}
 
     }
@@ -397,120 +396,22 @@ ad_proc -public im_resource_mgmt_resource_planning_percentage {
     # ------------------------------------------------------------
     ns_log Notice "percentage-report: Check for data consistency"
     #
-    foreach project_id [array names project_parent_hash] {
-	set project_name $object_name_hash($project_id)
-
-	# Check that the project has valid start-end dates
-	set project_start_julian $project_start_julian_hash($project_id)
-	set project_end_julian $project_end_julian_hash($project_id)
-	if {"" eq $project_start_julian} {
-	    append err_protocol "<li>Found a project with empty start_date:<br>Project #$project_id - $project_name"
-	    set project_start_julian_hash($project_id) $now_julian
-	}
-	if {"" eq $project_end_julian} {
-	    append err_protocol "<li>Found a project with empty end_date:<br>Project #$project_id - $project_name"
-	    set project_end_julian_hash($project_id) $now_julian
-	}
-
-	# Check that the parent has valid start-end dates
-	set parent_id $project_parent_hash($project_id)
-	if {"" eq $parent_id} { continue }
-	set parent_name $object_name_hash($parent_id)
-	if {![info exists project_parent_hash($parent_id)]} {
-	    append err_protocol "<li>Found a project inconsistency:<br>Project #$parent_id does not exist in the project hierarchy"
-	}
-	set parent_start_julian $project_start_julian_hash($parent_id)
-	set parent_end_julian $project_end_julian_hash($parent_id)
-	if {"" eq $parent_start_julian} {
-	    append err_protocol "<li>Found a project with empty start_date:<br>Project #$parent_id"
-	}
-	if {"" eq $parent_end_julian} {
-	    append err_protocol "<li>Found a project with empty end_date:<br>Project #$parent_id"
-	}
-
-	# Check that the parent start-end interval includes the child start-end interval
-	if {$project_start_julian < $parent_start_julian} {
-	    append err_protocol "<li>Found a sub-project that starts earlier than its parent:<br>Project #$project_id, parent #$parent_id"
-	}
-	if {$project_end_julian > $parent_end_julian} {
-	    append err_protocol "<li>Found a sub-project that ends earlier than its parent:<br>Project #$project_id, parent #$parent_id"
-	}
-    }
-
-    # Check consistency: every parent should also include the assignments of it's children
-    foreach key [array names assignment_hash] {
-	set tuple [split $key "-"]
-	set j [lindex $tuple 0]
-	set project_id [lindex $tuple 1]
-	set user_id [lindex $tuple 2]
-	set parent_id $project_parent_hash($project_id)
-	if {"" eq $parent_id} { continue }
-
-	set parent_key "$j-$parent_id-$user_id"
-	if {![info exists assignment_hash($parent_key)]} {
-	    append err_protocol "<li>Found a child project with more assignments that it's parent:<br>
-            Project: #$project_id, parent: #$parent_id, user: $user_id"
-	}
-    }
-    set clicks([clock clicks -microseconds]) consistency
-
-
-    # ------------------------------------------------------------
-    ns_log Notice "percentage-report: Aggregate percentage assignments up the project hierarchy"
-    #
-    db_foreach aggregate_loop $assignment_sql {
-	# We get the rows ordered by tree_sortkey with main projects before their children.
-	# So we can directly aggregate along the hierarcy.
-
-	# Store the actual assignment information
-	set key "$project_id-$user_id"
-	set project_user_assignment_hash($key) $percentage
-
-	# Aggregate assignments through the hierarchy per julian
-	for {set j $child_start_julian} {$j < $child_end_julian} {incr j} {
-
-	    set pid $parent_id
-	    while {"" ne $pid} {
-		set key "$j-$pid-$user_id"
-		set v 0
-		if {[info exists assignment_hash($key)]} { set v $assignment_hash($key) }
-		set assignment_hash($key) [expr $v + $percentage]
-		set pid $project_parent_hash($pid)
-	    
-		# Aggregate per user
-		set key "$j-$user_id"
-		set perc 0
-		if {[info exists assignment_hash($key)]} { set perc $assignment_hash($key) }
-		set assignment_hash($key) [expr $perc + $percentage]
-	    
-		# Aggregate per cost center
-		set department_id $user_department_hash($user_id)
-		set cnt 0
-		while {"" ne $department_id} {
-		    set key "$j-$department_id"
-		    set perc 0
-		    if {[info exists assignment_hash($key)]} { set perc $assignment_hash($key) }
-		    set assignment_hash($key) [expr $perc + $percentage]
-		    set department_id $cc_parent_hash($department_id)
-		    incr cnt
-		    if {$cnt > 20} { ad_return_complaint 1 "Percentage report:<br>Infinite loop in dept matrix aggregation" }
-		}
-	    }
-	}
-    }
-    set clicks([clock clicks -microseconds]) aggregate
+    # Commented out - at the end of the file
 
 
     # ------------------------------------------------------------------
     ns_log Notice "percentage-report: Calculate the left dimension"
+    # Take the project-user assignment hash and add the objects required
+    # to create a chain from the top cost center through the user to the
+    # sub-sub-task with the assighnent.
     #
-    # The dimension is composed by:
+    # The left dimension consists of:
     #
     # - The department
     # - The user
     # - The main project
     # - ... any level of sub-projects
-    # - The leaf task
+    # - The leaf task with the assignment
     #
     set left_dimension {}
     foreach key [array names project_user_assignment_hash] {
@@ -518,49 +419,28 @@ ad_proc -public im_resource_mgmt_resource_planning_percentage {
 	set tuple [split $key "-"]
 	set project_id [lindex $tuple 0]
 	set user_id [lindex $tuple 1]
-	if {"" ne $user_id} {
+	if {"" eq $project_id || "" eq $user_id} { ad_return_complaint 1 "left_scale:<br>Found bad key: $tuple" }
 
-	    # Found a standard assignment: $j-$project_id-$user_id: Calculate parent_list
-	    set parent_list [list $project_id]
-	    set pid $project_parent_hash($project_id)
-	    while {"" ne $pid} {
-		lappend parent_list $pid
-		set pid $project_parent_hash($pid)
-	    }
-	    
-	    lappend parent_list $user_id
-	    set cc_id $user_department_hash($user_id)
-
-	} else {
-
-	    continue
-
-	    # Found a special assignment: Either a user_id or a cc_id
-	    set otype $object_type_hash($project_id)
-	    switch $otype {
-		"user" {
-		    set user_id $project_id
-		    set department_id $user_department_hash($user_id)
-		    set parent_list [list $user_id]
-		    set cc_id $department_id
-		}
-		"im_cost_center" {
-		    set cc_id $project_id
-		}
-		default {
-		    ad_return_complaint 1 "Found a single-object assignment that is neither user nor cc"
-		}
-	    }
+	# Found a standard assignment: $project_id-$user_id: Calculate parent_list
+	set parent_list [list $project_id]
+	set pid $project_parent_hash($project_id)
+	while {"" ne $pid} {
+	    lappend parent_list $pid
+	    set pid $project_parent_hash($pid)
 	}
 
-	# Append the CC parents before adding to the left dimension. $cc_id was set above.
+	# Append the user assigned
+	lappend parent_list $user_id
+
+	# Append the user's cost center and it's parents
+	set cc_id $user_department_hash($user_id)
 	while {"" ne $cc_id} {
 	    lappend parent_list $cc_id
 	    set cc_id $cc_parent_hash($cc_id)
 	}
 	set parent_list [lreverse $parent_list]
 	lappend left_dimension $parent_list
-
+	set left_dimension_hash($key) $parent_list;      # remember the parents for aggregation
     }
     set clicks([clock clicks -microseconds]) left_dimension
     # ad_return_complaint 1 "<pre>[join $left_dimension "\n"]</pre>"
@@ -585,6 +465,38 @@ ad_proc -public im_resource_mgmt_resource_planning_percentage {
     set clicks([clock clicks -microseconds]) closed_left_scale
     # ad_return_complaint 1 "<pre>[join $left_scale_closed "\n"]</pre>"
     set left_scale $left_scale_closed
+
+
+
+    # ------------------------------------------------------------
+    ns_log Notice "percentage-report: Aggregate percentage assignments up the project hierarchy"
+    #
+    foreach key [array names project_user_assignment_hash] {
+	set tuple [split $key "-"]
+	set project_id [lindex $tuple 0]
+	set user_id [lindex $tuple 1]
+	set percentage $project_user_assignment_hash($key)
+
+	# Get the list of parents for the project/user assignment combination
+	set start_julian $project_start_julian_hash($project_id)
+	set end_julian $project_end_julian_hash($project_id)
+	set parent_list $left_dimension_hash($key)
+	foreach parent_id $parent_list {
+	    for {set j $start_julian} {$j < $end_julian} {incr j} {
+		set otype $object_type_hash($parent_id)
+		switch $otype {
+		    im_project { set key "$j-$parent_id-$user_id"  }
+		    default    { set key "$j-$parent_id" }
+		}
+		set v 0
+		if {[info exists assignment_hash($key)]} { set v $assignment_hash($key) }
+		set assignment_hash($key) [expr $v + $percentage]
+	    }
+	}
+    }
+    set clicks([clock clicks -microseconds]) aggregate
+
+
 
     # --------------------------------------------------
     ns_log Notice "percentage-report: Top Scale"
@@ -985,4 +897,114 @@ ad_proc -public im_resource_management_smoothen_left_dimension {
     }
 
     return $result
+}
+
+
+
+
+set ttt {
+
+
+    foreach project_id [array names project_parent_hash] {
+	set project_name $object_name_hash($project_id)
+
+	# Check that the project has valid start-end dates
+	set project_start_julian $project_start_julian_hash($project_id)
+	set project_end_julian $project_end_julian_hash($project_id)
+	if {"" eq $project_start_julian} {
+	    append err_protocol "<li>Found a project with empty start_date:<br>Project #$project_id - $project_name"
+	    set project_start_julian_hash($project_id) $now_julian
+	}
+	if {"" eq $project_end_julian} {
+	    append err_protocol "<li>Found a project with empty end_date:<br>Project #$project_id - $project_name"
+	    set project_end_julian_hash($project_id) $now_julian
+	}
+
+	# Check that the parent has valid start-end dates
+	set parent_id $project_parent_hash($project_id)
+	if {"" eq $parent_id} { continue }
+	set parent_name $object_name_hash($parent_id)
+	if {![info exists project_parent_hash($parent_id)]} {
+	    append err_protocol "<li>Found a project inconsistency:<br>Project #$parent_id does not exist in the project hierarchy"
+	}
+	set parent_start_julian $project_start_julian_hash($parent_id)
+	set parent_end_julian $project_end_julian_hash($parent_id)
+	if {"" eq $parent_start_julian} {
+	    append err_protocol "<li>Found a project with empty start_date:<br>Project #$parent_id"
+	}
+	if {"" eq $parent_end_julian} {
+	    append err_protocol "<li>Found a project with empty end_date:<br>Project #$parent_id"
+	}
+
+	# Check that the parent start-end interval includes the child start-end interval
+	if {$project_start_julian < $parent_start_julian} {
+	    append err_protocol "<li>Found a sub-project that starts earlier than its parent:<br>Project #$project_id, parent #$parent_id"
+	}
+	if {$project_end_julian > $parent_end_julian} {
+	    append err_protocol "<li>Found a sub-project that ends earlier than its parent:<br>Project #$project_id, parent #$parent_id"
+	}
+    }
+
+    # Check consistency: every parent should also include the assignments of it's children
+    foreach key [array names assignment_hash] {
+	set tuple [split $key "-"]
+	set j [lindex $tuple 0]
+	set project_id [lindex $tuple 1]
+	set user_id [lindex $tuple 2]
+	set parent_id $project_parent_hash($project_id)
+	if {"" eq $parent_id} { continue }
+
+	set parent_key "$j-$parent_id-$user_id"
+	if {![info exists assignment_hash($parent_key)]} {
+	    append err_protocol "<li>Found a child project with more assignments that it's parent:<br>
+            Project: #$project_id, parent: #$parent_id, user: $user_id"
+	}
+    }
+    set clicks([clock clicks -microseconds]) consistency
+
+
+
+
+
+
+
+
+    db_foreach aggregate_loop $assignment_sql {
+	# We get the rows ordered by tree_sortkey with main projects before their children.
+	# So we can directly aggregate along the hierarcy.
+!!!
+	# Aggregate assignments through the hierarchy per julian
+	for {set j $child_start_julian} {$j < $child_end_julian} {incr j} {
+
+	    set pid $parent_id
+	    while {"" ne $pid} {
+		set key "$j-$pid-$user_id"
+		set v 0
+		if {[info exists assignment_hash($key)]} { set v $assignment_hash($key) }
+		set assignment_hash($key) [expr $v + $percentage]
+		set pid $project_parent_hash($pid)
+	    
+		# Aggregate per user
+		set key "$j-$user_id"
+		set perc 0
+		if {[info exists assignment_hash($key)]} { set perc $assignment_hash($key) }
+		set assignment_hash($key) [expr $perc + $percentage]
+	    
+		# Aggregate per cost center
+		set department_id $user_department_hash($user_id)
+		set cnt 0
+		while {"" ne $department_id} {
+		    set key "$j-$department_id"
+		    set perc 0
+		    if {[info exists assignment_hash($key)]} { set perc $assignment_hash($key) }
+		    set assignment_hash($key) [expr $perc + $percentage]
+		    set department_id $cc_parent_hash($department_id)
+		    incr cnt
+		    if {$cnt > 20} { ad_return_complaint 1 "Percentage report:<br>Infinite loop in dept matrix aggregation" }
+		}
+	    }
+	}
+    }
+
+
 }

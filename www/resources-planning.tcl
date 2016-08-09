@@ -145,7 +145,7 @@ if {0} {
 }
 
 
-if {1} {
+if {0} {
     # Not yet supported: "year quarter_of_year", "Quarter"
     set top_var_options {
 	"year week_of_year day_of_week"		"Week and Day"
