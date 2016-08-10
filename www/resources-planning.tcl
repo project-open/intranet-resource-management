@@ -23,7 +23,7 @@ ad_page_contract {
     { start_date "" }
     { end_date "" }
     { show_all_employees_p "" }
-    { top_vars "year week_of_year day_of_week" }
+    { top_vars "year month_of_year day_of_month" }
     { project_id:multiple "" }
     { customer_id:integer 0 }
     { project_status_id:integer 0 }
@@ -34,6 +34,8 @@ ad_page_contract {
     { max_col 20 }
     { max_row 100 }
 }
+
+#    { top_vars "year week_of_year day_of_week" }
 
 # ---------------------------------------------------------------
 # Defaults & Security

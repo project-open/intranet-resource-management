@@ -18,8 +18,10 @@ ad_library {
 # Resource Planning Report
 # ---------------------------------------------------------------
 
+#    {-top_vars "year week_of_year day"}
+
 ad_proc -public im_resource_mgmt_resource_planning_percentage {
-    {-top_vars "year week_of_year day"}
+    {-top_vars "year month_of_year day_of_month" }
     {-left_vars "cell"}
     {-report_start_date ""}
     {-report_end_date ""}
@@ -113,7 +115,7 @@ ad_proc -public im_resource_mgmt_resource_planning_percentage {
     set collapse_url "/intranet/biz-object-tree-open-close"
     set company_url "/intranet/companies/view?company_id="
     set project_url "/intranet/projects/view?project_id="
-    set cost_center_url "/intranet-cost/cost-centers/view?cost_center_id="
+    set cost_center_url "/intranet-cost/cost-centers/new?cost_center_id="
     set user_url "/intranet/users/view?user_id="
 
     # Hash for URLs per object type
@@ -175,21 +177,6 @@ ad_proc -public im_resource_mgmt_resource_planning_percentage {
 	set gif_hash($gif) [im_gif $gif]
     }
 
-    # ------------------------------------------------------------
-    ns_log Notice "percentage-report: Collapse lines in the report"
-    #
-    set collapse_sql "
-		select	object_id,
-			open_p
-		from	im_biz_object_tree_status
-		where	user_id = :current_user_id and
-			page_url = :page_url
-    "
-    db_foreach collapse $collapse_sql {
-	set collapse_hash($object_id) $open_p
-    }
-    set clicks([clock clicks -microseconds]) init
-
 
     # ------------------------------------------------------------
     ns_log Notice "percentage-report: Store information about each day into hashes for speed"
@@ -246,8 +233,8 @@ ad_proc -public im_resource_mgmt_resource_planning_percentage {
 		where	parent.project_status_id not in ([join [im_sub_categories [im_project_status_closed]] ","])
 			and parent.parent_id is null
 			and parent.project_type_id not in ([im_project_type_task], [im_project_type_sla], [im_project_type_ticket])
-			and parent.end_date >= :report_start_date::date
-			and parent.start_date <= :report_end_date::date
+			and child.end_date >= :report_start_date::date
+			and child.start_date <= :report_end_date::date
 			and child.tree_sortkey
 				between parent.tree_sortkey
 				and tree_right(parent.tree_sortkey)
@@ -275,12 +262,6 @@ ad_proc -public im_resource_mgmt_resource_planning_percentage {
 			u.user_id
     "
     db_foreach hierarchy $assignment_sql {
-	# Calculate the list of children of each object
-	set children []
-	if {[info exists object_children_hash($parent_id)]} { set children $object_children_hash($parent_id) }
-	lappend children $project_id
-	set object_children_hash($parent_id) $children
-
 	# Store properties into hashes for quick access later
 	set object_name_hash($project_id) $project_name
 	set object_type_hash($project_id) "im_project"
@@ -291,6 +272,7 @@ ad_proc -public im_resource_mgmt_resource_planning_percentage {
 	set main_project_hash($main_project_id) $main_project_id
 	set user_hash($user_id) $user_id
 	set object_availability_hash($project_id) ""
+	set collapse_hash($project_id) "c"
 
 	# Store the actual project-user assignment information
 	if {$percentage > 0} {
@@ -334,6 +316,7 @@ ad_proc -public im_resource_mgmt_resource_planning_percentage {
 	set cc_indent_hash $indent_level
 	set object_type_hash($cost_center_id) "im_cost_center"
 	set object_name_hash($cost_center_id) $cost_center_name
+	set collapse_hash($cost_center_id) "o"
 
 	# Aggregate resources upward
 	set object_availability_hash($cost_center_id) $resources_available_percent
@@ -389,8 +372,25 @@ ad_proc -public im_resource_mgmt_resource_planning_percentage {
 	set object_type_hash($user_id) "user"
 	set user_department_hash($user_id) $department_id
 	set object_availability_hash($user_id) $availability
+	set collapse_hash($user_id) "c"
     }
     set clicks([clock clicks -microseconds]) user_info
+
+
+    # ------------------------------------------------------------
+    ns_log Notice "percentage-report: Collapse lines in the report"
+    #
+    set collapse_sql "
+		select	object_id,
+			open_p
+		from	im_biz_object_tree_status
+		where	user_id = :current_user_id and
+			page_url = :page_url
+    "
+    db_foreach collapse $collapse_sql {
+	set collapse_hash($object_id) $open_p
+    }
+    set clicks([clock clicks -microseconds]) init
 
     
     # ------------------------------------------------------------
@@ -461,10 +461,25 @@ ad_proc -public im_resource_mgmt_resource_planning_percentage {
 
 
     # "Close" the left_dimension, according to user open/close actions
-    set left_scale_closed $left_dimension_smooth
+    set left_scale [im_resource_management_collapse_left_dimension \
+				   -lol $left_dimension_smooth \
+				   -collapse_list [array get collapse_hash]]
     set clicks([clock clicks -microseconds]) closed_left_scale
     # ad_return_complaint 1 "<pre>[join $left_scale_closed "\n"]</pre>"
-    set left_scale $left_scale_closed
+
+
+
+
+    # ------------------------------------------------------------
+    ns_log Notice "percentage-report: Determine which object has children"
+    #
+    foreach l $left_dimension_smooth {
+	# All objects have children, except for the last one
+	foreach oid [lrange $l 0 end-1] {
+	    set object_has_children_hash($oid) 1
+	}
+    }
+    set clicks([clock clicks -microseconds]) children_hash
 
 
 
@@ -476,6 +491,8 @@ ad_proc -public im_resource_mgmt_resource_planning_percentage {
 	set project_id [lindex $tuple 0]
 	set user_id [lindex $tuple 1]
 	set percentage $project_user_assignment_hash($key)
+	set availability $object_availability_hash($user_id)
+	set assigavail [expr $percentage * $availability / 100.0]
 
 	# Get the list of parents for the project/user assignment combination
 	set start_julian $project_start_julian_hash($project_id)
@@ -490,7 +507,7 @@ ad_proc -public im_resource_mgmt_resource_planning_percentage {
 		}
 		set v 0
 		if {[info exists assignment_hash($key)]} { set v $assignment_hash($key) }
-		set assignment_hash($key) [expr $v + $percentage]
+		set assignment_hash($key) [expr $v + $assigavail]
 	    }
 	}
     }
@@ -505,7 +522,7 @@ ad_proc -public im_resource_mgmt_resource_planning_percentage {
     # Top scale is a list of lists like {{2006 01} {2006 02} ...}
     set top_scale {}
     set last_top_dim {}
-    for {set i [dt_ansi_to_julian_single_arg $report_start_date]} {$i <= [dt_ansi_to_julian_single_arg $report_end_date]} {incr i} {
+    for {set i [dt_ansi_to_julian_single_arg $report_start_date]} {$i < [dt_ansi_to_julian_single_arg $report_end_date]} {incr i} {
 	array unset date_hash
 	array set date_hash [im_date_julian_to_components $i]
 
@@ -563,8 +580,8 @@ ad_proc -public im_resource_mgmt_resource_planning_percentage {
 
 	# ToDo: extract user_id and project_id from left_entry
 
-	# Display +/- logic
-	set closed_p "c"
+	# Display +/- GIF
+	set closed_p "o"
 	if {[info exists collapse_hash($object_id)]} { set closed_p $collapse_hash($object_id) }
 	if {"o" == $closed_p} {
 	    set url [export_vars -base $collapse_url {page_url return_url {open_p "c"} {object_id $object_id}}]
@@ -574,11 +591,7 @@ ad_proc -public im_resource_mgmt_resource_planning_percentage {
 	    set collapse_html "<a href=$url>$gif_hash(plus_9)</a>"
 	}
 
-	set object_has_children_p 0
-	if {[info exists object_children_hash($object_id)]} {
-	    set object_has_children_p [llength $object_children_hash($object_id)]
-	}
-	set object_has_children_p 1; # !!!
+	set object_has_children_p [info exists object_has_children_hash($object_id)]
 	if {!$object_has_children_p} { set collapse_html [util_memoize [list im_gif cleardot "" 0 9 9]] }
 
 	# Create cell
@@ -592,12 +605,25 @@ ad_proc -public im_resource_mgmt_resource_planning_percentage {
 	for {set i 0} {$i < $indent_level} {incr i} { append indent_html "&nbsp; &nbsp; &nbsp; " }
 
 	set class $rowclass([expr $row_ctr % 2])
-	append row_html "<tr class=$class valign=bottom>\n"
-	append row_html "<td><nobr>$indent_html$cell_html</nobr></td>\n"
+	switch $object_type {
+	    im_cost_center {
+		append row_html "<tr class=white valign=bottom>\n"
+		append row_html "<td><nobr>$indent_html<b>$cell_html</b></nobr></td>\n"
+		set availability_title [lang::message::lookup "" intranet-resource-management.Availability_title_cost_center "Sum of the availabililities of all active natual persons in this department"]
+	    }
+	    default {
+		append row_html "<tr class=$class valign=bottom>\n"
+		append row_html "<td><nobr>$indent_html$cell_html</nobr></td>\n"
+		set availability_title [lang::message::lookup "" intranet-resource-management.Availability_title_default "Availability of the user for project work"]
+	    }
 
-	set avail $object_availability_hash($object_id)
-	if {"" ne $avail} { append avail "%" }
-	append row_html "<td>$avail</td>\n"
+	}
+
+	# Show availabilityability per object
+	set availability $object_availability_hash($object_id)
+	set availability_html $availability
+	if {"" ne $availability} { append availability_html "%" } else { set availability 0 }
+	append row_html "<td><span title='$availability_title'>$availability_html</span></td>\n"
 
 	# ------------------------------------------------------------
 	ns_log Notice "percentage-report: Start writing out the matrix elements"
@@ -621,14 +647,43 @@ ad_proc -public im_resource_mgmt_resource_planning_percentage {
 		set col_attrib "bgcolor=#$color"
 	    }
 	    
-	    # Check the percentage assignment
+	    # Format user or department cells - choose a font color according to overallocation
 	    set cell_html ""
 	    set key "$j-$object_id"
-	    if {[info exists assignment_hash($key)]} { append cell_html $assignment_hash($key) }
-	    set key "$j-$project_id-$user_id"
-	    if {[info exists assignment_hash($key)]} { append cell_html $assignment_hash($key) }
+	    if {[info exists assignment_hash($key)]} { 
+		set assig [expr round($assignment_hash($key))] 
+		set color "black"
+		if {$availability > 0} {
+		    set overassignment_ratio [expr $assig / $availability]
+		    # <= 1.0 -> black=#00000, >1.5 -> red=#FF0000
+		    set ratio [expr round(min(max(($overassignment_ratio - 1.0),0) * 512.0, 255))]
+		    set color "#[format %x $ratio]0000"
+		    set cell_html "<font color=$color>$assig</font>"
+		}
+	    }
 
-	    append row_html "<td $col_attrib>$cell_html</td>\n"
+	    # Normal project assignment - don't compare and don't change color
+	    set key "$j-$project_id-$user_id"
+	    if {[info exists assignment_hash($key)]} { 
+		set assig [expr round($assignment_hash($key))] 
+		append cell_html $assig
+	    }
+
+	    switch $object_type {
+		im_cost_center { 
+		    set title "Sum of availability of department members multiplied with % project assignments"
+		    append row_html "<td $col_attrib><b><span title='$title'>$cell_html</span></b></td>\n" 
+		}
+		user { 
+		    set title "Sum of availability multiplied with % project assignments"
+		    append row_html "<td $col_attrib><span title='$title'>$cell_html</span></td>\n" 
+		}
+		im_project { 
+		    set title "Sum of all % project assignments to project or tasks"
+		    append row_html "<td $col_attrib><span title='$title'>$cell_html</span></td>\n" 
+		}
+		default { ad_return_complaint 1 "format-cells:<br>Found invalid object_type=$object_type" }
+	    }
 	}
         append row_html "</tr>\n"
 
@@ -698,15 +753,6 @@ ad_proc -public im_resource_mgmt_resource_planning_percentage {
     append html $header_html
     append html $matrix_html
     append html "\n</table>\n"
-
-    if {0 == $row_ctr} {
-	set no_rows_msg [lang::message::lookup "" intranet-resource-management.No_rows_selected "
-		No rows found.<br>
-		Maybe there are no assignments of users to projects in the selected period?
-	"]
-	append html "<br><b>$no_rows_msg</b>\n"
-    }
-
     append html $err_protocol
     set clicks([clock clicks -microseconds]) close_table
 
@@ -901,110 +947,32 @@ ad_proc -public im_resource_management_smoothen_left_dimension {
 
 
 
+ad_proc -public im_resource_management_collapse_left_dimension {
+    -lol
+    -collapse_list
+} {
+    Expects a list-of-lists composed of integer values representing 
+    cost centers, users, projects and tasks.
+    This procedure eliminates those entries that include at least
+    one "closed" item.
+} {
+    ns_log Notice "collapse_left_dimension: lol=$lol"
+    array set collapse_hash $collapse_list
+    set result [list]
 
-set ttt {
-
-
-    foreach project_id [array names project_parent_hash] {
-	set project_name $object_name_hash($project_id)
-
-	# Check that the project has valid start-end dates
-	set project_start_julian $project_start_julian_hash($project_id)
-	set project_end_julian $project_end_julian_hash($project_id)
-	if {"" eq $project_start_julian} {
-	    append err_protocol "<li>Found a project with empty start_date:<br>Project #$project_id - $project_name"
-	    set project_start_julian_hash($project_id) $now_julian
-	}
-	if {"" eq $project_end_julian} {
-	    append err_protocol "<li>Found a project with empty end_date:<br>Project #$project_id - $project_name"
-	    set project_end_julian_hash($project_id) $now_julian
-	}
-
-	# Check that the parent has valid start-end dates
-	set parent_id $project_parent_hash($project_id)
-	if {"" eq $parent_id} { continue }
-	set parent_name $object_name_hash($parent_id)
-	if {![info exists project_parent_hash($parent_id)]} {
-	    append err_protocol "<li>Found a project inconsistency:<br>Project #$parent_id does not exist in the project hierarchy"
-	}
-	set parent_start_julian $project_start_julian_hash($parent_id)
-	set parent_end_julian $project_end_julian_hash($parent_id)
-	if {"" eq $parent_start_julian} {
-	    append err_protocol "<li>Found a project with empty start_date:<br>Project #$parent_id"
-	}
-	if {"" eq $parent_end_julian} {
-	    append err_protocol "<li>Found a project with empty end_date:<br>Project #$parent_id"
-	}
-
-	# Check that the parent start-end interval includes the child start-end interval
-	if {$project_start_julian < $parent_start_julian} {
-	    append err_protocol "<li>Found a sub-project that starts earlier than its parent:<br>Project #$project_id, parent #$parent_id"
-	}
-	if {$project_end_julian > $parent_end_julian} {
-	    append err_protocol "<li>Found a sub-project that ends earlier than its parent:<br>Project #$project_id, parent #$parent_id"
-	}
-    }
-
-    # Check consistency: every parent should also include the assignments of it's children
-    foreach key [array names assignment_hash] {
-	set tuple [split $key "-"]
-	set j [lindex $tuple 0]
-	set project_id [lindex $tuple 1]
-	set user_id [lindex $tuple 2]
-	set parent_id $project_parent_hash($project_id)
-	if {"" eq $parent_id} { continue }
-
-	set parent_key "$j-$parent_id-$user_id"
-	if {![info exists assignment_hash($parent_key)]} {
-	    append err_protocol "<li>Found a child project with more assignments that it's parent:<br>
-            Project: #$project_id, parent: #$parent_id, user: $user_id"
-	}
-    }
-    set clicks([clock clicks -microseconds]) consistency
-
-
-
-
-
-
-
-
-    db_foreach aggregate_loop $assignment_sql {
-	# We get the rows ordered by tree_sortkey with main projects before their children.
-	# So we can directly aggregate along the hierarcy.
-!!!
-	# Aggregate assignments through the hierarchy per julian
-	for {set j $child_start_julian} {$j < $child_end_julian} {incr j} {
-
-	    set pid $parent_id
-	    while {"" ne $pid} {
-		set key "$j-$pid-$user_id"
-		set v 0
-		if {[info exists assignment_hash($key)]} { set v $assignment_hash($key) }
-		set assignment_hash($key) [expr $v + $percentage]
-		set pid $project_parent_hash($pid)
-	    
-		# Aggregate per user
-		set key "$j-$user_id"
-		set perc 0
-		if {[info exists assignment_hash($key)]} { set perc $assignment_hash($key) }
-		set assignment_hash($key) [expr $perc + $percentage]
-	    
-		# Aggregate per cost center
-		set department_id $user_department_hash($user_id)
-		set cnt 0
-		while {"" ne $department_id} {
-		    set key "$j-$department_id"
-		    set perc 0
-		    if {[info exists assignment_hash($key)]} { set perc $assignment_hash($key) }
-		    set assignment_hash($key) [expr $perc + $percentage]
-		    set department_id $cc_parent_hash($department_id)
-		    incr cnt
-		    if {$cnt > 20} { ad_return_complaint 1 "Percentage report:<br>Infinite loop in dept matrix aggregation" }
+    foreach l $lol {
+	set status "o"
+	foreach oid [lrange $l 0 end-1] {
+	    if {[info exists collapse_hash($oid)]} {
+		if {"c" eq $collapse_hash($oid)} {
+		    set status "c"
 		}
 	    }
 	}
+	if {"o" eq $status} { lappend result $l }
     }
 
+#    ad_return_complaint 1 $result
 
+    return $result
 }
