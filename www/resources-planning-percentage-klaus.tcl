@@ -1,9 +1,10 @@
 # /packages/intranet-reporting/www/resources-planning.tcl
 #
-# Copyright (c) 2003-2011 ]project-open[
+# Copyright (c) 2003-2006 ]project-open[
 #
 # All rights reserved. Please check
 # http://www.project-open.com/ for licensing details.
+
 
 set clicks_base [clock clicks]
 
@@ -32,7 +33,6 @@ ad_page_contract {
     { zoom "" }
     { max_col 20 }
     { max_row 100 }
-    { calculation_mode "planned_hours" }
 }
 
 # ---------------------------------------------------------------
@@ -50,12 +50,10 @@ if {![im_permission $user_id "view_projects_all"]} {
 # ------------------------------------------------------------
 # Defaults
 
-# set page_title [lang::message::lookup "" intranet-reporting.Gantt_Resources "Gantt Resources"]
-set page_title "Resource Planning"
-
-set page_url "/intranet-resource-management/resources-planning-advanced"
+set page_title [lang::message::lookup "" intranet-reporting.Gantt_Resources "Gantt Resources"]
+set page_url "/intranet-resource-management/resources-planning"
 set sub_navbar ""
-set main_navbar_label "reporting"
+set main_navbar_label "resource_management"
 set show_context_help_p 0
 
 regsub -all {%20} $top_vars " " top_vars
@@ -73,7 +71,7 @@ set restrict_to_user_department_by_default_p [parameter::get_from_package_key -p
 if {$restrict_to_user_department_by_default_p} {
     if {0 == $employee_cost_center_id && "" == $start_date && "" == $end_date} {
         set employee_cost_center_id [db_string current_user_cc "
-		select	department_id as employee_cost_center_id
+		select	department_id
 		from	im_employees
 		where	employee_id = :user_id
         " -default ""]
@@ -84,11 +82,8 @@ if {0 == $start_date || "" == $start_date} {
     set start_date [db_string start_date "select to_char(now()::date, 'YYYY-MM-01')"]
 }
 
-
-
 if {0 == $end_date || "" == $end_date} {
     set end_date [db_string end_date "select to_char(now()::date + 4*7, 'YYYY-MM-01')"]
-    set end_date [db_string end_date "select to_char(now()::date + 2, 'YYYY-MM-01')"]
 }
 
 
@@ -108,13 +103,16 @@ set html [im_resource_mgmt_resource_planning_hour \
 	-max_col $max_col \
 	-max_row $max_row \
 	-show_all_employees_p $show_all_employees_p \
-	-calculation_mode "planned_hours" \
+	-excluded_group_ids ""
 ]
 
 if {"" == $html} { 
     set html [lang::message::lookup "" intrant-ganttproject.No_resource_assignments_found "No resource assignments found"]
     set html "<p>&nbsp;<p><blockquote><i>$html</i></blockquote><p>&nbsp;<p>\n"
 }
+
+
+
 
 # ---------------------------------------------------------------
 # 6. Format the Filter
@@ -150,6 +148,7 @@ if {0} {
 
 
 if {1} {
+    # Not yet supported: "year quarter_of_year", "Quarter"
     set top_var_options {
 	"year week_of_year day_of_week"
 	"Week and Day"
@@ -159,16 +158,7 @@ if {1} {
 	"Week"
 	"year month_of_year"
 	"Month"
-	"year quarter_of_year"
-	"Quarter"
     }
-
-    set top_var_options {
-        "year month_of_year day_of_month"
-        "Month and Day"
-    }
-
-
     append filter_html "
   <tr>
     <td class=form-label>[lang::message::lookup "" intranet-ganttproject.Top_Scale "Top Scale"]:</td>
@@ -223,10 +213,10 @@ append filter_html "
 }
 
 
+
 set show_all_employees_checked ""
 if {1 == $show_all_employees_p} { set show_all_employees_checked "checked" }
 append filter_html "
-  <!--
   <tr>
 	<td class=form-label valign=top>[lang::message::lookup "" intranet-ganttproject.All_Employees "Show all:"]</td>
 	<td class=form-widget valign=top>
@@ -234,28 +224,6 @@ append filter_html "
 		[lang::message::lookup "" intranet-core.Employees "Employees?"]
 	</td>
   </tr>
-  --> 
-"
-
-set planned_hours_checked ""
-set percentage_checked ""
-
-if { "" == $calculation_mode || "percentage" == $calculation_mode } {
-    set percentage_checked "checked='checked'"
-} else {
-    set planned_hours_checked "checked='checked'"
-}
-
-append filter_html "
-<!--
-<tr>
-  <td class='form-label' valign='top'>Mode</td>
-  <td class='form-widget' valign='top'>
- 	<input name='calculation_mode' value='percentage' $percentage_checked type='radio'>Percentage<br>
-        <input name='calculation_mode' value='planned_hours' $planned_hours_checked  type='radio'>Planned Hours
-  </td>
-</tr>
--->
 "
 
 append filter_html "
@@ -267,7 +235,6 @@ append filter_html "
   </tr>
 "
 
-
 append filter_html "</table>\n</form>\n"
 
 
@@ -275,14 +242,20 @@ append filter_html "</table>\n</form>\n"
 # Navbars
 # ---------------------------------------------------------------
 
-# Project Navbar goes to the top
-#
-set letter ""
-set next_page_url ""
-set previous_page_url ""
-set menu_select_label ""
-set sub_navbar_html [im_project_navbar $letter $page_url $next_page_url $previous_page_url [list start_idx order_by how_many view_name letter project_status_id] $menu_select_label]
-
+set main_navbar_label "resource_management"
+set bind_vars [ns_set create]
+set parent_menu_id [db_string parent_menu "select menu_id from im_menus where label = :main_navbar_label"]
+set sub_navbar [im_sub_navbar \
+                    -components \
+                    -base_url "/intranet-resource-management/index" \
+                    -plugin_url "/intranet-resource-management/index" \
+                    -menu_gif_type "none" \
+                    $parent_menu_id \
+                    $bind_vars \
+		    "" \
+		    "pagedesriptionbar" \
+		    "projects_resource_planning" \
+]
 
 # Left Navbar is the filter/select part of the left bar
 set left_navbar_html "
@@ -294,27 +267,3 @@ set left_navbar_html "
       	</div>
       <hr/>
 "
-
-
-set color_list [im_absence_cube_color_list]
-set col_sql "
-        select  category_id, category
-        from    im_categories
-        where   category_type = 'Intranet Absence Type'
-        order by category_id
-"
-append absence_color_codes "<div class=filter-title>&nbsp;[lang::message::lookup "" intranet-timesheet2.Color_codes "Color Codes"]</div>\n"
-append absence_color_codes "<table cellpadding='5' cellspacing='5'>\n"
-append absence_color_codes "<tr><td>&nbsp;&nbsp;&nbsp;</td><td bgcolor='\#666699' style='padding:3px'>Planned hours</td></tr>\n"
-db_foreach cols $col_sql {
-    set index [expr {$category_id - 5000}]
-    set col [lindex $color_list $index]
-    regsub -all " " $category "_" category_key
-    set category_l10n [lang::message::lookup "" intranet-core.$category_key $category]
-    append absence_color_codes "<tr><td>&nbsp;&nbsp;&nbsp;</td><td bgcolor='\#$col' style='padding:3px'>$category_l10n</td></tr>\n"
-}
-append absence_color_codes "</table>\n"
-
-set left_navbar_html "$left_navbar_html<br>$absence_color_codes"
-
-

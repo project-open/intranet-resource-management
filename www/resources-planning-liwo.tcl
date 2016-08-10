@@ -1,4 +1,4 @@
-# /packages/intranet-reporting/www/resources-planning.tcl
+# /packages/intranet-reporting/www/resources-planning-liwo.tcl
 #
 # Copyright (c) 2003-2011 ]project-open[
 #
@@ -22,7 +22,7 @@ ad_page_contract {
     { start_date "" }
     { end_date "" }
     { show_all_employees_p "" }
-    { top_vars "year week_of_year day_of_week" }
+    { top_vars "year+month_of_year+day_of_month" }
     { project_id:multiple "" }
     { customer_id:integer 0 }
     { project_status_id:integer 0 }
@@ -33,6 +33,8 @@ ad_page_contract {
     { max_col 20 }
     { max_row 100 }
     { calculation_mode "planned_hours" }
+    { excluded_group_ids:integer 0 }
+    { show_departments_only_p "" }
 }
 
 # ---------------------------------------------------------------
@@ -41,7 +43,7 @@ ad_page_contract {
 
 im_permission_flush
 
-set user_id [auth::require_login]
+set user_id [ad_maybe_redirect_for_registration]
 if {![im_permission $user_id "view_projects_all"]} {
     ad_return_complaint 1 "You don't have permissions to see this page"
     ad_script_abort
@@ -53,7 +55,7 @@ if {![im_permission $user_id "view_projects_all"]} {
 # set page_title [lang::message::lookup "" intranet-reporting.Gantt_Resources "Gantt Resources"]
 set page_title "Resource Planning"
 
-set page_url "/intranet-resource-management/resources-planning-advanced"
+set page_url "/intranet-resource-management/resources-planning-liwo"
 set sub_navbar ""
 set main_navbar_label "reporting"
 set show_context_help_p 0
@@ -80,20 +82,21 @@ if {$restrict_to_user_department_by_default_p} {
     }
 }
 
-if {0 == $start_date || "" == $start_date} {
-    set start_date [db_string start_date "select to_char(now()::date, 'YYYY-MM-01')"]
-}
+# Set start & end Date in case no values are provided:
 
+db_1row todays_date "
+	select
+                to_char(sysdate::date, 'YYYY') as todays_year,
+                to_char(sysdate::date, 'MM') as todays_month
+        from dual
+"
 
-
-if {0 == $end_date || "" == $end_date} {
-    set end_date [db_string end_date "select to_char(now()::date + 4*7, 'YYYY-MM-01')"]
-    set end_date [db_string end_date "select to_char(now()::date + 2, 'YYYY-MM-01')"]
-}
-
+if {"" == $start_date} { set start_date [db_string start_date "select now()::date from dual"] }
+if {"" == $end_date} { set end_date [db_string get_previous_month "SELECT '$start_date'::date+'14 day'::interval-'1 day'::interval" -default 0] }
 
 # ------------------------------------------------------------
 # Contents
+
 
 set html [im_resource_mgmt_resource_planning_hour \
 	-start_date $start_date \
@@ -109,6 +112,8 @@ set html [im_resource_mgmt_resource_planning_hour \
 	-max_row $max_row \
 	-show_all_employees_p $show_all_employees_p \
 	-calculation_mode "planned_hours" \
+	-excluded_group_ids $excluded_group_ids \
+	-show_departments_only_p $show_departments_only_p \
 ]
 
 if {"" == $html} { 
@@ -122,7 +127,7 @@ if {"" == $html} {
 
 set filter_html "
 <form method=get name=projects_filter action='$page_url'>
-[export_vars -form {start_idx order_by how_many view_name include_subprojects_p letter}]
+[export_form_vars start_idx order_by how_many view_name include_subprojects_p letter]
 <table border=0 cellpadding=0 cellspacing=1>
 "
 
@@ -135,7 +140,7 @@ if {0} {
     "
 }
 
-if { $customer_id eq "" } {
+if { [empty_string_p $customer_id] } {
     set customer_id 0
 }
 
@@ -222,6 +227,16 @@ append filter_html "
 "
 }
 
+set show_departments_only_checked ""
+if {1 == $show_departments_only_p} { set show_departments_only_checked "checked" }
+append filter_html "
+  <tr>
+        <td class=form-label valign=top>[lang::message::lookup "" intranet-core.DepartmentsOnly "Departments only:"]</td>
+        <td class=form-widget valign=top>
+                <input name=show_departments_only_p type=checkbox value='1' $show_departments_only_checked>
+        </td>
+  </tr>
+"
 
 set show_all_employees_checked ""
 if {1 == $show_all_employees_p} { set show_all_employees_checked "checked" }
@@ -245,6 +260,7 @@ if { "" == $calculation_mode || "percentage" == $calculation_mode } {
 } else {
     set planned_hours_checked "checked='checked'"
 }
+
 
 append filter_html "
 <!--
@@ -276,19 +292,31 @@ append filter_html "</table>\n</form>\n"
 # ---------------------------------------------------------------
 
 # Project Navbar goes to the top
-#
-set letter ""
-set next_page_url ""
-set previous_page_url ""
-set menu_select_label ""
-set sub_navbar_html [im_project_navbar $letter $page_url $next_page_url $previous_page_url [list start_idx order_by how_many view_name letter project_status_id] $menu_select_label]
+set main_navbar_label "projects"
+set project_menu ""
+
+# Show the same header as the ProjectListPage
+set menu_select_label "projects_resource_planning_liwo"
+set main_navbar_label "resource_management"
+set bind_vars [ns_set create]
+set parent_menu_id [db_string parent_menu "select menu_id from im_menus where label = 'resource_management'"]
+set sub_navbar [im_sub_navbar \
+                    -base_url "/intranet-resource-management/index" \
+                    -plugin_url "/intranet-resource-management/index" \
+                    -menu_gif_type "none" \
+                    $parent_menu_id \
+		    $bind_vars "" "pagedesriptionbar" $menu_select_label \
+		    ]
+
+
+
 
 
 # Left Navbar is the filter/select part of the left bar
 set left_navbar_html "
 	<div class='filter-block'>
         	<div class='filter-title'>
-	           [_ intranet-core.Filter_Projects]
+	           #intranet-core.Filter_Projects#
         	</div>
             	$filter_html
       	</div>
@@ -307,7 +335,7 @@ append absence_color_codes "<div class=filter-title>&nbsp;[lang::message::lookup
 append absence_color_codes "<table cellpadding='5' cellspacing='5'>\n"
 append absence_color_codes "<tr><td>&nbsp;&nbsp;&nbsp;</td><td bgcolor='\#666699' style='padding:3px'>Planned hours</td></tr>\n"
 db_foreach cols $col_sql {
-    set index [expr {$category_id - 5000}]
+    set index [expr $category_id - 5000]
     set col [lindex $color_list $index]
     regsub -all " " $category "_" category_key
     set category_l10n [lang::message::lookup "" intranet-core.$category_key $category]

@@ -43,8 +43,8 @@ ad_page_contract {
 
 im_permission_flush
 
-set user_id [auth::require_login]
-if {![im_permission $user_id "view_projects_all"]} {
+set current_user_id [auth::require_login]
+if {![im_permission $current_user_id "view_projects_all"]} {
     ad_return_complaint 1 "You don't have permissions to see this page"
     ad_script_abort
 }
@@ -57,6 +57,7 @@ set page_url "/intranet-resource-management/resources-planning"
 set sub_navbar ""
 set main_navbar_label "resource_management"
 set show_context_help_p 0
+set return_url [im_url_with_query]
 
 regsub -all {%20} $top_vars " " top_vars
 regsub -all {\+} $top_vars " " top_vars
@@ -75,7 +76,7 @@ if {$restrict_to_user_department_by_default_p} {
         set employee_cost_center_id [db_string current_user_cc "
 		select	department_id
 		from	im_employees
-		where	employee_id = :user_id
+		where	employee_id = :current_user_id
         " -default ""]
     }
 }
@@ -103,7 +104,7 @@ set html [im_resource_mgmt_resource_planning_percentage \
 	-report_employee_cost_center_id $employee_cost_center_id \
 	-show_all_employees_p $show_all_employees_p \
 	-excluded_group_ids "" \
-	-page_url "/intranet-resource-management/resources-planning" \
+	-page_url $page_url \
 ]
 
 if {"" == $html} { 
@@ -233,6 +234,38 @@ append filter_html "
 "
 
 append filter_html "</table>\n</form>\n"
+
+
+# ---------------------------------------------------------------
+# Help message
+#
+set help_html [im_help_collapsible [lang::message::lookup "" intranet-resource-management.Percentage_Report_Help "
+<h2>Resource Management Report - By Percentage</h2>
+<p>This resource management report shows summarized assignments of natural persons by task,
+project, user and department, aggregated from the actual to a task up the project hierarchy 
+towards the user and department level.</p>
+<p>Important comments:</p>
+<ul>
+<li><b>Effective Working Time</b>:<br>
+    The values shown in this report refer to percentages of the effective working time
+    of resources.
+    This time can be set in the 'Employee Information' portlet on the user's page. <br>
+    Example: Assigning a user working a 50% part-time job to a task with 80% will 
+    result in a 40% assignment.
+<li><b>Assignment Duration and Precision</b>:<br>
+    The duration of an assignment includes both the start and end date of the task.
+    Assignments are currently only per days. Future versions of this report
+    will allow for assignments per hour and minute based on a calendar with
+    working hours.
+<li><b>Vacation and other absences</b>:<br>
+    This report counts vacation as additional assignments. They are added to the
+    project assignments. <br>
+    Example: A user assigned with 100% to a task will be shown as overassigned, 
+    if he is going for vacation during the time of the task.<br>
+    Other absences may or may not count as vacation time. 
+</ul>
+"]]
+set help_html "<table width='50%' align=left border=0><tr><td>$help_html</td></tr></table>\n"
 
 
 # ---------------------------------------------------------------

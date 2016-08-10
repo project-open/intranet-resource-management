@@ -6,5 +6,6 @@
 <property name="left_navbar">@left_navbar_html;literal@</property>
 <property name="show_context_help">@show_context_help_p;literal@</property>
 
+@help_html;noquote@
 @html;noquote@
 

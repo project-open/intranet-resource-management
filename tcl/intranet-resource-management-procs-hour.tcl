@@ -1715,7 +1715,7 @@ ad_proc -public im_resource_mgmt_resource_planning_hour {
 		    set first_department_p 0
 		    ns_log Notice "intranet-resource-management-procs::output: Change of department -> show subtotals and print rows"
 		    # Change of department -> show subtotals and print rows 
-		    append html [write_department_row \
+		    append html [write_department_row_hour \
 				     $department_row_html \
 				     $user_department_id_predecessor \
 				     [array get totals_department_absences_arr] \
@@ -2015,22 +2015,22 @@ ad_proc -public im_resource_mgmt_resource_planning_hour {
 					} else {
 					    set bar_value [expr {100*$acc_hours/$hours_availability_user}]
 					}
-					set bar_color [im_resource_mgmt_get_bar_color "gradient" $bar_value]
-					append cell_html [im_resource_mgmt_resource_planning_cell "custom" $bar_value $bar_color "[format "%0.2f" $acc_hours][lang::message::lookup "" intranet-resource-management.HoursAbrv "h"]" "" 1]
+					set bar_color [im_resource_mgmt_get_bar_color_hour "gradient" $bar_value]
+					append cell_html [im_resource_mgmt_resource_planning_cell_hour "custom" $bar_value $bar_color "[format "%0.2f" $acc_hours][lang::message::lookup "" intranet-resource-management.HoursAbrv "h"]" "" 1]
 					set cell_flag 1
 				    }  
 				    # Create bar in case an absence is found 
 				    if {[info exists absences_hash($absence_key)]} {
 					set bar_color [im_absence_mix_colors $absences_hash($absence_key)]
 					set bar_value [lindex $absence_list $absences_hash($absence_key)]
-					append cell_html [im_resource_mgmt_resource_planning_cell "custom" 100 $bar_color $bar_value "a" 1]
+					append cell_html [im_resource_mgmt_resource_planning_cell_hour "custom" 100 $bar_color $bar_value "a" 1]
 					set cell_flag 1
 				    }
 
 				    if { ![info exists absences_hash($absence_key)] && "0" == $acc_hours } {
 					# Neither absences nor planned hours -> show full availability  
-					set bar_color [im_resource_mgmt_get_bar_color "gradient" 0]
-	                                append cell_html [im_resource_mgmt_resource_planning_cell "custom" 0 $bar_color 0 "" 1]
+					set bar_color [im_resource_mgmt_get_bar_color_hour "gradient" 0]
+	                                append cell_html [im_resource_mgmt_resource_planning_cell_hour "custom" 0 $bar_color 0 "" 1]
 				    }
 			        } else {
 				    # Show Uni-color bar   
@@ -2054,14 +2054,14 @@ ad_proc -public im_resource_mgmt_resource_planning_hour {
 				         set percent_hours_occupied [expr {100 * $hours_occupied_total / $hours_per_day_glob}]				    
 				    }    
 	
-	                            set bar_color [im_resource_mgmt_get_bar_color "traffic_light" $percent_hours_occupied]
+	                            set bar_color [im_resource_mgmt_get_bar_color_hour "traffic_light" $percent_hours_occupied]
 
 				    if { 0 == $hours_availability_user } {
                                         set perc_occupation_user_total 0
 				    } else {
 					set perc_occupation_user_total [expr {100 * $occupation_user_total / $hours_availability_user}]
 				    }
-	                            append cell_html [im_resource_mgmt_resource_planning_cell "custom" $percent_hours_occupied $bar_color "$hours_occupied_total/$perc_occupation_user_total%" "" $limit_height]
+	                            append cell_html [im_resource_mgmt_resource_planning_cell_hour "custom" $percent_hours_occupied $bar_color "$hours_occupied_total/$perc_occupation_user_total%" "" $limit_height]
 				}
 			}
 
@@ -2100,11 +2100,9 @@ ad_proc -public im_resource_mgmt_resource_planning_hour {
 		    # default line is showing project or task 
 		    ns_log Notice "intranet-resource-management-procs::output: Line is showing project or task"
                     if { "percentage" == $calculation_mode } {
-			# set cell_html [util_memoize [list im_resource_mgmt_resource_planning_cell default $val "" "" "" $limit_height]]
 			set cell_html "${val}%"
 		    } else {
 			if { ![info exists weekend_hash($julian_date)] } {
-			    # set cell_html [im_resource_mgmt_resource_planning_cell "custom" $val [im_resource_mgmt_get_bar_color $bar_type $val] "$val%" "" $limit_height]
 			    if { $val_hours == 0  } {
 				set cell_html ""
 			    } else {
@@ -2255,7 +2253,7 @@ ad_proc -public im_resource_mgmt_resource_planning_hour {
 
  
     if { [info exists department_row_html] } {
-	append html [write_department_row \
+	append html [write_department_row_hour \
 			 $department_row_html \
 			 $user_department_id_predecessor \
 			 [array get totals_department_absences_arr] \
@@ -2367,11 +2365,9 @@ ad_proc -public im_resource_mgmt_resource_planning_hour {
 		    set val 0
 		}
 
-		# set bar_chart [im_resource_mgmt_resource_planning_cell "custom" $val [im_resource_mgmt_get_bar_color $bar_type $val] "$val%" "" $limit_height ]
-
 		# Create bar chart 
-                set bar_color [im_resource_mgmt_get_bar_color "traffic_light" [expr {$val - 100}]]
-                set bar_chart [im_resource_mgmt_resource_planning_cell "custom" 0 $bar_color [expr {100-$val}] "" $limit_height]
+                set bar_color [im_resource_mgmt_get_bar_color_hour "traffic_light" [expr {$val - 100}]]
+                set bar_chart [im_resource_mgmt_resource_planning_cell_hour "custom" 0 $bar_color [expr {100-$val}] "" $limit_height]
 
 	        append header "\t<td class='rowtitle' valign='bottom'>$bar_chart</td>\n"
         	# append header "\t<td class='rowtitle' valign='bottom'>$bar_chart<br>PH:$total_planned_hours<br>AB:$total_absences<br>AV:$total_availability</td>\n"
@@ -2473,9 +2469,9 @@ ad_proc -private write_department_row_hour {
 	            # Create bar showing availability
 	            if { 0 == $total_department_occupancy } {
 	                # no planned hours & no absences -> full availability
-	                set bar_color [im_resource_mgmt_get_bar_color "traffic_light" 0]
+	                set bar_color [im_resource_mgmt_get_bar_color_hour "traffic_light" 0]
 			set par_hint "Abs.&Planned Hours:0 / Total Hours Dep. Avail.:$totals_department_availability_arr_loc($ctr) / Occ.:0%"
-	                append row_html "<td>[im_resource_mgmt_resource_planning_cell "custom" 0 $bar_color "0/0%" "" $limit_height]</td>\n"
+	                append row_html "<td>[im_resource_mgmt_resource_planning_cell_hour "custom" 0 $bar_color "0/0%" "" $limit_height]</td>\n"
 	            } else {
 	                # We have absences and planned hours -> Calculate availability
 	                set total_hours_department_occupancy [expr {$totals_department_planned_hours_arr_loc($ctr) + $totals_department_absences_arr_loc($ctr)}]
@@ -2487,7 +2483,7 @@ ad_proc -private write_department_row_hour {
 			    set percentage_occupancy [expr {100 * $total_hours_department_occupancy / $totals_department_availability_arr_loc($ctr)}]
 			}
                         set percentage_occupancy [format "%0.1f" $percentage_occupancy]
-	                set bar_color [im_resource_mgmt_get_bar_color "traffic_light" $percentage_occupancy]
+	                set bar_color [im_resource_mgmt_get_bar_color_hour "traffic_light" $percentage_occupancy]
 
 			set par_hint  [lang::message::lookup "" intranet-resource-management.Absence_And_Planned_Hours "Abs.&Planned Hours"]
 			append par_hint ": $total_hours_department_occupancy_pretty / "
@@ -2496,7 +2492,7 @@ ad_proc -private write_department_row_hour {
                         append par_hint [lang::message::lookup "" intranet-resource-management.Occupancy "Occ."]
                         append par_hint ": $percentage_occupancy%"
 
-	                append row_html "<td>[im_resource_mgmt_resource_planning_cell "custom" $percentage_occupancy $bar_color $par_hint "" $limit_height]</td>\n"
+	                append row_html "<td>[im_resource_mgmt_resource_planning_cell_hour "custom" $percentage_occupancy $bar_color $par_hint "" $limit_height]</td>\n"
 	            }
 	    } else {
 	            append row_html "<td></td>"

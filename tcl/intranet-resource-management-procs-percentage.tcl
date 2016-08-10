@@ -605,8 +605,10 @@ ad_proc -public im_resource_mgmt_resource_planning_percentage {
 	for {set i 0} {$i < $indent_level} {incr i} { append indent_html "&nbsp; &nbsp; &nbsp; " }
 
 	set class $rowclass([expr $row_ctr % 2])
+	set bold_p 0
 	switch $object_type {
 	    im_cost_center {
+		set bold_p 1
 		append row_html "<tr class=white valign=bottom>\n"
 		append row_html "<td><nobr>$indent_html<b>$cell_html</b></nobr></td>\n"
 		set availability_title [lang::message::lookup "" intranet-resource-management.Availability_title_cost_center "Sum of the availabililities of all active natual persons in this department"]
@@ -616,13 +618,13 @@ ad_proc -public im_resource_mgmt_resource_planning_percentage {
 		append row_html "<td><nobr>$indent_html$cell_html</nobr></td>\n"
 		set availability_title [lang::message::lookup "" intranet-resource-management.Availability_title_default "Availability of the user for project work"]
 	    }
-
 	}
 
 	# Show availabilityability per object
 	set availability $object_availability_hash($object_id)
 	set availability_html $availability
 	if {"" ne $availability} { append availability_html "%" } else { set availability 0 }
+	if {$bold_p} { set availability_html "<b>$availability_html</b>" }
 	append row_html "<td><span title='$availability_title'>$availability_html</span></td>\n"
 
 	# ------------------------------------------------------------
@@ -658,6 +660,7 @@ ad_proc -public im_resource_mgmt_resource_planning_percentage {
 		    # <= 1.0 -> black=#00000, >1.5 -> red=#FF0000
 		    set ratio [expr round(min(max(($overassignment_ratio - 1.0),0) * 512.0, 255))]
 		    set color "#[format %x $ratio]0000"
+		    if {"" ne $assig} { set assig "$assig%" }
 		    set cell_html "<font color=$color>$assig</font>"
 		}
 	    }
@@ -666,6 +669,7 @@ ad_proc -public im_resource_mgmt_resource_planning_percentage {
 	    set key "$j-$project_id-$user_id"
 	    if {[info exists assignment_hash($key)]} { 
 		set assig [expr round($assignment_hash($key))] 
+		if {"" ne $assig} { set assig "$assig%" }
 		append cell_html $assig
 	    }
 
