@@ -624,6 +624,7 @@ ad_proc -public im_resource_mgmt_resource_planning_percentage {
 
 	set object_has_children_p [info exists object_has_children_hash($object_id)]
 	if {!$object_has_children_p} { set collapse_html [util_memoize [list im_gif cleardot "" 0 9 9]] }
+	if {$object_id eq $freelancers_department} { set collapse_html [util_memoize [list im_gif cleardot "" 0 9 9]] }; # fake dept - no collapse
 
 	# Create cell
 	set indent_level [expr [llength $left_entry] - 1]
