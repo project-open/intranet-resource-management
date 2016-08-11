@@ -21,7 +21,6 @@ ad_page_contract {
 } {
     { start_date "" }
     { end_date "" }
-    { show_all_employees_p "" }
     { top_vars "year month_of_year day_of_month" }
     { project_id:multiple "" }
     { customer_id:integer 0 }
@@ -101,7 +100,6 @@ set html [im_resource_mgmt_resource_planning_percentage \
 	-report_project_type_id $project_type_id \
 	-report_customer_id $customer_id \
 	-report_employee_cost_center_id $employee_cost_center_id \
-	-show_all_employees_p $show_all_employees_p \
 	-excluded_group_ids "" \
 	-page_url $page_url \
 ]
@@ -211,18 +209,6 @@ append filter_html "
 
 
 
-set show_all_employees_checked ""
-if {1 == $show_all_employees_p} { set show_all_employees_checked "checked" }
-append filter_html "
-  <tr>
-	<td class=form-label valign=top>[lang::message::lookup "" intranet-ganttproject.All_Employees "Show all:"]</td>
-	<td class=form-widget valign=top>
-	        <input name=show_all_employees_p type=checkbox value='1' $show_all_employees_checked> 
-		[lang::message::lookup "" intranet-core.Employees "Employees?"]
-	</td>
-  </tr>
-"
-
 append filter_html "
   <tr>
     <td class=form-label></td>
@@ -298,27 +284,7 @@ set left_navbar_html "
 "
 
 
-# ---------------------------------------------------------------
-# Color Codes
-#
-set color_list [im_absence_cube_color_list]
-set col_sql "
-        select  category_id, category
-        from    im_categories
-        where   category_type = 'Intranet Absence Type'
-        order by category_id
-"
-append absence_color_codes "<div class=filter-title>&nbsp;[lang::message::lookup "" intranet-timesheet2.Absences_Color_Codes "Absences Color Codes"]</div>\n"
-append absence_color_codes "<table cellpadding='5' cellspacing='5'>\n"
-db_foreach cols $col_sql {
-    set index [expr $category_id - 5000]
-    set col [lindex $color_list $index]
-    regsub -all " " $category "_" category_key
-    set category_l10n [lang::message::lookup "" intranet-core.$category_key $category]
-    append absence_color_codes "<tr><td>&nbsp;&nbsp;&nbsp;</td><td bgcolor='\#$col' style='padding:3px'>$category_l10n</td></tr>\n"
-}
-append absence_color_codes "</table>\n"
+append left_navbar_html [im_absence_color_table]
 
-append left_navbar_html "<br>$absence_color_codes"
 
 

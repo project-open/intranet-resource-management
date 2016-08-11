@@ -323,26 +323,4 @@ set left_navbar_html "
       <hr/>
 "
 
-
-set color_list [im_absence_cube_color_list]
-set col_sql "
-        select  category_id, category
-        from    im_categories
-        where   category_type = 'Intranet Absence Type'
-        order by category_id
-"
-append absence_color_codes "<div class=filter-title>&nbsp;[lang::message::lookup "" intranet-timesheet2.Color_codes "Color Codes"]</div>\n"
-append absence_color_codes "<table cellpadding='5' cellspacing='5'>\n"
-append absence_color_codes "<tr><td>&nbsp;&nbsp;&nbsp;</td><td bgcolor='\#666699' style='padding:3px'>Planned hours</td></tr>\n"
-db_foreach cols $col_sql {
-    set index [expr $category_id - 5000]
-    set col [lindex $color_list $index]
-    regsub -all " " $category "_" category_key
-    set category_l10n [lang::message::lookup "" intranet-core.$category_key $category]
-    append absence_color_codes "<tr><td>&nbsp;&nbsp;&nbsp;</td><td bgcolor='\#$col' style='padding:3px'>$category_l10n</td></tr>\n"
-}
-append absence_color_codes "</table>\n"
-
-set left_navbar_html "$left_navbar_html<br>$absence_color_codes"
-
-
+append left_navbar_html [im_absence_color_table]

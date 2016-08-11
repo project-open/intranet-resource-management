@@ -267,3 +267,5 @@ set left_navbar_html "
       	</div>
       <hr/>
 "
+
+append left_navbar_html [im_absence_color_table]

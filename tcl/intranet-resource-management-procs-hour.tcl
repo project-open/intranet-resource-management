@@ -326,7 +326,7 @@ ad_proc -public im_resource_mgmt_resource_planning_hour {
 	set day_of_week_hash($i) $dow
 
 	# Weekend
-	if {0 == $dow || 6 == $dow || 7 == $dow} { set weekend_hash($i) 5 }
+	if {0 == $dow || 6 == $dow || 7 == $dow} { set weekend_hash($i) [im_user_absence_type_bank_holiday] }
 	
 	# Start of Week Julian
 	set start_of_week_julian_hash($i) [expr {$i - $dow}]
@@ -372,9 +372,9 @@ ad_proc -public im_resource_mgmt_resource_planning_hour {
 	    # Aggregate per day
 	    if {$calc_day_p} {
 		set key "$i-$owner_id"
-		set val ""
+		set val {}
 		if {[info exists absences_hash($key)]} { set val $absences_hash($key) }
-		append val [expr {$absence_type_id - 5000}]
+		lappend val $absence_type_id
 		set absences_hash($key) $val
 	    }
 
@@ -382,9 +382,9 @@ ad_proc -public im_resource_mgmt_resource_planning_hour {
 	    if {$calc_week_p && ![info exists weekend_hash($i)]} {
 		set week_julian [util_memoize [list im_date_julian_to_week_julian $i]]
 		set key "$week_julian-$owner_id"
-		set val ""
+		set val {}
 		if {[info exists absences_hash($key)]} { set val $absences_hash($key) }
-		append val [expr {$absence_type_id - 5000}]
+		lappend val $absence_type_id
 		set absences_hash($key) $val
 	    }
 	}
@@ -2128,14 +2128,14 @@ ad_proc -public im_resource_mgmt_resource_planning_hour {
 	    set list_of_absences ""
 	    if {$calc_day_p && [info exists weekend_hash($julian_date)]} {
 		set absence_key $julian_date
-		append list_of_absences $weekend_hash($absence_key)
+		lappend list_of_absences $weekend_hash($absence_key)
 	    }
 	
 	    # Absences
 	    set absence_key "$julian_date-$user_id"
 	    if {[info exists absences_hash($absence_key)]} {
 		# Color the entire column in case of an absence 
-		append list_of_absences $absences_hash($absence_key)
+		set list_of_absences [concat $list_of_absences $absences_hash($absence_key)]
 	    }
 	
 	    set col_attrib ""
@@ -2145,6 +2145,7 @@ ad_proc -public im_resource_mgmt_resource_planning_hour {
 		    while {[string length $list_of_absences] < 5} { append list_of_absences " " }
 		}
 		set color [util_memoize [list im_absence_mix_colors $list_of_absences]]
+		ns_log Notice "resource-planning-klaus: im_absence_mix_colors $list_of_absences -> $color"
 		set col_attrib "bgcolor=#$color"
 	    }
 

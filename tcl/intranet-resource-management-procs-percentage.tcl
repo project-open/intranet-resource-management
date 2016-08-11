@@ -32,8 +32,6 @@ ad_proc -public im_resource_mgmt_resource_planning_percentage {
     {-report_user_id ""}
     {-report_customer_id 0}
     {-export_var_list ""}
-    {-show_all_employees_p 1}
-    {-show_departments_only_p "0" }
     {-excluded_group_ids "" }
     {-return_url ""}
     {-page_url:required}
@@ -57,8 +55,8 @@ ad_proc -public im_resource_mgmt_resource_planning_percentage {
     # Department to use, when user is not assigned to one 
     set company_cost_center [im_cost_center_company]
     set default_department [parameter::get_from_package_key -package_key "intranet-resource-management" -parameter "DefaultCostCenterId" -default $company_cost_center]
+    set freelancers_department 999999
 
-    if {"" == $show_departments_only_p} { set show_departments_only_p 0 }
     if {"" == $excluded_group_ids} { set excluded_group_ids 0 }
 
     set html ""
@@ -126,42 +124,43 @@ ad_proc -public im_resource_mgmt_resource_planning_percentage {
     # ------------------------------------------------------------
     ns_log Notice "percentage-report: Conditional SQL where clause"
     #
-    set criteria [list]
-    if {"" != $report_customer_id && 0 != $report_customer_id} { lappend criteria "parent.company_id = :report_customer_id" }
-    if {"" != $report_project_id && 0 != $report_project_id} { lappend criteria "parent.project_id in ([join $report_project_id ", "])" }
+    set assignment_criteria [list]
+    set user_criteria ""
+    if {"" != $report_customer_id && 0 != $report_customer_id} { lappend assignment_criteria "parent.company_id = :report_customer_id" }
+    if {"" != $report_project_id && 0 != $report_project_id} { lappend assignment_criteria "parent.project_id in ([join $report_project_id ", "])" }
     if {"" != $report_project_status_id && 0 != $report_project_status_id} { 
-	lappend criteria "parent.project_status_id in ([join [im_sub_categories $project_status_id] ", "])" 
+	lappend assignment_criteria "parent.project_status_id in ([join [im_sub_categories $project_status_id] ", "])" 
     }
     if {"" != $report_project_type_id && 0 != $report_project_type_id} { 
-	lappend criteria "parent.project_type_id in ([join [im_sub_categories $report_project_type_id] ", "])" 
+	lappend assignment_criteria "parent.project_type_id in ([join [im_sub_categories $report_project_type_id] ", "])" 
     }
-    if {"" != $report_user_id && 0 != $report_user_id} { lappend criteria "u.user_id in ([join $report_user_id ","])" }
-
-    set union_criteria ""
+    if {"" != $report_user_id && 0 != $report_user_id} { lappend assignment_criteria "u.user_id in ([join $report_user_id ","])" }
     if {"" != $report_employee_cost_center_id && 0 != $report_employee_cost_center_id} {
-	lappend criteria "u.user_id in (
-		select	employee_id
-		from	im_employees
-		where	department_id in ([join [im_sub_cost_center_ids $report_employee_cost_center_id] ","])
+	lappend assignment_criteria "u.user_id in (
+		select	eee.employee_id
+		from	im_employees eee
+		where	eee.department_id in ([join [im_sub_cost_center_ids $report_employee_cost_center_id] ","])
 	)"
 
-	set union_criteria " 
-                    and     e.employee_id in (
-                                select  employee_id
-                                from    im_employees
-                                where   department_id in ([join [im_sub_cost_center_ids $report_employee_cost_center_id] ","])
-			    )
+	lappend user_criteria "
+			e.employee_id in (
+				select  eee.employee_id
+				from    im_employees eee
+				where   eee.department_id in ([join [im_sub_cost_center_ids $report_employee_cost_center_id] ","])
+			)
 	"
     } 
 
     if {"" ne $excluded_group_ids && 0 ne $excluded_group_ids} {
-        lappend criteria "u.user_id not in (
+        lappend assignment_criteria "u.user_id not in (
             select  object_id_two from acs_rels where object_id_one in ([join $excluded_group_ids ","]) and rel_type = 'membership_rel'
         )"
     }
 
-    set where_clause [join $criteria " and\n\t\t\t"]
-    if { $where_clause ne "" } { set where_clause " and $where_clause" }
+    set assignment_where_clause [join $assignment_criteria " and\n\t\t\t"]
+    if { $assignment_where_clause ne "" } { set assignment_where_clause " and $assignment_where_clause" }
+    set user_where_clause [join $user_criteria " and\n\t\t\t"]
+    if { $user_where_clause ne "" } { set user_where_clause " and $user_where_clause" }
 
 
     # ------------------------------------------------------------
@@ -256,7 +255,7 @@ ad_proc -public im_resource_mgmt_resource_planning_percentage {
 					r.object_id_one = -2 and
 					mr.member_state != 'approved'
 			)
-			$where_clause
+			$assignment_where_clause
 		order by
 			child.tree_sortkey,
 			u.user_id
@@ -306,6 +305,7 @@ ad_proc -public im_resource_mgmt_resource_planning_percentage {
 					r.object_id_one = -2 and
 					mr.member_state != 'approved'
 			)
+			$user_where_clause
 		), 0) as resources_available_percent
 	from	im_cost_centers cc
 	where	1 = 1
@@ -313,7 +313,6 @@ ad_proc -public im_resource_mgmt_resource_planning_percentage {
     "
     db_foreach ccs $cc_sql {
 	set cc_parent_hash($cost_center_id) $parent_id
-	set cc_indent_hash $indent_level
 	set object_type_hash($cost_center_id) "im_cost_center"
 	set object_name_hash($cost_center_id) $cost_center_name
 	set collapse_hash($cost_center_id) "o"
@@ -331,21 +330,27 @@ ad_proc -public im_resource_mgmt_resource_planning_percentage {
 	    if {$cnt > 20} { ad_return_complaint 1 "Percentage Report:<br>Infinite loop in dept aggregation" }
 	}
     }
+    
+    # Setup a fake "Freelancers" department below "The Company"
+    set cc_parent_hash($freelancers_department) $default_department
+    set object_type_hash($freelancers_department) "im_cost_center"
+    set object_name_hash($freelancers_department) [lang::message::lookup "" intranet-core.No_Department "No Department"]
+    set collapse_hash($freelancers_department) "o"
+    set object_availability_hash($freelancers_department) 0
     set clicks([clock clicks -microseconds]) department_hierarchy
 
 
     # --------------------------------------------
     ns_log Notice "percentage-report: User department information"
     #
-    set user_hash(0) 0
     set user_info_sql "
 	select	u.user_id,
-		coalesce(e.department_id, :default_department) as department_id,
+		coalesce(e.department_id, :freelancers_department) as department_id,
 		coalesce(e.availability, 100) as availability,
 		im_name_from_user_id(u.user_id) as user_name
 	from	users u
 		LEFT OUTER JOIN im_employees e ON (u.user_id = e.employee_id)
-	where	u.user_id not in (	     -- only natural active persons
+	where	u.user_id not in (		-- only natural active persons
 				select member_id
 				from   group_distinct_member_map
 				where  group_id = [im_profile_skill_profile]
@@ -358,22 +363,32 @@ ad_proc -public im_resource_mgmt_resource_planning_percentage {
 					r.object_id_two = u.user_id and
 					r.object_id_one = -2 and
 					mr.member_state != 'approved'
+		) and
+		u.user_id in (			-- all users who are part of a department
+			select	ee.employee_id
+			from	im_employees ee
+			where	ee.department_id is not null
+		    UNION			-- plus all employees
+			select	member_id
+			from	group_distinct_member_map
+			where	group_id = [im_profile_employees]
+		    UNION			-- plus all users with an assignment
+			select	uu.user_id
+			from	users uu
+			where	u.user_id in ([join [array names user_hash] ","])
 		)
+		$user_where_clause
     "
-    if {1 eq $show_all_employees_p} {
-	append user_info_sql "and (u.user_id in (select member_id from group_distinct_member_map where group_id = [im_profile_employees])
-                OR u.user_id in ([join [array names user_hash] ","]))
-        " 
-    } else {
-	append user_info_sql "and u.user_id in ([join [array names user_hash] ","])" 
-    }
+
     db_foreach user_info $user_info_sql {
+        set user_hash($user_id) $user_id
 	set object_name_hash($user_id) $user_name
 	set object_type_hash($user_id) "user"
 	set user_department_hash($user_id) $department_id
 	set object_availability_hash($user_id) $availability
 	set collapse_hash($user_id) "c"
     }
+    if {0 eq [llength [array names user_hash]]} { set user_hash(0) 0 }; # Avoid errors in an empty system
     set clicks([clock clicks -microseconds]) user_info
 
 
@@ -414,6 +429,8 @@ ad_proc -public im_resource_mgmt_resource_planning_percentage {
     # - The leaf task with the assignment
     #
     set left_dimension {}
+
+    # Add to the left dimension all project - user assignments
     foreach key [array names project_user_assignment_hash] {
 
 	set tuple [split $key "-"]
@@ -442,6 +459,23 @@ ad_proc -public im_resource_mgmt_resource_planning_percentage {
 	lappend left_dimension $parent_list
 	set left_dimension_hash($key) $parent_list;      # remember the parents for aggregation
     }
+
+    # Add to the left dimension all users from the users hash
+    foreach user_id [array names user_hash] {
+
+	set parent_list [list $user_id]
+
+	# Append the user's cost center and it's parents
+	set cc_id $user_department_hash($user_id)
+	while {"" ne $cc_id} {
+	    lappend parent_list $cc_id
+	    set cc_id $cc_parent_hash($cc_id)
+	}
+	set parent_list [lreverse $parent_list]
+	lappend left_dimension $parent_list
+	set left_dimension_hash($key) $parent_list;      # remember the parents for aggregation
+    }
+
     set clicks([clock clicks -microseconds]) left_dimension
     # ad_return_complaint 1 "<pre>[join $left_dimension "\n"]</pre>"
 
@@ -555,7 +589,6 @@ ad_proc -public im_resource_mgmt_resource_planning_percentage {
     # -------------------------------------------------------------------------------------------
     ns_log Notice "percentage-report: Write out matrix"
     # 
-
     set matrix_html ""
     set row_ctr 0
     set show_row_task_p 0 
@@ -577,8 +610,6 @@ ad_proc -public im_resource_mgmt_resource_planning_percentage {
 	    if {"im_project" eq $otype && "" eq $project_id} { set project_id $oid }
 	    if {"user" eq $otype && "" eq $user_id} { set user_id $oid }
 	}
-
-	# ToDo: extract user_id and project_id from left_entry
 
 	# Display +/- GIF
 	set closed_p "o"
@@ -625,12 +656,18 @@ ad_proc -public im_resource_mgmt_resource_planning_percentage {
 	set availability_html $availability
 	if {"" ne $availability} { append availability_html "%" } else { set availability 0 }
 	if {$bold_p} { set availability_html "<b>$availability_html</b>" }
+	if {"user" eq $object_type_hash($object_id)} {
+	    if {$company_cost_center eq $user_department_hash($object_id)} {
+		# A user with an empty department - create an error class
+		set availability_html "<font color=red><b>$availability_html</b></font>"
+		set availability_title [lang::message::lookup "" intranet-resource-management.User_without_department "Please check the department of this user."]
+	    }
+	}
 	append row_html "<td><span title='$availability_title'>$availability_html</span></td>\n"
 
 	# ------------------------------------------------------------
 	ns_log Notice "percentage-report: Start writing out the matrix elements"
-	# ------------------------------------------------------------
-
+	# 
 	for {set j $report_start_julian} {$j < $report_end_julian} {incr j} {
 
 	    # Check for Absences. Weekends are already included in the absences_hash(..)
