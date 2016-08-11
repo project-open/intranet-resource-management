@@ -26,11 +26,9 @@ ad_page_contract {
     { customer_id:integer 0 }
     { project_status_id:integer 0 }
     { project_type_id:integer 0 }
-    { employee_cost_center_id 0 }
-    { program_id 0 }
-    { zoom "" }
-    { max_col 20 }
-    { max_row 100 }
+    { employee_cost_center_id:integer 0 }
+    { program_id:integer 0 }
+    { debug_p:integer 0}
 }
 
 #    { top_vars "year week_of_year day_of_week" }
@@ -102,6 +100,7 @@ set html [im_resource_mgmt_resource_planning_percentage \
 	-report_employee_cost_center_id $employee_cost_center_id \
 	-excluded_group_ids "" \
 	-page_url $page_url \
+	-debug_p $debug_p \
 ]
 
 if {"" == $html} { 
@@ -118,7 +117,7 @@ if {"" == $html} {
 
 set filter_html "
 <form method=get name=projects_filter action='$page_url'>
-[export_vars -form {start_idx order_by how_many view_name include_subprojects_p letter}]
+[export_vars -form {debug_p}]
 <table border=0 cellpadding=0 cellspacing=1>
 "
 
@@ -206,8 +205,6 @@ append filter_html "
   </tr>
 "
 }
-
-
 
 append filter_html "
   <tr>
