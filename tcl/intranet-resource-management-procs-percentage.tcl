@@ -190,7 +190,7 @@ ad_proc -public im_resource_mgmt_resource_planning_percentage {
 	set day_of_week_hash($i) $dow
 
 	# Weekend
-	if {0 == $dow || 6 == $dow || 7 == $dow} { set weekend_hash($i) 5 }
+	if {0 == $dow || 6 == $dow || 7 == $dow} { set weekend_hash($i) [im_user_absence_type_bank_holiday] }
 	
 	# Start of Week Julian
 	set start_of_week_julian_hash($i) [expr $i - $dow]
@@ -204,8 +204,8 @@ ad_proc -public im_resource_mgmt_resource_planning_percentage {
     array set absences_hash [im_resource_mgmt_resource_planning_percentage_absences \
 				 -report_start_date $report_start_date \
 				 -report_end_date $report_end_date \
-				 -weekend_list [array get weekend_hash] \
     ]
+#    ad_return_complaint 1 [array get absences_hash]
     set clicks([clock clicks -microseconds]) absences
 
 
@@ -633,19 +633,20 @@ ad_proc -public im_resource_mgmt_resource_planning_percentage {
 
 	for {set j $report_start_julian} {$j < $report_end_julian} {incr j} {
 
-	    # Check for Absences
+	    # Check for Absences. Weekends are already included in the absences_hash(..)
 	    set list_of_absences ""
-	    if {[info exists weekend_hash($j)]} {
-		append list_of_absences $weekend_hash($j)
-	    }
 	    set absence_key "$j-$object_id"
 	    if {[info exists absences_hash($absence_key)]} {
-		append list_of_absences $absences_hash($absence_key)
+		set list_of_absences $absences_hash($absence_key)
+	    }
+	    if {[info exists weekend_hash($j)]} {
+		lappend list_of_absences $weekend_hash($j)
 	    }
 
 	    set col_attrib ""
 	    if {"" != $list_of_absences} {
 		set color [util_memoize [list im_absence_mix_colors $list_of_absences]]
+		ns_log Notice "write_out_matrix: im_absence_mix_colors $list_of_absences -> $color"
 		set col_attrib "bgcolor=#$color"
 	    }
 	    
@@ -794,12 +795,9 @@ ad_proc -public im_resource_mgmt_resource_planning_percentage {
 ad_proc -public im_resource_mgmt_resource_planning_percentage_absences {
     -report_start_date
     -report_end_date
-    -weekend_list
 } {
-
+    Extract absences into a hash
 } {
-    array set weekend_hash $weekend_list
-
     set absences_sql "
 	-- Direct absences for a user within the period
 	select	owner_id,
@@ -809,6 +807,7 @@ ad_proc -public im_resource_mgmt_resource_planning_percentage_absences {
 	from 	im_user_absences
 	where	group_id is null and
 		start_date <= :report_end_date::date and
+
 		end_date   >= :report_start_date::date
     UNION
 	-- Absences via groups - Check if the user is a member of group_id
@@ -826,19 +825,10 @@ ad_proc -public im_resource_mgmt_resource_planning_percentage_absences {
 	for {set i $absence_start_julian} {$i <= $absence_end_julian} {incr i} {
 
 	    # Aggregate per day
+	    set val {}
 	    set key "$i-$owner_id"
-	    set val ""
 	    if {[info exists absences_hash($key)]} { set val $absences_hash($key) }
-	    append val [expr $absence_type_id - 5000]
-	    set absences_hash($key) $val
-
-
-	    # Aggregate per week, skip weekends
-	    set week_julian [util_memoize [list im_date_julian_to_week_julian $i]]
-	    set key "$week_julian-$owner_id"
-	    set val ""
-	    if {[info exists absences_hash($key)]} { set val $absences_hash($key) }
-	    append val [expr $absence_type_id - 5000]
+	    lappend val $absence_type_id
 	    set absences_hash($key) $val
 	}
     }

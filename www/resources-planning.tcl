@@ -5,7 +5,6 @@
 # All rights reserved. Please check
 # http://www.project-open.com/ for licensing details.
 
-
 set clicks_base [clock clicks]
 
 ad_page_contract {
@@ -297,3 +296,29 @@ set left_navbar_html "
       	</div>
       <hr/>
 "
+
+
+# ---------------------------------------------------------------
+# Color Codes
+#
+set color_list [im_absence_cube_color_list]
+set col_sql "
+        select  category_id, category
+        from    im_categories
+        where   category_type = 'Intranet Absence Type'
+        order by category_id
+"
+append absence_color_codes "<div class=filter-title>&nbsp;[lang::message::lookup "" intranet-timesheet2.Absences_Color_Codes "Absences Color Codes"]</div>\n"
+append absence_color_codes "<table cellpadding='5' cellspacing='5'>\n"
+db_foreach cols $col_sql {
+    set index [expr $category_id - 5000]
+    set col [lindex $color_list $index]
+    regsub -all " " $category "_" category_key
+    set category_l10n [lang::message::lookup "" intranet-core.$category_key $category]
+    append absence_color_codes "<tr><td>&nbsp;&nbsp;&nbsp;</td><td bgcolor='\#$col' style='padding:3px'>$category_l10n</td></tr>\n"
+}
+append absence_color_codes "</table>\n"
+
+append left_navbar_html "<br>$absence_color_codes"
+
+
