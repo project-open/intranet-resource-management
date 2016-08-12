@@ -35,6 +35,7 @@ ad_proc -public im_resource_mgmt_resource_planning_percentage {
     {-excluded_group_ids "" }
     {-return_url ""}
     {-page_url:required}
+    {-absences_included_in_project_planning_p ""}
     {-debug_p 1}
 } {
     Creates Resource Report 
@@ -557,30 +558,32 @@ ad_proc -public im_resource_mgmt_resource_planning_percentage {
 
     # Add absences to the aggregate
 #    ad_return_complaint 1 "<pre>[join [array get absences_hash] "\n"]</pre>"
-    foreach key [array names absences_hash] {
-	set tuple [split $key "-"]
-	set j [lindex $tuple 0]
-	set user_id [lindex $tuple 1]
-	set parent_list $left_dimension_hash($user_id)
-
-	# Logic depending on absence types
-	set absence_type_id $absences_hash($key)
-	switch $absence_type_id {
-	    5005 { 
-		continue ; # Exclude bank holidays 
+    if {"1" eq $absences_included_in_project_planning_p} {
+	foreach key [array names absences_hash] {
+	    set tuple [split $key "-"]
+	    set j [lindex $tuple 0]
+	    set user_id [lindex $tuple 1]
+	    set parent_list $left_dimension_hash($user_id)
+	    
+	    # Logic depending on absence types
+	    set absence_type_id $absences_hash($key)
+	    switch $absence_type_id {
+		5005 { 
+		    continue ; # Exclude bank holidays 
+		}
 	    }
-	}
-
-	# Calculate how many percent are assigned
-	set percentage 100
-	set availability $object_availability_hash($user_id)
-	set assigavail [expr $percentage * $availability / 100.0]
-
-	foreach oid $parent_list {
-	    set v 0
-	    set key "$j-$oid"
-	    if {[info exists assignment_hash($key)]} { set v $assignment_hash($key) }
-	    set assignment_hash($key) [expr $v + $assigavail]
+	    
+	    # Calculate how many percent are assigned
+	    set percentage 100
+	    set availability $object_availability_hash($user_id)
+	    set assigavail [expr $percentage * $availability / 100.0]
+	    
+	    foreach oid $parent_list {
+		set v 0
+		set key "$j-$oid"
+		if {[info exists assignment_hash($key)]} { set v $assignment_hash($key) }
+		set assignment_hash($key) [expr $v + $assigavail]
+	    }
 	}
     }
 

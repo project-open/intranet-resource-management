@@ -28,6 +28,7 @@ ad_page_contract {
     { project_type_id:integer 0 }
     { employee_cost_center_id:integer 0 }
     { program_id:integer 0 }
+    { absences_included_in_project_planning_p "1"}
     { debug_p:integer 0}
 }
 
@@ -100,6 +101,7 @@ set html [im_resource_mgmt_resource_planning_percentage \
 	-report_employee_cost_center_id $employee_cost_center_id \
 	-excluded_group_ids "" \
 	-page_url $page_url \
+	-absences_included_in_project_planning_p $absences_included_in_project_planning_p \
 	-debug_p $debug_p \
 ]
 
@@ -206,6 +208,25 @@ append filter_html "
 "
 }
 
+if {1} {
+    set no_checked ""
+    if {"0" eq $absences_included_in_project_planning_p} { set no_checked "checked" }
+    set help_msg [lang::message::lookup "" intranet-resource-management.Count_Absences_Help "
+	Should absences be counted as additional user assignments? The default is yes, counting
+absences as additional assignments. Please see the report help text at the right for details.
+    "]
+    append filter_html "
+  <tr>
+    <td class=form-label>[lang::message::lookup "" intranet-resource-management.Count_Absences "Count Absences?"]:</td>
+    <td class=form-widget>
+      [_ intranet-core.Yes]<input type=radio name=absences_included_in_project_planning_p value=1 checked>
+      [_ intranet-core.No]<input type=radio name=absences_included_in_project_planning_p value=0 $no_checked>
+      [im_gif help "$help_msg"]
+    </td>
+  </tr>
+"
+}
+
 append filter_html "
   <tr>
     <td class=form-label></td>
@@ -240,11 +261,13 @@ towards the user and department level.</p>
     will allow for assignments per hour and minute based on a calendar with
     working hours.
 <li><b>Vacation and other absences</b>:<br>
-    This report counts vacation as additional assignments. They are added to the
-    project assignments. <br>
-    Example: A user assigned with 100% to a task will be shown as overassigned, 
-    if he is going for vacation during the time of the task.<br>
-    Other absences may or may not count as vacation time. 
+    Vacation and other absences may already be included in the project planning or not.
+    This report doesn't know about this, so the user needs to set the 'Count Absences?'
+    switch accordingly. The default is to count absences, assuming the project manager
+    doesn't know about the user's vacations etc.<br>
+    Example: A user is assigned with 100% to a task, while he is going to have vacation.
+    With 'Count Absences?' checked, the report will shows an overallocation during this 
+    time. 
 </ul>
 "]]
 set help_html "<table width='50%' align=left border=0><tr><td>$help_html</td></tr></table>\n"
