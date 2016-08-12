@@ -143,7 +143,7 @@ ad_proc -public im_resource_mgmt_resource_planning_percentage {
 	)"
 
 	lappend user_criteria "
-			e.employee_id in (
+			u.user_id in (
 				select  eee.employee_id
 				from    im_employees eee
 				where   eee.department_id in ([join [im_sub_cost_center_ids $report_employee_cost_center_id] ","])
@@ -203,6 +203,7 @@ ad_proc -public im_resource_mgmt_resource_planning_percentage {
     array set absences_hash [im_resource_mgmt_resource_planning_percentage_absences \
 				 -report_start_date $report_start_date \
 				 -report_end_date $report_end_date \
+				 -user_where_clause $user_where_clause \
     ]
 #    ad_return_complaint 1 [array get absences_hash]
     set clicks([clock clicks -microseconds]) absences
@@ -280,7 +281,9 @@ ad_proc -public im_resource_mgmt_resource_planning_percentage {
 	}
 
     }
+    # ad_return_complaint 1 "<pre>[join [array get project_user_assignment_hash] "\n"]</pre>"
     set clicks([clock clicks -microseconds]) hierarchy
+
 
     # --------------------------------------------
     ns_log Notice "percentage-report: Cost center information"
@@ -289,8 +292,10 @@ ad_proc -public im_resource_mgmt_resource_planning_percentage {
 	select	cc.*,
 		round(length(cc.cost_center_code) / 2) as indent_level,
 		coalesce((select sum(coalesce(e.availability, 0))
-		from	im_employees e
-		where	e.department_id = cc.cost_center_id and
+		from	im_employees e,
+			users u
+		where	e.employee_id = u.user_id and
+			e.department_id = cc.cost_center_id and
 			e.employee_id not in (		-- only active natural persons
 				select member_id
 				from   group_distinct_member_map
@@ -473,8 +478,12 @@ ad_proc -public im_resource_mgmt_resource_planning_percentage {
 	}
 	set parent_list [lreverse $parent_list]
 	lappend left_dimension $parent_list
-	set left_dimension_hash($key) $parent_list;      # remember the parents for aggregation
+	set left_dimension_hash($user_id) $parent_list;      # remember the parents for aggregation
     }
+
+#    ad_return_complaint 1 "<pre>[join [array get left_dimension_hash] "\n"]</pre>"
+
+
 
     set clicks([clock clicks -microseconds]) left_dimension
     # ad_return_complaint 1 "<pre>[join $left_dimension "\n"]</pre>"
@@ -516,7 +525,6 @@ ad_proc -public im_resource_mgmt_resource_planning_percentage {
     set clicks([clock clicks -microseconds]) children_hash
 
 
-
     # ------------------------------------------------------------
     ns_log Notice "percentage-report: Aggregate percentage assignments up the project hierarchy"
     #
@@ -532,12 +540,13 @@ ad_proc -public im_resource_mgmt_resource_planning_percentage {
 	set start_julian $project_start_julian_hash($project_id)
 	set end_julian $project_end_julian_hash($project_id)
 	set parent_list $left_dimension_hash($key)
-	foreach parent_id $parent_list {
-	    for {set j $start_julian} {$j < $end_julian} {incr j} {
-		set otype $object_type_hash($parent_id)
+
+	foreach oid $parent_list {
+	    for {set j $start_julian} {$j <= $end_julian} {incr j} {
+		set otype $object_type_hash($oid)
 		switch $otype {
-		    im_project { set key "$j-$parent_id-$user_id"  }
-		    default    { set key "$j-$parent_id" }
+		    im_project { set key "$j-$oid-$user_id"  }
+		    default    { set key "$j-$oid" }
 		}
 		set v 0
 		if {[info exists assignment_hash($key)]} { set v $assignment_hash($key) }
@@ -545,9 +554,38 @@ ad_proc -public im_resource_mgmt_resource_planning_percentage {
 	    }
 	}
     }
+
+    # Add absences to the aggregate
+#    ad_return_complaint 1 "<pre>[join [array get absences_hash] "\n"]</pre>"
+    foreach key [array names absences_hash] {
+	set tuple [split $key "-"]
+	set j [lindex $tuple 0]
+	set user_id [lindex $tuple 1]
+	set parent_list $left_dimension_hash($user_id)
+
+	# Logic depending on absence types
+	set absence_type_id $absences_hash($key)
+	switch $absence_type_id {
+	    5005 { 
+		continue ; # Exclude bank holidays 
+	    }
+	}
+
+	# Calculate how many percent are assigned
+	set percentage 100
+	set availability $object_availability_hash($user_id)
+	set assigavail [expr $percentage * $availability / 100.0]
+
+	foreach oid $parent_list {
+	    set v 0
+	    set key "$j-$oid"
+	    if {[info exists assignment_hash($key)]} { set v $assignment_hash($key) }
+	    set assignment_hash($key) [expr $v + $assigavail]
+	}
+    }
+
+#    ad_return_complaint 1 "<pre>[join [array get assignment_hash] "\n"]</pre>"
     set clicks([clock clicks -microseconds]) aggregate
-
-
 
     # --------------------------------------------------
     ns_log Notice "percentage-report: Top Scale"
@@ -630,41 +668,47 @@ ad_proc -public im_resource_mgmt_resource_planning_percentage {
 	set indent_level [expr [llength $left_entry] - 1]
 	set object_name $object_name_hash($object_id)
 	set object_url $url_hash($object_type)
-	set cell_html "$collapse_html $gif_hash($object_type) <a href='$object_url$object_id'>$object_name</a>"
+	set oname_html "$collapse_html $gif_hash($object_type) <a href='$object_url$object_id'>$object_name</a>"
 
 	# Indent the object name
 	set indent_html ""
 	for {set i 0} {$i < $indent_level} {incr i} { append indent_html "&nbsp; &nbsp; &nbsp; " }
 
-	set class $rowclass([expr $row_ctr % 2])
-	set bold_p 0
-	switch $object_type {
-	    im_cost_center {
-		set bold_p 1
-		append row_html "<tr class=white valign=bottom>\n"
-		append row_html "<td><nobr>$indent_html<b>$cell_html</b></nobr></td>\n"
-		set availability_title [lang::message::lookup "" intranet-resource-management.Availability_title_cost_center "Sum of the availabililities of all active natual persons in this department"]
-	    }
-	    default {
-		append row_html "<tr class=$class valign=bottom>\n"
-		append row_html "<td><nobr>$indent_html$cell_html</nobr></td>\n"
-		set availability_title [lang::message::lookup "" intranet-resource-management.Availability_title_default "Availability of the user for project work"]
-	    }
-	}
-
-	# Show availabilityability per object
+	# Determine availabilityability per object
 	set availability $object_availability_hash($object_id)
 	set availability_html $availability
 	if {"" ne $availability} { append availability_html "%" } else { set availability 0 }
-	if {$bold_p} { set availability_html "<b>$availability_html</b>" }
-	if {"user" eq $object_type_hash($object_id)} {
-	    if {$company_cost_center eq $user_department_hash($object_id)} {
-		# A user with an empty department - create an error class
-		set availability_html "<font color=red><b>$availability_html</b></font>"
-		set availability_title [lang::message::lookup "" intranet-resource-management.User_without_department "Please check the department of this user."]
+
+	set class $rowclass([expr $row_ctr % 2])
+	switch $object_type {
+	    im_cost_center {
+		append row_html "<tr class=plain valign=bottom>\n"
+		set oname_html "<td><nobr>$indent_html<b>$oname_html</b></nobr></td>\n"
+		set availability_html "<b>$availability_html</b>"
+		set availability_title [lang::message::lookup "" intranet-resource-management.Availability_title_cost_center "
+                    Sum of the availabililities of all active natual persons in this department"]
+	    }
+	    user {
+		append row_html "<tr class=$class valign=bottom>\n"
+		set oname_html "<td><nobr>$indent_html$oname_html</nobr></td>\n"
+		set availability_title [lang::message::lookup "" intranet-resource-management.Availability_title_default "
+                    Availability of the user for project work"]
+
+		# Check for users with an empty department - create an error message
+		if {$company_cost_center eq $user_department_hash($object_id)} {
+		    set availability_html "<font color=red><b>$availability_html</b></font>"
+		    set availability_title [lang::message::lookup "" intranet-resource-management.User_without_department "Please check the department of this user."]
+		}
+	    }
+	    default {
+		append row_html "<tr class=$class valign=bottom>\n"
+		set oname_html "<td><nobr>$indent_html$oname_html</nobr></td>\n"
+		set availability_title ""
 	    }
 	}
+
 	append row_html "<td><span title='$availability_title'>$availability_html</span></td>\n"
+	append row_html $oname_html
 
 	# ------------------------------------------------------------
 	ns_log Notice "percentage-report: Start writing out the matrix elements"
@@ -833,38 +877,43 @@ ad_proc -public im_resource_mgmt_resource_planning_percentage {
 ad_proc -public im_resource_mgmt_resource_planning_percentage_absences {
     -report_start_date
     -report_end_date
+    -user_where_clause
 } {
     Extract absences into a hash
 } {
+
     set absences_sql "
 	-- Direct absences for a user within the period
-	select	owner_id,
-		to_char(start_date,'J') as absence_start_julian,
-		to_char(end_date,'J') as absence_end_julian,
-		absence_type_id
-	from 	im_user_absences
-	where	group_id is null and
-		start_date <= :report_end_date::date and
-
-		end_date   >= :report_start_date::date
+	select	u.user_id,
+		to_char(a.start_date,'J') as absence_start_julian,
+		to_char(a.end_date,'J') as absence_end_julian,
+		a.absence_type_id
+	from 	im_user_absences a,
+		users u
+	where	a.group_id is null and
+		a.owner_id = u.user_id and
+		a.start_date <= :report_end_date::date and
+		a.end_date   >= :report_start_date::date
+		$user_where_clause
     UNION
 	-- Absences via groups - Check if the user is a member of group_id
-	select	mm.member_id as owner_id,
-		to_char(start_date,'J') as absence_start_julian,
-		to_char(end_date,'J') as absence_end_julian,
-		absence_type_id
+	select	u.user_id,
+		to_char(a.start_date,'J') as absence_start_julian,
+		to_char(a.end_date,'J') as absence_end_julian,
+		a.absence_type_id
 	from	im_user_absences a,
+		users u,
 		group_distinct_member_map mm
 	where	a.group_id = mm.group_id and
-		start_date <= :report_end_date::date and
-		end_date   >= :report_start_date::date
+		u.user_id = mm.member_id and
+		a.start_date <= :report_end_date::date and
+		a.end_date   >= :report_start_date::date
+		$user_where_clause
     "
     db_foreach absences $absences_sql {
 	for {set i $absence_start_julian} {$i <= $absence_end_julian} {incr i} {
-
-	    # Aggregate per day
 	    set val {}
-	    set key "$i-$owner_id"
+	    set key "$i-$user_id"
 	    if {[info exists absences_hash($key)]} { set val $absences_hash($key) }
 	    lappend val $absence_type_id
 	    set absences_hash($key) $val
