@@ -234,8 +234,8 @@ ad_proc -public im_resource_mgmt_resource_planning_percentage {
 		where	parent.project_status_id not in ([join [im_sub_categories [im_project_status_closed]] ","])
 			and parent.parent_id is null
 			and parent.project_type_id not in ([im_project_type_task], [im_project_type_sla], [im_project_type_ticket])
-			and child.end_date >= :report_start_date::date
-			and child.start_date <= :report_end_date::date
+			and child.end_date >= '$report_start_date'::date
+			and child.start_date <= '$report_end_date'::date
 			and child.tree_sortkey
 				between parent.tree_sortkey
 				and tree_right(parent.tree_sortkey)
@@ -262,18 +262,10 @@ ad_proc -public im_resource_mgmt_resource_planning_percentage {
 			child.tree_sortkey,
 			u.user_id
     "
-    db_foreach hierarchy $assignment_sql {
+    db_foreach assignments $assignment_sql {
 	# Store properties into hashes for quick access later
-	set object_name_hash($project_id) $project_name
-	set object_type_hash($project_id) "im_project"
-	set project_parent_hash($project_id) $parent_id
-	set project_start_julian_hash($project_id) $child_start_julian
-	set project_end_julian_hash($project_id) $child_end_julian
-	set project_level_hash($project_id) $level
 	set main_project_hash($main_project_id) $main_project_id
 	set user_hash($user_id) $user_id
-	set object_availability_hash($project_id) ""
-	set collapse_hash($project_id) "c"
 
 	# Store the actual project-user assignment information
 	if {$percentage > 0} {
@@ -281,6 +273,43 @@ ad_proc -public im_resource_mgmt_resource_planning_percentage {
 	    set project_user_assignment_hash($key) $percentage
 	}
 
+    }
+    # ad_return_complaint 1 "<pre>[join [array get project_user_assignment_hash] "\n"]</pre>"
+    set clicks([clock clicks -microseconds]) assignments
+
+
+    # ------------------------------------------------------------
+    ns_log Notice "percentage-report: Hierarchy"
+    # Hierarchy - Determine parent-child relationships etc. and store in hashes.
+    # We need to get all sub-projects from the main projects references, because
+    # projects in the hierarchy may not be included in the assignment query above.
+    # 
+    set main_project_list [array names main_project_hash]
+    lappend main_project_list 0
+    set hierarchy_sql "
+		select	child.project_id,
+			child.project_name,
+			child.parent_id,
+			(length(child.tree_sortkey) / 8) - 3 as level,
+			to_char(child.start_date, 'J') as child_start_julian,
+			to_char(child.end_date, 'J') as child_end_julian
+		from	im_projects parent,
+			im_projects child
+		where	parent.project_id in ([join $main_project_list ","])
+			and child.tree_sortkey
+				between parent.tree_sortkey
+				and tree_right(parent.tree_sortkey)
+    "
+    db_foreach hierarchy $hierarchy_sql {
+	# Store properties into hashes for quick access later
+	set object_name_hash($project_id) $project_name
+	set object_type_hash($project_id) "im_project"
+	set project_parent_hash($project_id) $parent_id
+	set project_start_julian_hash($project_id) $child_start_julian
+	set project_end_julian_hash($project_id) $child_end_julian
+	set project_level_hash($project_id) $level
+	set object_availability_hash($project_id) ""
+	set collapse_hash($project_id) "c"
     }
     # ad_return_complaint 1 "<pre>[join [array get project_user_assignment_hash] "\n"]</pre>"
     set clicks([clock clicks -microseconds]) hierarchy
@@ -437,6 +466,8 @@ ad_proc -public im_resource_mgmt_resource_planning_percentage {
     set left_dimension {}
 
     # Add to the left dimension all project - user assignments
+
+#    ad_return_complaint 1 [array names project_user_assignment_hash]
     foreach key [array names project_user_assignment_hash] {
 
 	set tuple [split $key "-"]
@@ -556,13 +587,17 @@ ad_proc -public im_resource_mgmt_resource_planning_percentage {
 	}
     }
 
-    # Add absences to the aggregate
-#    ad_return_complaint 1 "<pre>[join [array get absences_hash] "\n"]</pre>"
+    # ------------------------------------------------------------
+    ns_log Notice "percentage-report: Add absences to the aggregate"
+    #
     if {"1" eq $absences_included_in_project_planning_p} {
 	foreach key [array names absences_hash] {
 	    set tuple [split $key "-"]
 	    set j [lindex $tuple 0]
 	    set user_id [lindex $tuple 1]
+
+	    # Check that the user is assigned to a project. Otherwise it doesn't make sense here
+	    if {![info exists left_dimension_hash($user_id)]} { continue }
 	    set parent_list $left_dimension_hash($user_id)
 	    
 	    # Logic depending on absence types
