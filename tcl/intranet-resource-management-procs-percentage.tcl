@@ -274,6 +274,10 @@ ad_proc -public im_resource_mgmt_resource_planning_percentage {
 	}
 
     }
+
+    # Check for existing assignments 
+    if { 0 eq [array size user_hash] } { return "" }
+
     # ad_return_complaint 1 "<pre>[join [array get project_user_assignment_hash] "\n"]</pre>"
     set clicks([clock clicks -microseconds]) assignments
 
