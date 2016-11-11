@@ -62,3 +62,7 @@ append left_navbar_html "
 	    </div>
 	    <hr/>
 "
+
+# fraber 2016-11-11: No need for a sidebar, but high needs for space...
+set left_navbar_html ""
+
