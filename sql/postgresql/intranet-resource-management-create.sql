@@ -8,12 +8,7 @@
 -- @author frank.bergmann@project-open.com
 
 SELECT im_menu__new (
-	null,						-- p_menu_id
-	'im_menu',					-- object_type
-	now(),						-- creation_date
-	null,						-- creation_user
-	null,						-- creation_ip
-	null,						-- context_id
+	null,'im_menu',now(),null,null,null,
 	'intranet-resource-management',			-- package_name
 	'projects_resource_planning',			-- label
 	'Resource Planning',				-- name
@@ -23,10 +18,70 @@ SELECT im_menu__new (
 	null						-- p_visible_tcl
 );
 
--- Delete the old menu
-SELECT im_menu__delete(
-	(select	menu_id from im_menus where label = 'projects_gantt_resources')
+SELECT im_menu__new (
+        null,'im_menu',now(),null,null,null,
+        'intranet-resource-management',                 -- package_name
+        'resource_planning-planned-hours',                   -- label
+        'Resource Planning based on Planned Hours',         -- name
+        '/intranet-resource-management/resources-planning-planned-hours', -- url
+        0,                                              -- sort_order
+        (select menu_id from im_menus where label = 'reporting-pm'),
+        null                                            -- p_visible_tcl
 );
+
+
+
+SELECT im_menu__new (
+	null,'im_menu',now(),null,null,null,
+	'intranet-resource-management',				-- package_name
+	'resource_management',					-- label
+	'Resource Management',					-- name
+	'/intranet-resource-management/index',			-- url
+	110,							-- sort_order
+	(select menu_id from im_menus where label = 'main'),
+	null							-- p_visible_tcl
+);
+
+update im_menus set enabled_p = 't'
+where menu_id in (select menu_id from im_menus where label = 'resource_management');
+
+SELECT acs_permission__grant_permission(
+       (select menu_id from im_menus where label = 'resource_management'), 
+       (select group_id from groups where group_name = 'Employees'),
+       'read'
+);
+
+
+SELECT im_menu__new (
+	null,'im_menu',now(),null,null,null,
+	'intranet-resource-management',				-- package_name
+	'resource_management_home',				-- label
+	'Home',							-- name
+	'/intranet-resource-management/index',			-- url
+	-100,							-- sort_order
+	(select menu_id from im_menus where label = 'resource_management'),
+	't'							-- p_visible_tcl
+);
+
+SELECT acs_permission__grant_permission(
+       (select menu_id from im_menus where label = 'resource_management_home'), 
+       (select group_id from groups where group_name = 'Employees'),
+       'read'
+);
+
+
+
+update im_menus
+set parent_menu_id = (select menu_id from im_menus where label = 'resource_management')
+where label in ('department_planner', 'projects_gantt_resources', 'projects_resource_planning_liwo', 'skill-profile-use');
+
+update im_component_plugins set 
+       page_url = '/intranet-resource-management/index',
+       component_tcl = 'sencha_project_timeline -diagram_aggregation_level month -diagram_dimension projects -diagram_height 400',
+       sort_order = 20
+where plugin_name = 'Project Timeline';
+
+
 
 
 
