@@ -1269,9 +1269,9 @@ ad_proc -public im_resource_mgmt_resource_planning_hour {
     # ------------------------------------------------------------------------------------------------------------------------------------
 
     db_foreach percentage_loop $percentage_sql {
-	ns_log Notice "intranet-resource-management-procs::percentage_sql: -----------------------------------------------------------------------------------------------------------------------"
-        ns_log Notice "intranet-resource-management-procs::percentage_sql: project_id:$project_id child_start_date_julian: $child_start_date_julian, child_end_date_julian: $child_end_date_julian"
-	ns_log Notice "intranet-resource-management-procs::percentage_sql: "
+	# ns_log Notice "intranet-resource-management-procs::percentage_sql: -----------------------------------------------------------------------------------------------------------------------"
+        # ns_log Notice "intranet-resource-management-procs::percentage_sql: project_id:$project_id child_start_date_julian: $child_start_date_julian, child_end_date_julian: $child_end_date_julian"
+	# ns_log Notice "intranet-resource-management-procs::percentage_sql: "
 	# sanity check for empty start/end date
 	if {""==$start_date_julian || ""==$end_date_julian} {
 	    ad_return_complaint 1 "Empty date found. Please verify start/end date of Project ID: <a href='/intranet/projects/view?project_id=$project_id'>$project_id</a>" 
@@ -1279,23 +1279,23 @@ ad_proc -public im_resource_mgmt_resource_planning_hour {
 
 	# Skip if no data
 	if {"" == $child_start_date_julian} { 
-	    ns_log Notice "intranet-resource-management-procs::percentage_sql: Found empty child_end_start_julian, not setting perc_day_hash/perc_week_hash"
+	    # ns_log Notice "intranet-resource-management-procs::percentage_sql: Found empty child_end_start_julian, not setting perc_day_hash/perc_week_hash"
 	    continue 
 	}
 	if {"" == $child_end_date_julian} { 
-	    ns_log Notice "intranet-resource-management-procs::percentage_sql: Found empty child_end_date_julian, not setting perc_day_hash/perc_week_hash"
+	    # ns_log Notice "intranet-resource-management-procs::percentage_sql: Found empty child_end_date_julian, not setting perc_day_hash/perc_week_hash"
 	    continue 
 	}
 	
 	# Loop through the days between start_date and end_data
 	for {set i $child_start_date_julian} {$i <= $child_end_date_julian} {incr i} {
-	    ns_log Notice "intranet-resource-management-procs::percentage_sql: Loop through the days between start_date and end_data: Handling Jday: $i"
+	    # ns_log Notice "intranet-resource-management-procs::percentage_sql: Loop through the days between start_date and end_data: Handling Jday: $i"
 	    if {$i < $start_date_julian} { 
-		ns_log Notice "intranet-resource-management-procs::percentage_sql: Loop through the days between start_date and end_data: day < start_date_julian ($start_date_julian), leaving loop,nothing set perc_day_hash/perc_week_hash"
+		# ns_log Notice "intranet-resource-management-procs::percentage_sql: Loop through the days between start_date and end_data: day < start_date_julian ($start_date_julian), leaving loop,nothing set perc_day_hash/perc_week_hash"
 		continue 
 	    }
 	    if {$i > $end_date_julian} { 
-		ns_log Notice "intranet-resource-management-procs::percentage_sql: Loop through the days between start_date and end_data: day > end_date_julian ($end_date_julian), leaving loop, nothing set perc_day_hash/perc_week_hash"
+		# ns_log Notice "intranet-resource-management-procs::percentage_sql: Loop through the days between start_date and end_data: day > end_date_julian ($end_date_julian), leaving loop, nothing set perc_day_hash/perc_week_hash"
 		continue 
 	    }
 
@@ -1310,7 +1310,7 @@ ad_proc -public im_resource_mgmt_resource_planning_hour {
 		    if {[info exists perc_day_hash($key)]} { set perc $perc_day_hash($key) }
 		    set perc [expr {$perc + $percentage}]
 		    set perc_day_hash($key) $perc
-		    ns_log Notice "intranet-resource-management-procs::percentage_sql: AGGREGATE DAY \$perc_day_hash : ${perc}% (key:$key)"
+		    # ns_log Notice "intranet-resource-management-procs::percentage_sql: AGGREGATE DAY \$perc_day_hash : ${perc}% (key:$key)"
 		}
 
 		# Aggregate per week
@@ -1321,7 +1321,7 @@ ad_proc -public im_resource_mgmt_resource_planning_hour {
 		    if {[info exists perc_week_hash($key)]} { set perc $perc_week_hash($key) }
 		    set perc [expr {$perc + $percentage}]
 		    set perc_week_hash($key) $perc
-		    ns_log Notice "intranet-resource-management-procs::percentage_sql: AGGREGATE WEEK \$perc_week_hash: ${perc}% (key:$key)"
+		    # ns_log Notice "intranet-resource-management-procs::percentage_sql: AGGREGATE WEEK \$perc_week_hash: ${perc}% (key:$key)"
 		}
 
 		# Check if there is a super-project and continue there.
