@@ -385,7 +385,7 @@ ad_proc -public im_resource_mgmt_resource_planning_percentage {
     set user_info_sql "
 	select	u.user_id,
 		coalesce(e.department_id, :freelancers_department) as department_id,
-		coalesce(e.availability, 100) as availability,
+		coalesce(e.availability, 0) as availability,
 		im_name_from_user_id(u.user_id) as user_name
 	from	users u
 		LEFT OUTER JOIN im_employees e ON (u.user_id = e.employee_id)
