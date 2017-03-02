@@ -265,8 +265,7 @@ towards the user and department level.</p>
     time. 
 </ul>
 "]]
-set help_html "<table width='50%' align=left border=0><tr><td>$help_html</td></tr></table>\n"
-
+set help_html "<table align='left' border='0'><tr><td>$help_html</td></tr></table>\n"
 
 # ---------------------------------------------------------------
 # Navbars
