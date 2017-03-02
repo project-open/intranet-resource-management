@@ -78,14 +78,9 @@ if {$restrict_to_user_department_by_default_p} {
     }
 }
 
-if {0 == $start_date || "" == $start_date} {
-    set start_date [db_string start_date "select to_char(now()::date, 'YYYY-MM-01')"]
-}
-
-if {0 == $end_date || "" == $end_date} {
-    set end_date [db_string end_date "select to_char(now()::date + 4*7, 'YYYY-MM-01')"]
-}
-
+# Setting start/end date if empty
+if {0 == $start_date || "" == $start_date} { set start_date [clock format [clock seconds] -format {%Y-%m-01}]}
+if {0 == $end_date || "" == $end_date} { set end_date [clock format [clock scan {+1 month} -base [clock scan $start_date] ] -format %Y-%m-%d] }
 
 # ------------------------------------------------------------
 # Contents
