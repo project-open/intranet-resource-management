@@ -781,9 +781,9 @@ ad_proc -public im_resource_mgmt_resource_planning_percentage {
 		set assig [expr round($assignment_hash($key))] 
 		set color "black"
 		if {$availability > 0} {
-		    set overassignment_ratio [expr $assig / $availability]
+		    set overassignment_ratio [expr (1.0 * $assig / $availability) - 1.0]
 		    # <= 1.0 -> black=#00000, >1.5 -> red=#FF0000
-		    set ratio [expr round(min(max(($overassignment_ratio - 1.0),0) * 512.0, 255))]
+		    set ratio [expr round(min(max($overassignment_ratio,0) * 700.0, 255))]
 		    set color "#[format %x $ratio]0000"
 		    if {"" ne $assig} { set assig "$assig%" }
 		    set cell_html "<font color=$color>$assig</font>"
