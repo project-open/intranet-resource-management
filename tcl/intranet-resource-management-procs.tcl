@@ -11,6 +11,7 @@ ad_library {
     @author klaus.hofeditz@project-open.com
 }
 
+
 # ---------------------------------------------------------------
 # Reusable Resource Management Components
 # ---------------------------------------------------------------
