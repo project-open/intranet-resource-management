@@ -3,6 +3,6 @@
 
   <msg key="Home">Home</msg>
   <msg key="Planning_Granularity">Planning Granularity</msg>
-  <msg key="Resource_Assignation__">Resource Assignation %</msg>
+  <msg key="Resource_Assignation__">Resource Assignations %</msg>
   <msg key="Resource_Management_Home">Resource Management Home</msg>
 </message_catalog>
