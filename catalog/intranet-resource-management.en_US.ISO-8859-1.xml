@@ -5,4 +5,6 @@
   <msg key="Planning_Granularity">Planning Granularity</msg>
   <msg key="Resource_Assignation__">Resource Assignations %</msg>
   <msg key="Resource_Management_Home">Resource Management Home</msg>
+  <msg key="Resource_Planning_based_on_Planned_Hours">Resource Planning - Based on Planned Hours</msg>
+  <msg key="Resource_Planning_Report">Resource Planning - Main Report</msg>
 </message_catalog>
