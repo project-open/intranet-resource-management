@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<message_catalog package_key="intranet-resource-management" locale="pl_PL" charset="utf-8">
+
+  <msg key="Dim_day_of_month">Dzień</msg>
+  <msg key="Dim_month_of_year">Miesiąc</msg>
+  <msg key="Dim_year">Rok</msg>
+  <msg key="Total">Łącznie</msg>
+</message_catalog>
