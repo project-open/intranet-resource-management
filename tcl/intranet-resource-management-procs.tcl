@@ -176,7 +176,7 @@ ad_proc -public im_date_julian_to_components { julian_date } {
 		quarter_of_year $quarter_of_year \
 		day_of_year $day_of_year \
 		day_of_week $day_of_week \
-		jul_week $jul_week \
+		julian_week $jul_week \
     ]
 }
 
