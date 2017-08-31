@@ -165,13 +165,18 @@ ad_proc -public im_date_julian_to_components { julian_date } {
 
     set quarter_of_year [expr {1 + int(($month_of_year-1) / 3)}]
 
-    return [list year $year \
+    # Julian weeks start on a Monday
+    set jul_week [expr { int($julian_date) / 7}]
+
+    return [list \
+		year $year \
 		month_of_year $month_of_year \
 		day_of_month $day_of_month \
 		week_of_year $week_of_year \
 		quarter_of_year $quarter_of_year \
 		day_of_year $day_of_year \
 		day_of_week $day_of_week \
+		jul_week $jul_week \
     ]
 }
 
