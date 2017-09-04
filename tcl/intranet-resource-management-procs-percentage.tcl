@@ -200,6 +200,8 @@ ad_proc -public im_resource_mgmt_resource_planning_percentage {
 
     # ------------------------------------------------------------
     ns_log Notice "percentage-report: Absences - Determine when the user is away"
+    # key: julian-uid, value: absence_type_id
+    # 458004-624 5000 2458001-624 5000 2458005-624 5000 2458002-624 5000 2458003-624 5000
     #
     array set absences_hash [im_resource_mgmt_resource_planning_percentage_absences \
 				 -report_start_date $report_start_date \
@@ -308,7 +310,7 @@ ad_proc -public im_resource_mgmt_resource_planning_percentage {
 	# Store properties into hashes for quick access later
 	set object_name_hash($project_id) $project_name
 	set object_type_hash($project_id) "im_project"
-	set project_parent_hash($project_id) $parent_id
+	set object_parent_hash($project_id) $parent_id
 	set project_start_julian_hash($project_id) $child_start_julian
 	set project_end_julian_hash($project_id) $child_end_julian
 	set project_level_hash($project_id) $level
@@ -351,7 +353,7 @@ ad_proc -public im_resource_mgmt_resource_planning_percentage {
 	order by cc.cost_center_code
     "
     db_foreach ccs $cc_sql {
-	set cc_parent_hash($cost_center_id) $parent_id
+	set object_parent_hash($cost_center_id) $parent_id
 	set object_type_hash($cost_center_id) "im_cost_center"
 	set object_name_hash($cost_center_id) $cost_center_name
 	set collapse_hash($cost_center_id) "o"
@@ -364,14 +366,14 @@ ad_proc -public im_resource_mgmt_resource_planning_percentage {
 	    set val $object_availability_hash($parent_cc_id)
 	    set val [expr $val + $resources_available_percent]
 	    set object_availability_hash($parent_cc_id) $val
-	    set parent_cc_id $cc_parent_hash($parent_cc_id)
+	    set parent_cc_id $object_parent_hash($parent_cc_id)
 	    incr cnt
 	    if {$cnt > 20} { ad_return_complaint 1 "Percentage Report:<br>Infinite loop in dept aggregation" }
 	}
     }
     
     # Setup a fake "Freelancers" department below "The Company"
-    set cc_parent_hash($freelancers_department) $default_department
+    set object_parent_hash($freelancers_department) $default_department
     set object_type_hash($freelancers_department) "im_cost_center"
     set object_name_hash($freelancers_department) [lang::message::lookup "" intranet-core.No_Department "No Department"]
     set collapse_hash($freelancers_department) "o"
@@ -423,7 +425,7 @@ ad_proc -public im_resource_mgmt_resource_planning_percentage {
         set user_hash($user_id) $user_id
 	set object_name_hash($user_id) $user_name
 	set object_type_hash($user_id) "user"
-	set user_department_hash($user_id) $department_id
+	set object_parent_hash($user_id) $department_id
 	set object_availability_hash($user_id) $availability
 	set collapse_hash($user_id) "c"
     }
@@ -481,20 +483,20 @@ ad_proc -public im_resource_mgmt_resource_planning_percentage {
 
 	# Found a standard assignment: $project_id-$user_id: Calculate parent_list
 	set parent_list [list $project_id]
-	set pid $project_parent_hash($project_id)
+	set pid $object_parent_hash($project_id)
 	while {"" ne $pid} {
 	    lappend parent_list $pid
-	    set pid $project_parent_hash($pid)
+	    set pid $object_parent_hash($pid)
 	}
 
 	# Append the user assigned
 	lappend parent_list $user_id
 
 	# Append the user's cost center and it's parents
-	set cc_id $user_department_hash($user_id)
+	set cc_id $object_parent_hash($user_id)
 	while {"" ne $cc_id} {
 	    lappend parent_list $cc_id
-	    set cc_id $cc_parent_hash($cc_id)
+	    set cc_id $object_parent_hash($cc_id)
 	}
 	set parent_list [lreverse $parent_list]
 	lappend left_dimension $parent_list
@@ -507,10 +509,10 @@ ad_proc -public im_resource_mgmt_resource_planning_percentage {
 	set parent_list [list $user_id]
 
 	# Append the user's cost center and it's parents
-	set cc_id $user_department_hash($user_id)
+	set cc_id $object_parent_hash($user_id)
 	while {"" ne $cc_id} {
 	    lappend parent_list $cc_id
-	    set cc_id $cc_parent_hash($cc_id)
+	    set cc_id $object_parent_hash($cc_id)
 	}
 	set parent_list [lreverse $parent_list]
 	lappend left_dimension $parent_list
@@ -737,7 +739,7 @@ ad_proc -public im_resource_mgmt_resource_planning_percentage {
                     Availability of the user for project work"]
 
 		# Check for users with an empty department - create an error message
-		if {$company_cost_center eq $user_department_hash($object_id)} {
+		if {$company_cost_center eq $object_parent_hash($object_id)} {
 		    set availability_html "<font color=red><b>$availability_html</b></font>"
 		    set availability_title [lang::message::lookup "" intranet-resource-management.User_without_department "Please check the department of this user."]
 		}
@@ -1099,3 +1101,16 @@ ad_proc -public im_resource_management_collapse_left_dimension {
 
     return $result
 }
+
+
+
+
+ad_proc -public im_resource_mgmt_top_entry_to_julian { top_vars top_entry } {
+    Converts a entry of the top dimension to a julian date
+} {
+    ns_log Notice "im_resource_mgmt_top_entry_to_julian: top_vars=$top_vars top_entry=$top_entry"
+    
+    ad_return_complaint 1 "<pre>im_resource_mgmt_top_entry_to_julian: top_vars=$top_vars top_entry=$top_entry</pre>"
+    return 2457997
+}
+
