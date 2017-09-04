@@ -297,8 +297,8 @@ ad_proc -public im_resource_mgmt_resource_planning_percentage {
 			child.project_name,
 			child.parent_id,
 			(length(child.tree_sortkey) / 8) - 3 as level,
-			to_char(child.start_date, 'J') as child_start_julian,
-			to_char(child.end_date, 'J') as child_end_julian
+			greatest(to_char(child.start_date::date, 'J')::integer, :report_start_julian::integer) child_start_julian,
+			least(to_char(child.end_date, 'J')::integer, :report_end_julian::integer) as child_end_julian
 		from	im_projects parent,
 			im_projects child
 		where	parent.project_id in ([join $main_project_list ","])
@@ -566,6 +566,7 @@ ad_proc -public im_resource_mgmt_resource_planning_percentage {
     # ------------------------------------------------------------
     ns_log Notice "percentage-report: Aggregate percentage assignments up the project hierarchy"
     #
+    # ad_return_complaint 1 "<pre>[join [array get project_user_assignment_hash] "\n"]</pre>"
     foreach key [array names project_user_assignment_hash] {
 	set tuple [split $key "-"]
 	set project_id [lindex $tuple 0]
@@ -581,22 +582,41 @@ ad_proc -public im_resource_mgmt_resource_planning_percentage {
 
 	foreach oid $parent_list {
 	    for {set j $start_julian} {$j <= $end_julian} {incr j} {
+
+		# Skip weekends
+		if {[info exists weekend_hash($j)]} { continue }
+
+		# Calculate the date component of the key, depending on top_vars
+		array unset date_hash
+		array set date_hash [im_date_julian_to_components $j]
+		set key_list [list]
+		foreach top_var $top_vars {
+		    set date_val $date_hash($top_var)
+		    lappend key_list $date_val
+		}
+		lappend key_list $oid
+
+		# Append the object part of the cell to the key
 		set otype $object_type_hash($oid)
 		switch $otype {
-		    im_project { set key "$j-$oid-$user_id"  }
-		    default    { set key "$j-$oid" }
+		    im_project { 
+			lappend key_list $user_id
+		    }
 		}
+
+		set key [join $key_list "-"]
 		set v 0
 		if {[info exists assignment_hash($key)]} { set v $assignment_hash($key) }
 		set assignment_hash($key) [expr $v + $assigavail]
 	    }
 	}
     }
+    # ad_return_complaint 1 "<pre>[join [array get assignment_hash] "\n"]</pre>"
 
     # ------------------------------------------------------------
     ns_log Notice "percentage-report: Add absences to the aggregate"
     #
-    if {"1" eq $absences_included_in_project_planning_p} {
+    if {0 && "1" eq $absences_included_in_project_planning_p} {
 	foreach key [array names absences_hash] {
 	    set tuple [split $key "-"]
 	    set j [lindex $tuple 0]
@@ -631,31 +651,40 @@ ad_proc -public im_resource_mgmt_resource_planning_percentage {
 #    ad_return_complaint 1 "<pre>[join [array get assignment_hash] "\n"]</pre>"
     set clicks([clock clicks -microseconds]) aggregate
 
+
+
     # --------------------------------------------------
     ns_log Notice "percentage-report: Top Scale"
     #
 
     # Top scale is a list of lists like {{2006 01} {2006 02} ...}
     set top_scale {}
-    set last_top_dim {}
+    set last_top_entry {}
     for {set i [dt_ansi_to_julian_single_arg $report_start_date]} {$i < [dt_ansi_to_julian_single_arg $report_end_date]} {incr i} {
 	array unset date_hash
 	array set date_hash [im_date_julian_to_components $i]
 
 	# Each entry in the top_scale is a list of date parts defined by top_vars
-	set top_dim [list $i]
+	set top_entry [list]
 	foreach top_var $top_vars {
 	    set date_val ""
 	    catch { set date_val $date_hash($top_var) }
-	    lappend top_dim $date_val
+	    lappend top_entry $date_val
 	}
 
 	# "distinct clause": Add the values of top_vars to the top scale, if it is different from the last one...
 	# This is necessary for aggregated top scales like weeks and months.
-	if {$top_dim != $last_top_dim} {
-	    lappend top_scale $top_dim
-	    set last_top_dim $top_dim
-	}
+	set key [join $top_entry "-"]
+	if {$top_entry != $last_top_entry} {
+	    lappend top_scale $top_entry
+	    set last_top_entry $top_entry
+	    set days_per_cell_hash($key) 0
+	} 
+
+	set days_per_cell $days_per_cell_hash($key)
+	if {![info exists weekend_hash($i)]} { incr days_per_cell }
+	set days_per_cell_hash($key) $days_per_cell
+	
     }
 
     # Determine how many date rows (year, month, day, ...) we've got
@@ -666,6 +695,9 @@ ad_proc -public im_resource_mgmt_resource_planning_percentage {
 
     ns_log Notice "percentage-report: top_scale=$top_scale"
     set clicks([clock clicks -microseconds]) top_scale
+
+
+
 
 
     # -------------------------------------------------------------------------------------------
@@ -756,17 +788,25 @@ ad_proc -public im_resource_mgmt_resource_planning_percentage {
 
 	# ------------------------------------------------------------
 	ns_log Notice "percentage-report: Start writing out the matrix elements"
-	# 
-	for {set j $report_start_julian} {$j < $report_end_julian} {incr j} {
+	#
+	foreach top_entry $top_scale {
 
-	    # Check for Absences. Weekends are already included in the absences_hash(..)
+	    set key_list $top_entry
+	    set days_per_cell 1
+	    set key [join $top_entry "-"]
+	    if {[info exists days_per_cell_hash($key)]} { set days_per_cell $days_per_cell_hash($key) }
+	    if {0 eq $days_per_cell} { set days_per_cell 0.000001 }
+
 	    set list_of_absences ""
-	    set absence_key "$j-$object_id"
-	    if {[info exists absences_hash($absence_key)]} {
-		set list_of_absences $absences_hash($absence_key)
-	    }
-	    if {[info exists weekend_hash($j)]} {
-		lappend list_of_absences $weekend_hash($j)
+	    set ttt {
+		# Check for Absences. Weekends are already included in the absences_hash(..)
+		set absence_key "$j-$object_id"
+		if {[info exists absences_hash($absence_key)]} {
+		    set list_of_absences $absences_hash($absence_key)
+		}
+		if {[info exists weekend_hash($j)]} {
+		    lappend list_of_absences $weekend_hash($j)
+		}
 	    }
 
 	    set col_attrib ""
@@ -777,10 +817,11 @@ ad_proc -public im_resource_mgmt_resource_planning_percentage {
 	    }
 	    
 	    # Format user or department cells - choose a font color according to overallocation
-	    set cell_html ""
-	    set key "$j-$object_id"
+	    set cell_html "&nbsp;&nbsp;&nbsp;&nbsp;"
+	    set key "[join $key_list "-"]-$object_id"
+	    # ad_return_complaint 1 "<pre>$key<br>[array names assignment_hash]</pre>"
 	    if {[info exists assignment_hash($key)]} { 
-		set assig [expr round($assignment_hash($key))] 
+		set assig [expr round($assignment_hash($key)) / $days_per_cell]
 		set color "black"
 		if {$availability > 0} {
 		    set overassignment_ratio [expr (1.0 * $assig / $availability) - 1.0]
@@ -793,11 +834,11 @@ ad_proc -public im_resource_mgmt_resource_planning_percentage {
 	    }
 
 	    # Normal project assignment - don't compare and don't change color
-	    set key "$j-$project_id-$user_id"
+	    set key "[join $key_list "-"]-$project_id-$user_id"
 	    if {[info exists assignment_hash($key)]} { 
-		set assig [expr round($assignment_hash($key))] 
+		set assig [expr round($assignment_hash($key)) / $days_per_cell] 
 		if {"" ne $assig} { set assig "$assig%" }
-		append cell_html $assig
+		set cell_html $assig
 	    }
 
 	    switch $object_type {
@@ -829,11 +870,11 @@ ad_proc -public im_resource_mgmt_resource_planning_percentage {
     # Each date entry starts with the julian of the date, so we have to skip row=0
     #
     set header_html ""
-    for {set row 1} {$row < $top_scale_rows} { incr row } {
+    for {set row 0} {$row < $top_scale_rows} { incr row } {
 	
 	# Create the name of the date part in the very first (left) cell
 	append header_html "<tr class=rowtitle>\n"
-	set top_var [lindex $top_vars [expr $row-1]]
+	set top_var [lindex $top_vars $row]
 	set col_l10n [lang::message::lookup "" "intranet-resource-management.Dim_$top_var" $top_var]
 	if {0 == $row} {
 	    set zoom_in "<a href=[export_vars -base $this_url {top_vars {zoom "in"}}]>$gif_hash(magnifier_zoom_in)</a>\n" 
@@ -844,7 +885,6 @@ ad_proc -public im_resource_mgmt_resource_planning_percentage {
 	
 	# Loop through the date dimension
 	for {set col 0} {$col <= [expr [llength $top_scale]-1]} { incr col } {
-	    
 	    set scale_entry [lindex $top_scale $col]
 	    set scale_item [lindex $scale_entry $row]
 	    

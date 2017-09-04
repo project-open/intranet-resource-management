@@ -38,7 +38,7 @@ ad_page_contract {
 # Defaults & Security
 # ---------------------------------------------------------------
 
-im_permission_flush
+#im_permission_flush
 
 set current_user_id [auth::require_login]
 if {![im_permission $current_user_id "view_projects_all"]} {
@@ -53,7 +53,7 @@ set page_title [lang::message::lookup "" intranet-reporting.Gantt_Resources "Gan
 set page_url "/intranet-resource-management/resources-planning"
 set sub_navbar ""
 set main_navbar_label "resource_management"
-set show_context_help_p 0
+set show_context_help_p 1
 set return_url [im_url_with_query]
 
 regsub -all {%20} $top_vars " " top_vars
@@ -114,7 +114,7 @@ if {"" == $html} {
 
 set filter_html "
 <form method=get name=projects_filter action='$page_url'>
-[export_vars -form {debug_p}]
+ [export_vars -form {debug_p}]
 <table border=0 cellpadding=0 cellspacing=1>
 "
 
@@ -127,10 +127,7 @@ if {0} {
     "
 }
 
-if { $customer_id eq "" } {
-    set customer_id 0
-}
-
+if { $customer_id eq "" } { set customer_id 0 }
 if {0} {
     append filter_html "
   <tr>
@@ -141,18 +138,18 @@ if {0} {
 }
 
 
-if {0} {
+if {1} {
     # Not yet supported: "year quarter_of_year", "Quarter"
-    set top_var_options {
-	"year week_of_year day_of_week"		"Week and Day"
-	"year month_of_year day_of_month"	"Month and Day"
-	"year week_of_year"			"Week"
-    }
-#	"year month_of_year"			"Month"
+    set top_var_options [list \
+	"year month_of_year"			[lang::message::lookup "" intranet-resource-management.Year_and_Month "Year and Month"] \
+	"year week_of_year"			[lang::message::lookup "" intranet-resource-management.Year_and_Week "Year and Week"] \
+	"year week_of_year day_of_week"		[lang::message::lookup "" intranet-resource-management.Year_Week_and_Day "Year, Week and Day"] \
+	"year month_of_year day_of_month"	[lang::message::lookup "" intranet-resource-management.Year_Month_and_Day "Year, Month and Day"] \
+     ]
 
     append filter_html "
   <tr>
-    <td class=form-label>[lang::message::lookup "" intranet-ganttproject.Top_Scale "Top Scale"]:</td>
+    <td class=form-label>[lang::message::lookup "" intranet-resource-management.Date_Scale "Date Scale"]:</td>
     <td class=form-widget>[im_select top_vars $top_var_options $top_vars]</td>
   </tr>
     "
