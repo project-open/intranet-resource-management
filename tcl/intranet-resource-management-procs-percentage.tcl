@@ -35,7 +35,7 @@ ad_proc -public im_resource_mgmt_resource_planning_percentage {
     {-excluded_group_ids "" }
     {-return_url ""}
     {-page_url:required}
-    {-absences_included_in_project_planning_p ""}
+    {-absences_included_in_project_planning_p "1"}
     {-debug_p 1}
 } {
     Creates Resource Report 
@@ -45,6 +45,8 @@ ad_proc -public im_resource_mgmt_resource_planning_percentage {
     @param project_id Id of project(s) to show. Defaults to all active projects
     @param customer_id Id of customer's projects to show
 } {
+
+    set debug_p 1
 
     # ---------------------------------------
     # Defaults
@@ -176,17 +178,23 @@ ad_proc -public im_resource_mgmt_resource_planning_percentage {
     foreach gif {minus_9 plus_9 magnifier_zoom_in magnifier_zoom_out} {
 	set gif_hash($gif) [im_gif $gif]
     }
+    set clicks([clock clicks -microseconds]) gifs
 
 
     # ------------------------------------------------------------
     ns_log Notice "percentage-report: Store information about each day into hashes for speed"
     #
     for {set i $report_start_julian} {$i <= $report_end_julian} {incr i} {
-	array unset date_comps
-	array set date_comps [im_date_julian_to_components $i]
+
+	# Calculate the date components and store in a hash
+	set date_components [util_memoize [list im_date_julian_to_components $i] 100000]
+	set date_components_hash($i) $date_components
+
+	array unset date_comps_hash
+	array set date_comps_hash $date_components
 
 	# Day of Week
-	set dow $date_comps(day_of_week)
+	set dow $date_comps_hash(day_of_week)
 	set day_of_week_hash($i) $dow
 
 	# Weekend
@@ -588,7 +596,7 @@ ad_proc -public im_resource_mgmt_resource_planning_percentage {
 
 		# Calculate the date component of the key, depending on top_vars
 		array unset date_hash
-		array set date_hash [im_date_julian_to_components $j]
+		array set date_hash $date_components_hash($j)
 		set key_list [list]
 		foreach top_var $top_vars {
 		    set date_val $date_hash($top_var)
@@ -615,19 +623,28 @@ ad_proc -public im_resource_mgmt_resource_planning_percentage {
 
     # ------------------------------------------------------------
     ns_log Notice "percentage-report: Add absences to the aggregate"
+    # ad_return_complaint 1 "<pre>absences_hash=[array get absences_hash]</pre>"
     #
-    if {0 && "1" eq $absences_included_in_project_planning_p} {
-	foreach key [array names absences_hash] {
-	    set tuple [split $key "-"]
+    if {"1" eq $absences_included_in_project_planning_p} {
+	foreach absence_key [array names absences_hash] {
+	    set tuple [split $absence_key "-"]
 	    set j [lindex $tuple 0]
 	    set user_id [lindex $tuple 1]
 
-	    # Check that the user is assigned to a project. Otherwise it doesn't make sense here
-	    if {![info exists left_dimension_hash($user_id)]} { continue }
-	    set parent_list $left_dimension_hash($user_id)
-	    
+	    # Skip weekends
+	    if {[info exists weekend_hash($j)]} { continue }
+
+	    # Calculate the date component of the key, depending on top_vars
+	    array unset date_hash
+	    array set date_hash $date_components_hash($j)
+	    set key_list [list]
+	    foreach top_var $top_vars {
+		set date_val $date_hash($top_var)
+		lappend key_list $date_val
+	    }
+
 	    # Logic depending on absence types
-	    set absence_type_id $absences_hash($key)
+	    set absence_type_id $absences_hash($absence_key)
 	    switch $absence_type_id {
 		5005 { 
 		    continue ; # Exclude bank holidays 
@@ -638,12 +655,14 @@ ad_proc -public im_resource_mgmt_resource_planning_percentage {
 	    set percentage 100
 	    set availability $object_availability_hash($user_id)
 	    set assigavail [expr $percentage * $availability / 100.0]
-	    
+
+	    # Get the list of objects from the left-hand side for the user
+	    set parent_list $left_dimension_hash($user_id)
 	    foreach oid $parent_list {
 		set v 0
-		set key "$j-$oid"
+		set key "[join $key_list "-"]-$oid"
 		if {[info exists assignment_hash($key)]} { set v $assignment_hash($key) }
-		set assignment_hash($key) [expr $v + $assigavail]
+		set assignment_hash($key) [expr $v + $assigavail]; # aggregate up the hierarchy
 	    }
 	}
     }
@@ -662,7 +681,7 @@ ad_proc -public im_resource_mgmt_resource_planning_percentage {
     set last_top_entry {}
     for {set i [dt_ansi_to_julian_single_arg $report_start_date]} {$i < [dt_ansi_to_julian_single_arg $report_end_date]} {incr i} {
 	array unset date_hash
-	array set date_hash [im_date_julian_to_components $i]
+	array set date_hash $date_components_hash($i)
 
 	# Each entry in the top_scale is a list of date parts defined by top_vars
 	set top_entry [list]
@@ -932,6 +951,7 @@ ad_proc -public im_resource_mgmt_resource_planning_percentage {
     ns_log Notice "percentage-report: Profiling HTML"
     #
     set profiling_html ""
+    set first_click 0
     if {$debug_p} {
 	set profiling_html "<br>&nbsp;<br><table>\n"
 	set last_click 0
@@ -940,10 +960,17 @@ ad_proc -public im_resource_mgmt_resource_planning_percentage {
 		set last_click $click 
 		set first_click $click
 	    }
-	    append profiling_html "<tr><td>$click</td><td>$clicks($click)</td><td align=right>[expr ($click - $last_click) / 1000.0]</td></tr>\n"
+	    append profiling_html "
+<tr>
+    <td>$click</td>
+    <td>$clicks($click)</td>
+    <td align=right>[expr round(10.0 * ($click - $first_click) / 1000.0) / 10.0]</td>
+    <td align=right>[expr round(10.0 * ($click - $last_click) / 1000.0) / 10.0]</td>
+</tr>
+            "
 	    set last_click $click
 	}
-	append profiling_html "<tr><td> </td><td><b>Total</b></td><td align=right>[expr ($last_click - $first_click) / 1000.0]</td></tr>\n"
+	append profiling_html "<tr><td> </td><td><b>Total</b></td><td align=right>[expr round(10.0 * ($last_click - $first_click) / 1000.0) / 10.0]</td></tr>\n"
 	append profiling_html "<tr><td colspan=3>&nbsp;</tr>\n"
 	append profiling_html "</table>\n"
     }

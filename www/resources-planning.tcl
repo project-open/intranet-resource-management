@@ -200,7 +200,7 @@ append filter_html "
 "
 }
 
-if {1} {
+if {0} {
     set no_checked ""
     if {"0" eq $absences_included_in_project_planning_p} { set no_checked "checked" }
     set help_msg [lang::message::lookup "" intranet-resource-management.Count_Absences_Help "
