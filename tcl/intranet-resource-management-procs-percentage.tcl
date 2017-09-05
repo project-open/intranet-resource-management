@@ -570,7 +570,7 @@ ad_proc -public im_resource_mgmt_resource_planning_percentage {
     set clicks([clock clicks -microseconds]) smooth_left_scale
     # ad_return_complaint 1 "<pre>[join $left_dimension_smooth "\n"]</pre>"
 
-
+    
     # "Close" the left_dimension, according to user open/close actions
     set left_scale [im_resource_management_collapse_left_dimension \
 				   -lol $left_dimension_smooth \
@@ -579,7 +579,12 @@ ad_proc -public im_resource_mgmt_resource_planning_percentage {
     # ad_return_complaint 1 "<pre>[join $left_scale_closed "\n"]</pre>"
 
 
-
+    # Should we show every container line twice on the left side?
+    set add_subtotals_p [parameter::get_from_package_key -package_key "intranet-resource-management" -parameter "AddSubtotalsP" -default 0]
+    if {$add_subtotals_p} {
+	set left_scale [im_resource_management_subtotals_left_dimension -lol $left_scale]
+	set clicks([clock clicks -microseconds]) subtotals_left_scale
+    }
 
     # ------------------------------------------------------------
     ns_log Notice "percentage-report: Determine which object has children"
@@ -803,6 +808,7 @@ ad_proc -public im_resource_mgmt_resource_planning_percentage {
 
 	append row_html "<td><span title='$availability_title'>$availability_html</span></td>\n"
 	append row_html $oname_html
+	append row_html "<td>$left_entry</td>"
 
 	# ------------------------------------------------------------
 	ns_log Notice "percentage-report: Start writing out the matrix elements"
@@ -1135,6 +1141,41 @@ ad_proc -public im_resource_management_smoothen_left_dimension {
 
     return $result
 }
+
+
+
+
+ad_proc -public im_resource_management_subtotals_left_dimension {
+    -lol
+} {
+    Adds a subtotal line at the end of every department or user
+} {
+    ns_log Notice "subtotals_left_dimension: lol=$lol"
+    set result [list]
+    set last_l [list]
+    foreach l $lol {
+	ns_log Notice "subtotals_left_dimension: "
+	ns_log Notice "subtotals_left_dimension: l=$l: last_l=$last_l"
+	set org_l $l
+
+	# We need to add a subtotal line
+	while {[llength $l] < [llength $last_l]} {
+	    set last_l [lrange $last_l 0 end-1]
+	    lappend result $last_l
+	}
+
+	lappend result $org_l
+	set last_l $org_l
+    }
+
+    return $result
+}
+
+
+
+
+
+
 
 
 
