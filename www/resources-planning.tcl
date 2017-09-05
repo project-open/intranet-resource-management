@@ -150,7 +150,7 @@ if {1} {
     append filter_html "
   <tr>
     <td class=form-label>[lang::message::lookup "" intranet-resource-management.Date_Scale "Date Scale"]:</td>
-    <td class=form-widget>[im_select top_vars $top_var_options $top_vars]</td>
+    <td class=form-widget>[im_select -translate_p 0 top_vars $top_var_options $top_vars]</td>
   </tr>
     "
 }
