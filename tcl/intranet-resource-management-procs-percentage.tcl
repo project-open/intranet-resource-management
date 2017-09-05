@@ -232,6 +232,10 @@ ad_proc -public im_resource_mgmt_resource_planning_percentage {
 	set absence_list [list]
 	if {[info exists absences_hash($key)]} { set absence_list $absences_hash($key) }
 	set absence_list [concat $absence_list $absences_julian_hash($absence_key)]
+
+	# Don't show absences on weekends
+	if {$calc_day_p && [info exists weekend_hash($j)]} { set absence_list "" }
+
 	set absences_hash($key) $absence_list
     }
 
