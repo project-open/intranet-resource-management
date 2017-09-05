@@ -251,6 +251,21 @@ ad_proc -public im_resource_mgmt_resource_planning_percentage {
     # Assignments - Determine assignments per project/task and user.
     # This SQL is used as a sub-query in several other SQLs
     #
+    set excluded_uids [db_list excluded_uids "
+				select member_id
+				from   group_distinct_member_map
+				where  group_id = [im_profile_skill_profile]
+			   UNION
+				select	u.user_id
+				from	users u,
+					acs_rels r,
+					membership_rels mr
+				where	r.rel_id = mr.rel_id and
+					r.object_id_two = u.user_id and
+					r.object_id_one = -2 and
+					mr.member_state != 'approved'
+    "]
+
     set assignment_sql "
 		select	child.project_id,
 			child.project_name,
@@ -278,20 +293,7 @@ ad_proc -public im_resource_mgmt_resource_planning_percentage {
 			and r.rel_id = m.rel_id
 			and r.object_id_one = child.project_id
 			and r.object_id_two = u.user_id
-			and u.user_id not in (		-- only active natural persons
-				select member_id
-				from   group_distinct_member_map
-				where  group_id = [im_profile_skill_profile]
-			   UNION
-				select	u.user_id
-				from	users u,
-					acs_rels r,
-					membership_rels mr
-				where	r.rel_id = mr.rel_id and
-					r.object_id_two = u.user_id and
-					r.object_id_one = -2 and
-					mr.member_state != 'approved'
-			)
+			and u.user_id not in ([join $excluded_uids ","])
 			$assignment_where_clause
 		order by
 			child.tree_sortkey,
