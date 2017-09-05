@@ -665,6 +665,9 @@ ad_proc -public im_resource_mgmt_resource_planning_percentage {
 		    continue ; # Exclude bank holidays 
 		}
 	    }
+
+	    # Skip users who don't appear in this report by means of any assignment or as employees
+	    if {![info exists object_availability_hash($user_id)]} { continue }
 	    
 	    # Calculate how many percent are assigned
 	    set percentage 100
