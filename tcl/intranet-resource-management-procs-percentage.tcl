@@ -211,12 +211,33 @@ ad_proc -public im_resource_mgmt_resource_planning_percentage {
     # key: julian-uid, value: absence_type_id
     # 458004-624 5000 2458001-624 5000 2458005-624 5000 2458002-624 5000 2458003-624 5000
     #
-    array set absences_hash [im_resource_mgmt_resource_planning_percentage_absences \
+    array set absences_julian_hash [im_resource_mgmt_resource_planning_percentage_absences \
 				 -report_start_date $report_start_date \
 				 -report_end_date $report_end_date \
 				 -user_where_clause $user_where_clause \
     ]
-#    ad_return_complaint 1 [array get absences_hash]
+    
+    # Add absences_julian_hash entries for chosen top dimension
+    foreach absence_key [array names absences_julian_hash] {
+	# Split the $julian-$user_id key into it's components
+	set tuple [split $absence_key "-"]
+	set j [lindex $tuple 0]
+	set user_id [lindex $tuple 1]
+
+	# skip absences outside the report period
+	if {![info exists date_components_hash($j)]} { continue }
+
+	set key_list [util_memoize [list im_resource_management_top_scale_from_julian -julian $j -top_vars $top_vars]]
+	set key "[join $key_list "-"]-$user_id"
+	set absence_list [list]
+	if {[info exists absences_hash($key)]} { set absence_list $absences_hash($key) }
+	set absence_list [concat $absence_list $absences_julian_hash($absence_key)]
+	set absences_hash($key) $absence_list
+    }
+
+#    ad_return_complaint 1 "<pre>absences_julian_hash<br>[array get absences_julian_hash]</pre>"
+#    ad_return_complaint 1 "<pre>absences_hash<br>[array get absences_hash]</pre>"
+#    ad_return_complaint 1 [array get absences_julian_hash]
     set clicks([clock clicks -microseconds]) absences
 
 
@@ -595,13 +616,7 @@ ad_proc -public im_resource_mgmt_resource_planning_percentage {
 		if {[info exists weekend_hash($j)]} { continue }
 
 		# Calculate the date component of the key, depending on top_vars
-		array unset date_hash
-		array set date_hash $date_components_hash($j)
-		set key_list [list]
-		foreach top_var $top_vars {
-		    set date_val $date_hash($top_var)
-		    lappend key_list $date_val
-		}
+		set key_list [util_memoize [list im_resource_management_top_scale_from_julian -julian $j -top_vars $top_vars]]
 		lappend key_list $oid
 
 		# Append the object part of the cell to the key
@@ -623,10 +638,10 @@ ad_proc -public im_resource_mgmt_resource_planning_percentage {
 
     # ------------------------------------------------------------
     ns_log Notice "percentage-report: Add absences to the aggregate"
-    # ad_return_complaint 1 "<pre>absences_hash=[array get absences_hash]</pre>"
+    # ad_return_complaint 1 "<pre>absences_julian_hash=[array get absences_julian_hash]</pre>"
     #
     if {"1" eq $absences_included_in_project_planning_p} {
-	foreach absence_key [array names absences_hash] {
+	foreach absence_key [array names absences_julian_hash] {
 	    set tuple [split $absence_key "-"]
 	    set j [lindex $tuple 0]
 	    set user_id [lindex $tuple 1]
@@ -634,17 +649,8 @@ ad_proc -public im_resource_mgmt_resource_planning_percentage {
 	    # Skip weekends
 	    if {[info exists weekend_hash($j)]} { continue }
 
-	    # Calculate the date component of the key, depending on top_vars
-	    array unset date_hash
-	    array set date_hash $date_components_hash($j)
-	    set key_list [list]
-	    foreach top_var $top_vars {
-		set date_val $date_hash($top_var)
-		lappend key_list $date_val
-	    }
-
 	    # Logic depending on absence types
-	    set absence_type_id $absences_hash($absence_key)
+	    set absence_type_id $absences_julian_hash($absence_key)
 	    switch $absence_type_id {
 		5005 { 
 		    continue ; # Exclude bank holidays 
@@ -658,6 +664,7 @@ ad_proc -public im_resource_mgmt_resource_planning_percentage {
 
 	    # Get the list of objects from the left-hand side for the user
 	    set parent_list $left_dimension_hash($user_id)
+	    set key_list [util_memoize [list im_resource_management_top_scale_from_julian -julian $j -top_vars $top_vars]]
 	    foreach oid $parent_list {
 		set v 0
 		set key "[join $key_list "-"]-$oid"
@@ -671,7 +678,6 @@ ad_proc -public im_resource_mgmt_resource_planning_percentage {
     set clicks([clock clicks -microseconds]) aggregate
 
 
-
     # --------------------------------------------------
     ns_log Notice "percentage-report: Top Scale"
     #
@@ -680,26 +686,18 @@ ad_proc -public im_resource_mgmt_resource_planning_percentage {
     set top_scale {}
     set last_top_entry {}
     for {set i [dt_ansi_to_julian_single_arg $report_start_date]} {$i < [dt_ansi_to_julian_single_arg $report_end_date]} {incr i} {
-	array unset date_hash
-	array set date_hash $date_components_hash($i)
-
-	# Each entry in the top_scale is a list of date parts defined by top_vars
-	set top_entry [list]
-	foreach top_var $top_vars {
-	    set date_val ""
-	    catch { set date_val $date_hash($top_var) }
-	    lappend top_entry $date_val
-	}
+	set top_entry [util_memoize [list im_resource_management_top_scale_from_julian -julian $i -top_vars $top_vars]]
 
 	# "distinct clause": Add the values of top_vars to the top scale, if it is different from the last one...
 	# This is necessary for aggregated top scales like weeks and months.
 	set key [join $top_entry "-"]
-	if {$top_entry != $last_top_entry} {
+	if {$top_entry ne $last_top_entry} {
 	    lappend top_scale $top_entry
 	    set last_top_entry $top_entry
 	    set days_per_cell_hash($key) 0
 	} 
 
+	# Remember how many julian days are included in one cell
 	set days_per_cell $days_per_cell_hash($key)
 	if {![info exists weekend_hash($i)]} { incr days_per_cell }
 	set days_per_cell_hash($key) $days_per_cell
@@ -816,16 +814,11 @@ ad_proc -public im_resource_mgmt_resource_planning_percentage {
 	    if {[info exists days_per_cell_hash($key)]} { set days_per_cell $days_per_cell_hash($key) }
 	    if {0 eq $days_per_cell} { set days_per_cell 0.000001 }
 
+	    # Check for Absences. Weekends are already included in the absences_julian_hash(..)
 	    set list_of_absences ""
-	    set ttt {
-		# Check for Absences. Weekends are already included in the absences_hash(..)
-		set absence_key "$j-$object_id"
-		if {[info exists absences_hash($absence_key)]} {
-		    set list_of_absences $absences_hash($absence_key)
-		}
-		if {[info exists weekend_hash($j)]} {
-		    lappend list_of_absences $weekend_hash($j)
-		}
+	    set absence_key "[join $key_list "-"]-$user_id"
+	    if {[info exists absences_hash($absence_key)]} {
+		set list_of_absences $absences_hash($absence_key)
 	    }
 
 	    set col_attrib ""
@@ -1025,13 +1018,13 @@ ad_proc -public im_resource_mgmt_resource_planning_percentage_absences {
 	for {set i $absence_start_julian} {$i <= $absence_end_julian} {incr i} {
 	    set val {}
 	    set key "$i-$user_id"
-	    if {[info exists absences_hash($key)]} { set val $absences_hash($key) }
+	    if {[info exists absences_julian_hash($key)]} { set val $absences_julian_hash($key) }
 	    lappend val $absence_type_id
-	    set absences_hash($key) $val
+	    set absences_julian_hash($key) $val
 	}
     }
 
-    return [array get absences_hash]
+    return [array get absences_julian_hash]
 }
 
 
@@ -1171,13 +1164,17 @@ ad_proc -public im_resource_management_collapse_left_dimension {
 
 
 
-
-ad_proc -public im_resource_mgmt_top_entry_to_julian { top_vars top_entry } {
-    Converts a entry of the top dimension to a julian date
+ad_proc -public im_resource_management_top_scale_from_julian {
+    -julian:required
+    -top_vars:required
 } {
-    ns_log Notice "im_resource_mgmt_top_entry_to_julian: top_vars=$top_vars top_entry=$top_entry"
-    
-    ad_return_complaint 1 "<pre>im_resource_mgmt_top_entry_to_julian: top_vars=$top_vars top_entry=$top_entry</pre>"
-    return 2457997
+    Calculate the date component for the julian date, depending on top_vars
+} {
+    array set date_hash [util_memoize [list im_date_julian_to_components $julian] 100000]
+    set key_list [list]
+    foreach top_var $top_vars {
+	set date_val $date_hash($top_var)
+	lappend key_list $date_val
+    }
+    return $key_list
 }
-
