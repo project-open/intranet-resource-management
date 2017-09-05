@@ -831,6 +831,11 @@ ad_proc -public im_resource_mgmt_resource_planning_percentage {
 		ns_log Notice "write_out_matrix: im_absence_mix_colors $list_of_absences -> $color"
 		set col_attrib "bgcolor=#$color"
 	    }
+	    if {[im_resource_management_top_entry_is_weekend_p -top_vars $top_vars -top_entry $top_entry]} { 
+		set col [im_absence_type_color -absence_type_id [im_user_absence_type_bank_holiday]]
+		set col_attrib "bgcolor=#$col" 
+	    }
+
 	    
 	    # Format user or department cells - choose a font color according to overallocation
 	    set cell_html "&nbsp;&nbsp;&nbsp;&nbsp;"
@@ -858,17 +863,17 @@ ad_proc -public im_resource_mgmt_resource_planning_percentage {
 	    }
 
 	    switch $object_type {
-		im_cost_center { 
+		im_cost_center {
 		    set title "Sum of availability of department members multiplied with % project assignments"
-		    append row_html "<td $col_attrib><b><span title='$title'>$cell_html</span></b></td>\n" 
+		    append row_html "<td $col_attrib><b><span>$cell_html</span></b></td>\n" 
 		}
 		user { 
 		    set title "Sum of availability multiplied with % project assignments"
-		    append row_html "<td $col_attrib><span title='$title'>$cell_html</span></td>\n" 
+		    append row_html "<td $col_attrib><span>$cell_html</span></td>\n" 
 		}
 		im_project { 
 		    set title "Sum of all % project assignments to project or tasks"
-		    append row_html "<td $col_attrib><span title='$title'>$cell_html</span></td>\n" 
+		    append row_html "<td $col_attrib><span>$cell_html</span></td>\n" 
 		}
 		default { ad_return_complaint 1 "format-cells:<br>Found invalid object_type=$object_type" }
 	    }
@@ -1181,4 +1186,33 @@ ad_proc -public im_resource_management_top_scale_from_julian {
 	lappend key_list $date_val
     }
     return $key_list
+}
+
+
+ad_proc -public im_resource_management_top_entry_is_weekend_p {
+    -top_vars:required
+    -top_entry:required
+} {
+    Returns true if the top entry refers to a weekend.
+    We only handle the cases "year month_of_year day_of month"
+    and "year week_of_year day_of_week" here
+} {
+    # ad_return_complaint 1 $top_vars
+    switch $top_vars {
+	"year month_of_year day_of_month" {
+	    set j [dt_ansi_to_julian [lindex $top_entry 0] [lindex $top_entry 1] [lindex $top_entry 2]]
+	    array set date_comps_hash [im_date_julian_to_components $j]
+	    set dow $date_comps_hash(day_of_week)
+	    switch $dow {
+		6 - 7 { return 1 }
+	    }
+	}
+	"year week_of_year day_of_week" {
+	    set dow [lindex $top_entry 2]
+	    switch $dow {
+		6 - 7 { return 1 }
+	    }
+	}
+    }
+    return 0
 }
