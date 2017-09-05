@@ -808,7 +808,6 @@ ad_proc -public im_resource_mgmt_resource_planning_percentage {
 
 	append row_html "<td><span title='$availability_title'>$availability_html</span></td>\n"
 	append row_html $oname_html
-	append row_html "<td>$left_entry</td>"
 
 	# ------------------------------------------------------------
 	ns_log Notice "percentage-report: Start writing out the matrix elements"
