@@ -28,6 +28,7 @@ ad_page_contract {
     { project_type_id:integer 0 }
     { employee_cost_center_id:integer 0 }
     { program_id:integer 0 }
+    { report_shows "" }
     { absences_included_in_project_planning_p "1"}
     { debug_p:integer 0}
 }
@@ -60,6 +61,9 @@ regsub -all {%20} $top_vars " " top_vars
 regsub -all {\+} $top_vars " " top_vars
 
 set restrict_to_user_department_by_default_p [parameter::get_from_package_key -package_key "intranet-resource-management" -parameter RestrictToUserDepartmentByDefaultP -default 0]
+
+set default_report_shows [parameter::get_from_package_key -package_key "intranet-resource-management" -parameter DefaultResourcePlanningUnit -default "percentage"]
+if {"" eq $report_shows} { set report_shows $default_report_shows }
 
 
 # ------------------------------------------------------------
@@ -94,6 +98,7 @@ set html [im_resource_mgmt_resource_planning_percentage \
 	-report_project_type_id $project_type_id \
 	-report_customer_id $customer_id \
 	-report_employee_cost_center_id $employee_cost_center_id \
+	-report_shows $report_shows \
 	-excluded_group_ids "" \
 	-page_url $page_url \
 	-absences_included_in_project_planning_p $absences_included_in_project_planning_p \
@@ -154,6 +159,23 @@ if {1} {
   </tr>
     "
 }
+
+if {1} {
+    set show_options [list \
+	"percentage"	[lang::message::lookup "" intranet-resource-management.Show_Percentage "Percentage"] \
+	"days"		[lang::message::lookup "" intranet-resource-management.Show_Days "Days"] \
+	"hours"		[lang::message::lookup "" intranet-resource-management.Show_Hours "Hours"] \
+     ]
+
+    append filter_html "
+  <tr>
+    <td class=form-label>[lang::message::lookup "" intranet-resource-management.Show_Value "Show Value"]:</td>
+    <td class=form-widget>[im_select -translate_p 0 report_shows $show_options $report_shows]</td>
+  </tr>
+    "
+}
+
+
 
 append filter_html "
   <tr>

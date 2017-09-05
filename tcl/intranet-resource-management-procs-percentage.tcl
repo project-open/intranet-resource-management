@@ -36,6 +36,7 @@ ad_proc -public im_resource_mgmt_resource_planning_percentage {
     {-return_url ""}
     {-page_url:required}
     {-absences_included_in_project_planning_p "1"}
+    {-report_shows "percentage"}
     {-debug_p 1}
 } {
     Creates Resource Report 
@@ -55,6 +56,8 @@ ad_proc -public im_resource_mgmt_resource_planning_percentage {
     # Department to use, when user is not assigned to one 
     set company_cost_center [im_cost_center_company]
     set default_department [parameter::get_from_package_key -package_key "intranet-resource-management" -parameter "DefaultCostCenterId" -default $company_cost_center]
+    set timesheet_hours_per_day [parameter::get_from_package_key -package_key "intranet-timesheet2" -parameter "TimesheetHoursPerDay" -default 8.0]
+
     set freelancers_department 999999
 
     if {"" == $excluded_group_ids} { set excluded_group_ids 0 }
@@ -838,31 +841,50 @@ ad_proc -public im_resource_mgmt_resource_planning_percentage {
 		set col_attrib "bgcolor=#$col" 
 	    }
 
-	    
-	    # Format user or department cells - choose a font color according to overallocation
+	    # Determine the value to be shown by the report
+	    # - availability: percentage availability of resource (user/cc)
+	    # - report_shows: percentage/days
+	    # - object_type: im_cost_center, im_project or user
+	    # - assignment_hash: percentage of assignment aggregated
+	    # - days_per_cell: number of days covered by a single cell
 	    set cell_html "&nbsp;&nbsp;&nbsp;&nbsp;"
+	    set cell_type ""
+	    set cell_color "black"
+	    set cell_assig ""
 	    set key "[join $key_list "-"]-$object_id"
-	    # ad_return_complaint 1 "<pre>$key<br>[array names assignment_hash]</pre>"
-	    if {[info exists assignment_hash($key)]} { 
-		set assig [expr round($assignment_hash($key)) / $days_per_cell]
-		set color "black"
-		if {$availability > 0} {
-		    set overassignment_ratio [expr (1.0 * $assig / $availability) - 1.0]
-		    # <= 1.0 -> black=#00000, >1.5 -> red=#FF0000
-		    set ratio [expr round(min(max($overassignment_ratio,0) * 700.0, 255))]
-		    set color "#[format %x $ratio]0000"
-		    if {"" ne $assig} { set assig "$assig%" }
-		    set cell_html "<font color=$color>$assig</font>"
-		}
+	    if {[info exists assignment_hash($key)]} {
+		set cell_type "user"
+	    } else {
+		set cell_type "project"
+		set key "[join $key_list "-"]-$project_id-$user_id"
+	    }
+	    if {[info exists assignment_hash($key)]} {
+                set cell_assig [expr round($assignment_hash($key))]
+            }
+
+	    # Check for overassignments
+	    if {"" ne $cell_assig && $availability > 0} {
+		set overassignment_ratio [expr (1.0 * $cell_assig / $availability) - 1.0]
+		# <= 1.0 -> black=#00000, >1.5 -> red=#FF0000
+		set ratio [expr round(min(max($overassignment_ratio,0) * 700.0, 255))]
+		set cell_color "#[format %x $ratio]0000"
 	    }
 
-	    # Normal project assignment - don't compare and don't change color
-	    set key "[join $key_list "-"]-$project_id-$user_id"
-	    if {[info exists assignment_hash($key)]} { 
-		set assig [expr round($assignment_hash($key)) / $days_per_cell] 
-		if {"" ne $assig} { set assig "$assig%" }
-		set cell_html $assig
-	    }
+	    if {"" ne $cell_assig} { switch $report_shows {
+		percentage {
+		    set perc [expr $cell_assig / $days_per_cell]
+		    set cell_html "<font color=$cell_color>$perc%</font>"
+		}
+		days {
+		    set days [expr round(10.0 * $cell_assig / 100.0) / 10.0]
+		    set cell_html "<font color=$cell_color>$days</font>"
+		}
+		hours {
+		    set days [expr round(10.0 * $cell_assig * $timesheet_hours_per_day / 100.0) / 10.0]
+		    set cell_html "<font color=$cell_color>$days</font>"
+		}
+		default { ad_return_complaint 1 "percentage-report:<br>Unknown report_shows=$report_shows" }
+	    }}
 
 	    switch $object_type {
 		im_cost_center {
