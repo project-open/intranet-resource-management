@@ -45,9 +45,6 @@ ad_proc -public im_resource_mgmt_resource_planning_percentage {
     @param project_id Id of project(s) to show. Defaults to all active projects
     @param customer_id Id of customer's projects to show
 } {
-
-    set debug_p 1
-
     # ---------------------------------------
     # Defaults
     # 
