@@ -1,10 +1,23 @@
 <?xml version="1.0" encoding="ISO-8859-1"?>
 <message_catalog package_key="intranet-resource-management" locale="en_US" charset="ISO-8859-1">
 
+  <msg key="Availability_title_cost_center">Availability title cost center</msg>
+  <msg key="Availability_title_default">Availability title default</msg>
+  <msg key="Count_Absences">Count Absences</msg>
+  <msg key="Count_Absences_Help">Vacation and other absences may already be included in the project planning or not. This report doesn&#39;t know about this, so the user needs to set the &#39;Count Absences?&#39; switch accordingly.</msg>
+  <msg key="Date_Scale">Date Scale</msg>
+  <msg key="Dim_day_of_month">Day</msg>
+  <msg key="Dim_month_of_year">Month</msg>
+  <msg key="Dim_year">Year</msg>
   <msg key="Home">Home</msg>
+  <msg key="Percentage_Report_Help">Percentage Report Help</msg>
   <msg key="Planning_Granularity">Planning Granularity</msg>
   <msg key="Resource_Assignation__">Resource Assignations %</msg>
   <msg key="Resource_Management_Home">Resource Management Home</msg>
   <msg key="Resource_Planning_based_on_Planned_Hours">Resource Planning - Based on Planned Hours</msg>
   <msg key="Resource_Planning_Report">Resource Planning - Main Report</msg>
+  <msg key="Year_and_Month">Year and Month</msg>
+  <msg key="Year_and_Week">Year and Week</msg>
+  <msg key="Year_Month_and_Day">Year, Month and Day</msg>
+  <msg key="Year_Week_and_Day">Year, Week and Day</msg>
 </message_catalog>

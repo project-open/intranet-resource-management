@@ -1,8 +1,17 @@
 <?xml version="1.0" encoding="utf-8"?>
 <message_catalog package_key="intranet-resource-management" locale="pl_PL" charset="utf-8">
 
+  <msg key="Availability_title_cost_center">Dostępność centrum kosztów</msg>
+  <msg key="Availability_title_default">Domyślna dostępność</msg>
+  <msg key="Count_Absences">Wliczać nieobecności?</msg>
+  <msg key="Count_Absences_Help">Pomoc do wliczania nieobecności</msg>
   <msg key="Dim_day_of_month">Dzień</msg>
   <msg key="Dim_month_of_year">Miesiąc</msg>
   <msg key="Dim_year">Rok</msg>
-  <msg key="Total">Łącznie</msg>
+  <msg key="Percentage_Report_Help">Pomoc dla raportu procentowego</msg>
+  <msg key="Planning_Granularity">Granulacja planowania</msg>
+  <msg key="Resource_Assignation__">Przyporządkowanie zasobów %</msg>
+  <msg key="Resource_Management_Home">Zarządzanie zasobami</msg>
+  <msg key="Resource_Planning_based_on_Planned_Hours">Planowanie zasobów - na bazie zaplanowanych godzin</msg>
+  <msg key="Resource_Planning_Report">Planowanie zasobów - główny raport</msg>
 </message_catalog>

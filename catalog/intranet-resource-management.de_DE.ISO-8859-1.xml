@@ -1,10 +1,48 @@
 <?xml version="1.0" encoding="ISO-8859-1"?>
 <message_catalog package_key="intranet-resource-management" locale="de_DE" charset="ISO-8859-1">
 
+  <msg key="Availability_title_cost_center">Verfügbarkeit Konstenstelle</msg>
+  <msg key="Availability_title_default">Verfügbarkeit</msg>
+  <msg key="Count_Absences">Abwesenheiten zählen?</msg>
+  <msg key="Count_Absences_Help">Abwesenheiten können bei der Projektplanung berücksichtigt worden sein oder nicht. Dieser Report kennt diese Entscheidung nicht. Deshalb muss der Benutzer den &#39;Abwesenheiten Zählen?&#39; Parameter entsprechend setzen.</msg>
+  <msg key="Date_Scale">Datumsachse</msg>
+  <msg key="Dim_day_of_month">Tag</msg>
+  <msg key="Dim_month_of_year">Monat</msg>
+  <msg key="Dim_year">Jahr</msg>
   <msg key="Home">Übersicht</msg>
+  <msg key="Percentage_Report_Help">&lt;h2&gt;Resource Management Report - By Percentage&lt;/h2&gt;
+&lt;p&gt;This resource management report shows summarized assignments of natural persons by task,
+project, user and department, aggregated from the actual to a task up the project hierarchy 
+towards the user and department level.&lt;/p&gt;
+&lt;p&gt;Important comments:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;b&gt;Effective Working Time&lt;/b&gt;:&lt;br&gt;
+    The values shown in this report refer to percentages of the effective working time
+    of resources.
+    This time can be set in the &#39;Employee Information&#39; portlet on the user&#39;s page. &lt;br&gt;
+    Example: Assigning a user working a 50% part-time job to a task with 80% will 
+    result in a 40% assignment.
+&lt;li&gt;&lt;b&gt;Assignment Duration and Precision&lt;/b&gt;:&lt;br&gt;
+    The duration of an assignment includes both the start and end date of the task.
+    Assignments are currently only per days. Future versions of this report
+    will allow for assignments per hour and minute based on a calendar with
+    working hours.
+&lt;li&gt;&lt;b&gt;Vacation and other absences&lt;/b&gt;:&lt;br&gt;
+    Vacation and other absences may already be included in the project planning or not.
+    This report doesn&#39;t know about this, so the user needs to set the &#39;Count Absences?&#39;
+    switch accordingly. The default is to count absences, assuming the project manager
+    doesn&#39;t know about the user&#39;s vacations etc.&lt;br&gt;
+    Example: A user is assigned with 100% to a task, while he is going to have vacation.
+    With &#39;Count Absences?&#39; checked, the report will shows an overallocation during this 
+    time. 
+&lt;/ul&gt;</msg>
   <msg key="Planning_Granularity">Granularität Planung</msg>
   <msg key="Resource_Assignation__">Ressourcenzuweisung %</msg>
   <msg key="Resource_Management_Home">Ressourcenmanagement</msg>
   <msg key="Resource_Planning_based_on_Planned_Hours">Resource Planning - Basierend auf geplanten Stunden</msg>
   <msg key="Resource_Planning_Report">Resource Planning - Hauptbericht</msg>
+  <msg key="Year_and_Month">Jahr und Monat</msg>
+  <msg key="Year_and_Week">Jahr und Woche</msg>
+  <msg key="Year_Month_and_Day">Jahr, Monat und Tag</msg>
+  <msg key="Year_Week_and_Day">Jahr, Woche und Tag</msg>
 </message_catalog>
