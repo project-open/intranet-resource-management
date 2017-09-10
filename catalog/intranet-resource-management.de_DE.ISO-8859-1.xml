@@ -1,10 +1,10 @@
 <?xml version="1.0" encoding="ISO-8859-1"?>
 <message_catalog package_key="intranet-resource-management" locale="de_DE" charset="ISO-8859-1">
 
-  <msg key="Availability_title_cost_center">Verfügbarkeit Konstenstelle</msg>
+  <msg key="Availability_title_cost_center">Verfügbarkeit Kostenstelle</msg>
   <msg key="Availability_title_default">Verfügbarkeit</msg>
   <msg key="Count_Absences">Abwesenheiten zählen?</msg>
-  <msg key="Count_Absences_Help">Abwesenheiten können bei der Projektplanung berücksichtigt worden sein oder nicht. Dieser Report kennt diese Entscheidung nicht. Deshalb muss der Benutzer den &#39;Abwesenheiten Zählen?&#39; Parameter entsprechend setzen.</msg>
+  <msg key="Count_Absences_Help">Abwesenheiten können bei der Projektplanung berücksichtigt worden sein oder nicht. Dieser Bericht kennt diese Entscheidung nicht. Deshalb muss der Benutzer den ?Abwesenheiten zählen??-Parameter entsprechend setzen.</msg>
   <msg key="Date_Scale">Datumsachse</msg>
   <msg key="Dim_day_of_month">Tag</msg>
   <msg key="Dim_month_of_year">Monat</msg>
@@ -36,8 +36,8 @@ towards the user and department level.&lt;/p&gt;
     With &#39;Count Absences?&#39; checked, the report will shows an overallocation during this 
     time. 
 &lt;/ul&gt;</msg>
-  <msg key="Planning_Granularity">Granularität Planung</msg>
-  <msg key="Resource_Assignation__">Ressourcenzuweisung %</msg>
+  <msg key="Planning_Granularity">Granularitäts-Planung</msg>
+  <msg key="Resource_Assignation__">Ressourcen-Zuweisung %</msg>
   <msg key="Resource_Management_Home">Ressourcenmanagement</msg>
   <msg key="Resource_Planning_based_on_Planned_Hours">Resource Planning - Basierend auf geplanten Stunden</msg>
   <msg key="Resource_Planning_Report">Resource Planning - Hauptbericht</msg>
