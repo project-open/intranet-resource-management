@@ -869,7 +869,7 @@ ad_proc -public im_resource_mgmt_resource_planning_percentage {
 
 	    # Check for overassignments
 	    if {"" ne $cell_assig && $availability > 0} {
-		set overassignment_ratio [expr (1.0 * $cell_assig / $availability) - 1.0]
+		set overassignment_ratio [expr (1.0 * $cell_assig / ($availability * $days_per_cell)) - 1.0]
 		# <= 1.0 -> black=#00000, >1.5 -> red=#FF0000
 		set ratio [expr round(min(max($overassignment_ratio,0) * 700.0, 255))]
 		set cell_color "#[format %x $ratio]0000"
