@@ -826,7 +826,6 @@ ad_proc -public im_resource_mgmt_resource_planning_percentage {
 	    set days_per_cell 1
 	    set key [join $top_entry "-"]
 	    if {[info exists days_per_cell_hash($key)]} { set days_per_cell $days_per_cell_hash($key) }
-	    if {0 eq $days_per_cell} { set days_per_cell 0.000001 }
 
 	    # Check for Absences. Weekends are already included in the absences_julian_hash(..)
 	    set list_of_absences ""
@@ -845,6 +844,7 @@ ad_proc -public im_resource_mgmt_resource_planning_percentage {
 		set col [im_absence_type_color -absence_type_id [im_user_absence_type_bank_holiday]]
 		set col_attrib "bgcolor=#$col" 
 	    }
+	    if {0 == $days_per_cell} { set col_attrib "" }; # reports starts on a weekend
 
 	    # Determine the value to be shown by the report
 	    # - availability: percentage availability of resource (user/cc)
@@ -868,7 +868,7 @@ ad_proc -public im_resource_mgmt_resource_planning_percentage {
             }
 
 	    # Check for overassignments
-	    if {"" ne $cell_assig && $availability > 0} {
+	    if {"" ne $cell_assig && [expr $availability * $days_per_cell] > 0} {
 		set overassignment_ratio [expr (1.0 * $cell_assig / ($availability * $days_per_cell)) - 1.0]
 		# <= 1.0 -> black=#00000, >1.5 -> red=#FF0000
 		set ratio [expr round(min(max($overassignment_ratio,0) * 700.0, 255))]
@@ -877,8 +877,12 @@ ad_proc -public im_resource_mgmt_resource_planning_percentage {
 
 	    if {"" ne $cell_assig} { switch $report_shows {
 		percentage {
-		    set perc [expr $cell_assig / $days_per_cell]
-		    set cell_html "<font color=$cell_color>$perc%</font>"
+		    set perc ""
+		    if {$days_per_cell > 0} {
+		        set perc [expr $cell_assig / $days_per_cell]
+		    }
+		    if {"" ne $perc} { set perc "$perc%" }
+		    set cell_html "<font color=$cell_color>$perc</font>"
 		}
 		days {
 		    set days [expr round(10.0 * $cell_assig / 100.0) / 10.0]
