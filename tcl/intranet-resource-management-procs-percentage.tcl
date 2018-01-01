@@ -125,7 +125,7 @@ ad_proc -public im_resource_mgmt_resource_planning_percentage {
     set url_hash(im_cost_center) $cost_center_url
 
     # ------------------------------------------------------------
-    ns_log Notice "percentage-report: Conditional SQL where clause"
+    # ns_log Notice "percentage-report: Conditional SQL where clause"
     #
     set assignment_criteria [list]
     set user_criteria ""
@@ -167,7 +167,7 @@ ad_proc -public im_resource_mgmt_resource_planning_percentage {
 
 
     # ------------------------------------------------------------
-    ns_log Notice "percentage-report: Pre-calculate GIFs for performance reasons"
+    # ns_log Notice "percentage-report: Pre-calculate GIFs for performance reasons"
     #
     set object_type_gif_sql "select object_type, object_type_gif from acs_object_types
 	where	object_type in ('user', 'person', 'im_cost_center', 'im_project', 'im_timesheet_task')
@@ -182,7 +182,7 @@ ad_proc -public im_resource_mgmt_resource_planning_percentage {
 
 
     # ------------------------------------------------------------
-    ns_log Notice "percentage-report: Store information about each day into hashes for speed"
+    # ns_log Notice "percentage-report: Store information about each day into hashes for speed"
     #
     for {set i $report_start_julian} {$i <= $report_end_julian} {incr i} {
 
@@ -207,7 +207,7 @@ ad_proc -public im_resource_mgmt_resource_planning_percentage {
 
 
     # ------------------------------------------------------------
-    ns_log Notice "percentage-report: Absences - Determine when the user is away"
+    # ns_log Notice "percentage-report: Absences - Determine when the user is away"
     # key: julian-uid, value: absence_type_id
     # 458004-624 5000 2458001-624 5000 2458005-624 5000 2458002-624 5000 2458003-624 5000
     #
@@ -247,7 +247,7 @@ ad_proc -public im_resource_mgmt_resource_planning_percentage {
 
 
     # ------------------------------------------------------------
-    ns_log Notice "percentage-report: Assignments"
+    # ns_log Notice "percentage-report: Assignments"
     # Assignments - Determine assignments per project/task and user.
     # This SQL is used as a sub-query in several other SQLs
     #
@@ -320,7 +320,7 @@ ad_proc -public im_resource_mgmt_resource_planning_percentage {
 
 
     # ------------------------------------------------------------
-    ns_log Notice "percentage-report: Hierarchy"
+    # ns_log Notice "percentage-report: Hierarchy"
     # Hierarchy - Determine parent-child relationships etc. and store in hashes.
     # We need to get all sub-projects from the main projects references, because
     # projects in the hierarchy may not be included in the assignment query above.
@@ -357,7 +357,7 @@ ad_proc -public im_resource_mgmt_resource_planning_percentage {
 
 
     # --------------------------------------------
-    ns_log Notice "percentage-report: Cost center information"
+    # ns_log Notice "percentage-report: Cost center information"
     #
     set cc_sql "
 	select	cc.*,
@@ -417,7 +417,7 @@ ad_proc -public im_resource_mgmt_resource_planning_percentage {
 
 
     # --------------------------------------------
-    ns_log Notice "percentage-report: User department information"
+    # ns_log Notice "percentage-report: User department information"
     #
     set user_info_sql "
 	select	u.user_id,
@@ -469,7 +469,7 @@ ad_proc -public im_resource_mgmt_resource_planning_percentage {
 
 
     # ------------------------------------------------------------
-    ns_log Notice "percentage-report: Collapse lines in the report"
+    # ns_log Notice "percentage-report: Collapse lines in the report"
     #
     set collapse_sql "
 		select	object_id,
@@ -485,13 +485,13 @@ ad_proc -public im_resource_mgmt_resource_planning_percentage {
 
     
     # ------------------------------------------------------------
-    ns_log Notice "percentage-report: Check for data consistency"
+    # ns_log Notice "percentage-report: Check for data consistency"
     #
     # Commented out - at the end of the file
 
 
     # ------------------------------------------------------------------
-    ns_log Notice "percentage-report: Calculate the left dimension"
+    # ns_log Notice "percentage-report: Calculate the left dimension"
     # Take the project-user assignment hash and add the objects required
     # to create a chain from the top cost center through the user to the
     # sub-sub-task with the assighnent.
@@ -592,7 +592,7 @@ ad_proc -public im_resource_mgmt_resource_planning_percentage {
     }
 
     # ------------------------------------------------------------
-    ns_log Notice "percentage-report: Determine which object has children"
+    # ns_log Notice "percentage-report: Determine which object has children"
     #
     foreach l $left_dimension_smooth {
 	# All objects have children, except for the last one
@@ -604,7 +604,7 @@ ad_proc -public im_resource_mgmt_resource_planning_percentage {
 
 
     # ------------------------------------------------------------
-    ns_log Notice "percentage-report: Aggregate percentage assignments up the project hierarchy"
+    # ns_log Notice "percentage-report: Aggregate percentage assignments up the project hierarchy"
     #
     # ad_return_complaint 1 "<pre>[join [array get project_user_assignment_hash] "\n"]</pre>"
     foreach key [array names project_user_assignment_hash] {
@@ -648,7 +648,7 @@ ad_proc -public im_resource_mgmt_resource_planning_percentage {
     # ad_return_complaint 1 "<pre>[join [array get assignment_hash] "\n"]</pre>"
 
     # ------------------------------------------------------------
-    ns_log Notice "percentage-report: Add absences to the aggregate"
+    # ns_log Notice "percentage-report: Add absences to the aggregate"
     # ad_return_complaint 1 "<pre>absences_julian_hash=[array get absences_julian_hash]</pre>"
     #
     if {"1" eq $absences_included_in_project_planning_p} {
@@ -693,7 +693,7 @@ ad_proc -public im_resource_mgmt_resource_planning_percentage {
 
 
     # --------------------------------------------------
-    ns_log Notice "percentage-report: Top Scale"
+    # ns_log Notice "percentage-report: Top Scale"
     #
 
     # Top scale is a list of lists like {{2006 01} {2006 02} ...}
@@ -724,21 +724,18 @@ ad_proc -public im_resource_mgmt_resource_planning_percentage {
     # set left_scale_size [llength [lindex $left_vars 0]]
     set left_scale_size 2; # just one col for object + one col for percentage
 
-    ns_log Notice "percentage-report: top_scale=$top_scale"
+    # ns_log Notice "percentage-report: top_scale=$top_scale"
     set clicks([clock clicks -microseconds]) top_scale
 
 
-
-
-
     # -------------------------------------------------------------------------------------------
-    ns_log Notice "percentage-report: Write out matrix"
+    # ns_log Notice "percentage-report: Write out matrix"
     # 
     set matrix_html ""
     set row_ctr 0
     set show_row_task_p 0 
     foreach left_entry $left_scale {
-	ns_log Notice "percentage-report: Write out table: left_entry=$left_entry"
+	# ns_log Notice "percentage-report: Write out table: left_entry=$left_entry"
 	# example for left scale: {dept_id user_id main_pid ... pid}
 	# {{12356} {12356 8858} {12356 8858 37450} {12356 8858 37450 37453} ...}
 
@@ -818,7 +815,7 @@ ad_proc -public im_resource_mgmt_resource_planning_percentage {
 	append row_html $oname_html
 
 	# ------------------------------------------------------------
-	ns_log Notice "percentage-report: Start writing out the matrix elements"
+	# ns_log Notice "percentage-report: Start writing out the matrix elements"
 	#
 	foreach top_entry $top_scale {
 
@@ -837,7 +834,7 @@ ad_proc -public im_resource_mgmt_resource_planning_percentage {
 	    set col_attrib ""
 	    if {"" != $list_of_absences} {
 		set color [util_memoize [list im_absence_mix_colors $list_of_absences]]
-		ns_log Notice "write_out_matrix: im_absence_mix_colors $list_of_absences -> $color"
+		# ns_log Notice "write_out_matrix: im_absence_mix_colors $list_of_absences -> $color"
 		set col_attrib "bgcolor=#$color"
 	    }
 	    if {[im_resource_management_top_entry_is_weekend_p -top_vars $top_vars -top_entry $top_entry]} { 
@@ -920,7 +917,7 @@ ad_proc -public im_resource_mgmt_resource_planning_percentage {
 
 
     # ---------------------------------------------------------------------
-    ns_log Notice "percentage-report: Write out the header of the table"
+    # ns_log Notice "percentage-report: Write out the header of the table"
     # Each date entry starts with the julian of the date, so we have to skip row=0
     #
     set header_html ""
@@ -983,7 +980,7 @@ ad_proc -public im_resource_mgmt_resource_planning_percentage {
 
 
     # ------------------------------------------------------------
-    ns_log Notice "percentage-report: Profiling HTML"
+    # ns_log Notice "percentage-report: Profiling HTML"
     #
     set profiling_html ""
     set first_click 0
@@ -1080,7 +1077,7 @@ ad_proc -public im_resource_management_sort_left_dimension {
     Returns the lol sorted according to the type of the objects in 
     order: ccs, users, projects, tasks.
 } {
-    ns_log Notice "sort_left_dimension: lol=$lol"
+    # ns_log Notice "sort_left_dimension: lol=$lol"
     array set object_type_hash $object_type_list
     # ad_return_complaint 1 "<pre>[join $lol "\n"]</pre>"
 
@@ -1140,7 +1137,7 @@ ad_proc -public im_resource_management_smoothen_left_dimension {
     assignment is preceded by the hierarchy object CCs and other
     objects leading to it.
 } {
-    ns_log Notice "sort_left_dimension: lol=$lol"
+    # ns_log Notice "sort_left_dimension: lol=$lol"
     set result [list]
     set last_l [list]
     foreach l $lol {
@@ -1180,12 +1177,12 @@ ad_proc -public im_resource_management_subtotals_left_dimension {
 } {
     Adds a subtotal line at the end of every department or user
 } {
-    ns_log Notice "subtotals_left_dimension: lol=$lol"
+    # ns_log Notice "subtotals_left_dimension: lol=$lol"
     set result [list]
     set last_l [list]
     foreach l $lol {
-	ns_log Notice "subtotals_left_dimension: "
-	ns_log Notice "subtotals_left_dimension: l=$l: last_l=$last_l"
+	# ns_log Notice "subtotals_left_dimension: "
+	# ns_log Notice "subtotals_left_dimension: l=$l: last_l=$last_l"
 	set org_l $l
 
 	# We need to add a subtotal line
@@ -1218,7 +1215,7 @@ ad_proc -public im_resource_management_collapse_left_dimension {
     This procedure eliminates those entries that include at least
     one "closed" item.
 } {
-    ns_log Notice "collapse_left_dimension: lol=$lol"
+    # ns_log Notice "collapse_left_dimension: lol=$lol"
     array set collapse_hash $collapse_list
     set result [list]
 
