@@ -1144,8 +1144,8 @@ ad_proc -public im_resource_management_smoothen_left_dimension {
     set result [list]
     set last_l [list]
     foreach l $lol {
-	ns_log Notice "smoothen_left_dimension: "
-	ns_log Notice "smoothen_left_dimension: l=$l: last_l=$last_l"
+	# ns_log Notice "smoothen_left_dimension: "
+	# ns_log Notice "smoothen_left_dimension: l=$l: last_l=$last_l"
 
 	# Calculate the common part of l and last_l
 	set last_idx [llength $l]
@@ -1157,14 +1157,14 @@ ad_proc -public im_resource_management_smoothen_left_dimension {
 	    set b [lrange $last_l 0 $last_idx]
 	}
 	set last_l $b
-	ns_log Notice "smoothen_left_dimension: l=$l: last_l=$last_l, idx=$last_idx, last_l=$last_l"
+	# ns_log Notice "smoothen_left_dimension: l=$l: last_l=$last_l, idx=$last_idx, last_l=$last_l"
 
 	# Now add lines in order to get from last_l to l in "steps" of one object each.
 	# last_l has already been part of result, so we don't need to include it again.
 	while {[llength $last_l] < [llength $l]} {
 	    lappend last_l [lindex $l [llength $last_l]]
 	    lappend result $last_l
-	    ns_log Notice "smoothen_left_dimension: l=$l, last_l=$last_l: adding"
+	    # ns_log Notice "smoothen_left_dimension: l=$l, last_l=$last_l: adding"
 	}
 	# Now last_l should be identical to l
     }
