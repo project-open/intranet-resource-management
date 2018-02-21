@@ -27,6 +27,7 @@ set report_end_date [db_string now "select now() + '2 years'::interval from dual
 set report_granularity "week"
 set report_project_type_id ""
 set report_program_id ""
+set report_cost_center_id ""
 
 
 # ---------------------------------------------------------------
