@@ -247,6 +247,27 @@ begin
 end;$body$ LANGUAGE 'plpgsql' VOLATILE;
 
 
+
+
+-- Returns just the number of working days between two dates
+CREATE or REPLACE FUNCTION im_resource_mgmt_workday_count (date, date)
+RETURNS integer AS $BODY$
+SELECT
+	($1 < $2)::int * (
+		to_char($2, 'J')::integer - to_char($1, 'J')::integer - 
+		((($2 - $1) / 7) * 2 + 
+		(EXTRACT(dow FROM $1)<6 AND EXTRACT(dow FROM $2)>0 AND EXTRACT(dow FROM $1)>EXTRACT(dow FROM $2))::int * 2 +
+		(EXTRACT(dow FROM $1)=6 AND EXTRACT(dow FROM $2)>0)::int +
+		(EXTRACT(dow FROM $2)=0 AND EXTRACT(dow FROM $1)<6)::int)
+	);
+$BODY$
+LANGUAGE 'sql' IMMUTABLE STRICT;
+select im_resource_mgmt_workday_count('2018-05-01'::date, '2018-05-31'::date);
+
+
+
+
+
 -- Returns the work days for a given period 
 -- whereas: "work days" = Number of days in period -absences -bank_holidays -weekends 
 -- Expects start_date and end_date as YYYY/MM/DD
@@ -274,6 +295,7 @@ begin
 		END IF;
 	END LOOP;
 end;$body$ LANGUAGE 'plpgsql' VOLATILE;
+
 
 
 
