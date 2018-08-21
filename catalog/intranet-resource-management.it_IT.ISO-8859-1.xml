@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="ISO-8859-1"?>
+<message_catalog package_key="intranet-resource-management" locale="it_IT" charset="ISO-8859-1">
+
+  <msg key="Count_Absences">Includi assenze</msg>
+  <msg key="Date_Scale">Raggruppa per</msg>
+  <msg key="Dim_day_of_month">Giorno</msg>
+  <msg key="Dim_month_of_year">Mese</msg>
+  <msg key="Dim_year">Anno</msg>
+  <msg key="Show_Days">Giorni</msg>
+  <msg key="Show_Hours">Ore</msg>
+  <msg key="Show_Percentage">Percentuale</msg>
+  <msg key="Show_Value">Valore</msg>
+  <msg key="Year_and_Month">Anno e Mese</msg>
+  <msg key="Year_and_Week">Anno e Settimana</msg>
+  <msg key="Year_Month_and_Day">Anno, Mese e Giorno</msg>
+  <msg key="Year_Week_and_Day">Anno, Settimana e Giorno</msg>
+</message_catalog>
