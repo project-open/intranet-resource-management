@@ -132,7 +132,7 @@ ad_proc -public im_resource_mgmt_resource_planning_percentage {
     if {"" != $report_customer_id && 0 != $report_customer_id} { lappend assignment_criteria "parent.company_id = :report_customer_id" }
     if {"" != $report_project_id && 0 != $report_project_id} { lappend assignment_criteria "parent.project_id in ([join $report_project_id ", "])" }
     if {"" != $report_project_status_id && 0 != $report_project_status_id} { 
-	lappend assignment_criteria "parent.project_status_id in ([join [im_sub_categories $project_status_id] ", "])" 
+	lappend assignment_criteria "parent.project_status_id in ([join [im_sub_categories $report_project_status_id] ", "])" 
     }
     if {"" != $report_project_type_id && 0 != $report_project_type_id} { 
 	lappend assignment_criteria "parent.project_type_id in ([join [im_sub_categories $report_project_type_id] ", "])" 
