@@ -212,9 +212,7 @@ DECLARE
 begin
 	FOR r in
 		SELECT	result.all_days_in_period as working_day
-		FROM	(	(SELECT	*
-				FROM	im_day_enumerator(to_date(v_start_date,'yyyy-mm-dd'), to_date(v_end_date,'yyyy-mm-dd')) AS all_days_in_period
-				) series
+		FROM	((SELECT * FROM im_day_enumerator(to_date(v_start_date,'yyyy-mm-dd'), to_date(v_end_date,'yyyy-mm-dd')) AS all_days_in_period) series
 		LEFT JOIN
 			(SELECT	d as absence_day
 			from	im_user_absences a,
@@ -237,7 +235,7 @@ begin
 		) result
 	WHERE	result.absence_day IS NULL
 	LOOP
-		-- v_date_weekday = v_year || v_seperator || v_month || v_seperator || r.working_day;
+		-- v_date_weekday = v_year || v_separator || v_month || v_seperator || r.working_day;
 		-- select into v_dow extract (dow from v_date_weekday);
 		select into v_dow extract (dow from r.working_day);
 		IF v_dow <> 0 AND v_dow <> 6 THEN
@@ -350,7 +348,10 @@ BEGIN
 	FOR row IN
 		select	*
 		from	im_user_absences a
-		where	(a.owner_id = p_user_id OR a.group_id in (select group_id from group_distinct_member_map where member_id = p_user_id)) and
+		where	(a.owner_id = p_user_id
+				    OR a.group_id = p_user_id 
+				    OR a.group_id in (select group_id from group_distinct_member_map where member_id = p_user_id)
+			) and
 			a.end_date >= p_start_date and
 			a.start_date <= p_end_date and
 			a.absence_type_id = 5005 and 		-- bank holidays
@@ -367,6 +368,7 @@ BEGIN
 	return v_work_days;
 END;$body$ language 'plpgsql';
 -- select im_resource_mgmt_work_days(624, now()::date, '2014-06-30');
+-- select im_resource_mgmt_work_days(463, '2018-12-01'::date, '2019-01-01');
 
 
 -- Returns a real[] for each day between start and end 
