@@ -143,7 +143,21 @@ ad_proc -public im_resource_management_user_absences {
 # ---------------------------------------------------------------
 
 
-ad_proc -public im_date_julian_to_components { julian_date } {
+
+ad_proc -public im_date_julian_to_components { 
+    julian_date 
+} {
+    Takes a Julian data and returns an array of its components:
+    Year, MonthOfYear, DayOfMonth, WeekOfYear, Quarter
+} {
+    im_security_alert_check_integer -location "im_date_julian_to_components" -value $julian_date
+    return [util_memoize [list im_date_julian_to_components_helper $julian_date] 3600]
+}
+
+
+ad_proc -public im_date_julian_to_components_helper { 
+    julian_date 
+} {
     Takes a Julian data and returns an array of its components:
     Year, MonthOfYear, DayOfMonth, WeekOfYear, Quarter
 } {
@@ -184,7 +198,7 @@ ad_proc -public im_date_julian_to_components { julian_date } {
 ad_proc -public im_date_julian_to_week_julian { julian_date } {
     Takes a Julian data and returns the julian date of the week's day "1" (=Monday)
 } {
-    array set week_info [im_date_julian_to_components $julian_date]
+    array set week_info [util_memoize [list im_date_julian_to_components $julian_date]]
     set result [expr {$julian_date - $week_info(day_of_week)}]
 }
 
