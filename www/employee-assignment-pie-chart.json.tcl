@@ -20,7 +20,7 @@ ad_page_contract {
 set current_user_id [ad_conn user_id]
 if {![im_permission $current_user_id view_users]} { 
     set json "{\"success\": false, \"message\": \"Insufficient permissions - you need view_users.\" }"
-    doc_return 200 "text/html" $json
+    doc_return 400 "application/json" $json
     ad_script_abort
 }
 
@@ -35,7 +35,7 @@ switch $diagram_interval {
     over_last_quarter { db_1row date "select now()::date - 180 as start_date, now()::date -90 as end_date" }
     default {
 	set json "{\"success\": false, \"message\": \"Invalid diagram_interval option: '$diagram_interval'.\" }"
-	doc_return 200 "text/html" $json
+	doc_return 400 "application/json" $json
 	ad_script_abort
     }
 }
@@ -115,5 +115,5 @@ multirow foreach mr {
     lappend data_list "{\"name\": \"$name\", \"value\": $value }"
 }
 set json "{\"success\": true, \"message\": \"Data loaded\", \"data\": \[\n[join $data_list ",\n"]\n\]}"
-doc_return 200 "text/html" $json
+doc_return 200 "application/json" $json
 
