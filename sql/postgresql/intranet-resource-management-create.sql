@@ -348,16 +348,16 @@ BEGIN
 	FOR row IN
 		select	*
 		from	im_user_absences a
-		where	(a.owner_id = p_user_id
-				    OR a.group_id = p_user_id 
-				    OR a.group_id in (select group_id from group_distinct_member_map where member_id = p_user_id)
+		where	(	a.owner_id = p_user_id OR
+				a.group_id = p_user_id OR
+				a.group_id in (select group_id from group_distinct_member_map where member_id = p_user_id)
 			) and
 			a.end_date >= p_start_date and
 			a.start_date <= p_end_date and
-			a.absence_type_id = 5005 and 		-- bank holidays
-			a.absence_status_id in (select child_id from im_category_hierarchy where parent_id = 16000 UNION select 16000) 		-- active
+			a.absence_type_id in (select * from im_sub_categories(5005)) and 		-- bank holidays
+			a.absence_status_id not in (select * from im_sub_categories(16002) union select * from im_sub_categories(16006)) -- exclude deleted and rejected
 	LOOP
-		RAISE NOTICE 'im_resource_mgmt_user_absence(%,%,%): Bank Holiday %', p_user_id, p_start_date, p_end_date, row.absence_name;
+		-- RAISE NOTICE 'im_resource_mgmt_user_absence(%,%,%): Bank Holiday %', p_user_id, p_start_date, p_end_date, row.absence_name;
 		v_date := row.start_date;
 		WHILE (v_date <= row.end_date) LOOP
 			v_work_days[v_date - p_start_date] := 0;
@@ -367,7 +367,7 @@ BEGIN
 
 	return v_work_days;
 END;$body$ language 'plpgsql';
--- select im_resource_mgmt_work_days(624, now()::date, '2014-06-30');
+-- select im_resource_mgmt_work_days(624, '2019-11-01', '2019-11-30');
 -- select im_resource_mgmt_work_days(463, '2018-12-01'::date, '2019-01-01');
 
 
@@ -384,6 +384,7 @@ DECLARE
 	v_weekday			integer;
 	v_date				date;
 	v_work_days			float[];
+        v_absence_work_days             float[];
 	v_result			float[];
 	v_absence_duration_work_days	integer;
 	v_absence_percentage		float;
@@ -411,8 +412,15 @@ BEGIN
 		-- Calculate the number of work days in the absence
 		v_absence_duration_work_days = 0;
 		v_date := row.start_date;
+
+                -- Calculate the workable days during the absence.
+                -- Use the v_work_days by default, unless the absence is (partially) outside the reporting interval
+                v_absence_work_days := v_work_days;
+                IF (row.start_date::date < p_start_date::date OR row.end_date::date > p_end_date::date) THEN
+                        v_absence_work_days = im_resource_mgmt_work_days(p_user_id, row.start_date::date, row.end_date::date);
+                END IF;
 		WHILE (v_date <= row.end_date) LOOP
-			IF v_work_days[v_date - p_start_date] > 0 THEN
+			IF v_absence_work_days[v_date - row.start_date::date] > 0 THEN
 				v_absence_duration_work_days = 1 + v_absence_duration_work_days;
 			END IF;
 			v_date := v_date + 1;
@@ -434,7 +442,7 @@ BEGIN
 		END IF;
 
 		-- Add the absence percentage to the result set
-		RAISE NOTICE 'im_resource_mgmt_user_absence(%,%,%): Absence %: dur=%, workdays=%, perc=%', p_user_id, p_start_date, p_end_date, row.absence_name, row.duration_days, v_absence_duration_work_days, v_absence_percentage;
+		RAISE NOTICE 'im_resource_mgmt_user_absence(%,%,%): Absence %: dur=%, workdays=%, perc=%, start=%, end=%', p_user_id, p_start_date, p_end_date, row.absence_name, row.duration_days, v_absence_duration_work_days, v_absence_percentage, row.start_date, row.end_date;
 
 		-- Add the vacation to the vacation days
 		v_date := row.start_date;
@@ -448,7 +456,7 @@ BEGIN
 
 	return v_result;
 END;$body$ language 'plpgsql';
--- select im_resource_mgmt_user_absence(624, now()::date, '2014-06-30');
+-- select im_resource_mgmt_user_absence(11180, '2019-11-01', '2019-11-30');
 
 
 
