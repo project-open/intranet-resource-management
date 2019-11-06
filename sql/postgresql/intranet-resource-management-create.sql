@@ -354,10 +354,10 @@ BEGIN
 			) and
 			a.end_date >= p_start_date and
 			a.start_date <= p_end_date and
-			a.absence_type_id in (select * from im_sub_categories(5005)) and 		-- bank holidays
+			a.absence_type_id in (select * from im_sub_categories(5005)) and 		-- only bank holidays
 			a.absence_status_id not in (select * from im_sub_categories(16002) union select * from im_sub_categories(16006)) -- exclude deleted and rejected
 	LOOP
-		-- RAISE NOTICE 'im_resource_mgmt_user_absence(%,%,%): Bank Holiday %', p_user_id, p_start_date, p_end_date, row.absence_name;
+		-- RAISE NOTICE 'im_resource_mgmt_work_days(%,%,%): Bank Holiday %', p_user_id, p_start_date, p_end_date, row.absence_name;
 		v_date := row.start_date;
 		WHILE (v_date <= row.end_date) LOOP
 			v_work_days[v_date - p_start_date] := 0;
@@ -411,14 +411,34 @@ BEGIN
 	LOOP
 		-- Calculate the number of work days in the absence
 		v_absence_duration_work_days = 0;
-		v_date := row.start_date;
 
                 -- Calculate the workable days during the absence.
                 -- Use the v_work_days by default, unless the absence is (partially) outside the reporting interval
-                v_absence_work_days := v_work_days;
-                IF (row.start_date::date < p_start_date::date OR row.end_date::date > p_end_date::date) THEN
+                IF (row.start_date::date >= p_start_date::date AND row.end_date::date <= p_end_date::date) THEN
+                        -- The absence completely contained within the report interval. Just use work_days
+		        v_date := row.start_date;
+		        WHILE (v_date <= row.end_date) LOOP
+			        IF v_work_days[v_date - p_start_date::date] > 0 THEN
+				        v_absence_duration_work_days = 1 + v_absence_duration_work_days;
+			        END IF;
+			        v_date := v_date + 1;
+		        END LOOP;
+		        -- RAISE NOTICE 'im_resource_mgmt_user_absence(%,%,%): Absence % in report interval: dur=%, workdays=%, start=%, end=%', p_user_id, p_start_date, p_end_date, row.absence_name, row.duration_days, v_absence_duration_work_days, row.start_date::date, row.end_date::date;
+                ELSE
+                        -- The absence intersects the boundaries of the reporting interval. We need to calculate the work_days during the absence.
                         v_absence_work_days = im_resource_mgmt_work_days(p_user_id, row.start_date::date, row.end_date::date);
+		        -- RAISE NOTICE 'im_resource_mgmt_user_absence(%,%,%): Absence % outside report interval: v_absence_work_days=%', p_user_id, p_start_date, p_end_date, row.absence_name, v_absence_work_days;
+		        v_date := row.start_date;
+		        WHILE (v_date <= row.end_date) LOOP
+			        IF v_absence_work_days[v_date - row.start_date::date] > 0 THEN
+				        v_absence_duration_work_days = 1 + v_absence_duration_work_days;
+			        END IF;
+			        v_date := v_date + 1;
+		        END LOOP;
+		        -- RAISE NOTICE 'im_resource_mgmt_user_absence(%,%,%): Absence % outside report interval: dur=%, workdays=%, start=%, end=%', p_user_id, p_start_date, p_end_date, row.absence_name, row.duration_days, v_absence_duration_work_days, row.start_date::date, row.end_date::date;
+
                 END IF;
+
 		WHILE (v_date <= row.end_date) LOOP
 			IF v_absence_work_days[v_date - row.start_date::date] > 0 THEN
 				v_absence_duration_work_days = 1 + v_absence_duration_work_days;
@@ -442,7 +462,7 @@ BEGIN
 		END IF;
 
 		-- Add the absence percentage to the result set
-		RAISE NOTICE 'im_resource_mgmt_user_absence(%,%,%): Absence %: dur=%, workdays=%, perc=%, start=%, end=%', p_user_id, p_start_date, p_end_date, row.absence_name, row.duration_days, v_absence_duration_work_days, v_absence_percentage, row.start_date, row.end_date;
+		-- RAISE NOTICE 'im_resource_mgmt_user_absence(%,%,%): Absence %: dur=%, workdays=%, perc=%, start=%, end=%', p_user_id, p_start_date, p_end_date, row.absence_name, row.duration_days, v_absence_duration_work_days, v_absence_percentage, row.start_date, row.end_date;
 
 		-- Add the vacation to the vacation days
 		v_date := row.start_date;
