@@ -248,6 +248,8 @@ end;$body$ LANGUAGE 'plpgsql' VOLATILE;
 
 
 -- Returns just the number of working days between two dates
+-- only considering weekends.
+-- This is the very fast non-iterative version of it...
 CREATE or REPLACE FUNCTION im_resource_mgmt_workday_count (date, date)
 RETURNS integer AS $BODY$
 SELECT
@@ -265,7 +267,7 @@ select im_resource_mgmt_workday_count('2018-05-01'::date, '2018-05-31'::date);
 
 
 
-
+-- Deprecated:
 -- Returns the work days for a given period 
 -- whereas: "work days" = Number of days in period -absences -bank_holidays -weekends 
 -- Expects start_date and end_date as YYYY/MM/DD
@@ -298,7 +300,7 @@ end;$body$ LANGUAGE 'plpgsql' VOLATILE;
 
 
 -- Returns a real[] for each day between start and end 
--- with 100 for working days and 0 for weekends
+-- with 100 for working days and 0 for weekends including both start- and end-date
 create or replace function im_resource_mgmt_weekend (integer, date, date)
 returns float[] as $body$
 DECLARE
