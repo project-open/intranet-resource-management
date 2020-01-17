@@ -369,6 +369,7 @@ BEGIN
 		v_date := row.start_date;
 		WHILE (v_date <= row.end_date) LOOP
 		        v := v_work_days[v_date - p_start_date];
+			IF v is NULL THEN exit; END IF;
 			v := v - v_perc;
 			if v < 0.0 THEN v := 0.0; END IF;
 			v_work_days[v_date - p_start_date] := v;
