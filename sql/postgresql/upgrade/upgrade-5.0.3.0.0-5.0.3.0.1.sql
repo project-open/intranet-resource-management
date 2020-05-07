@@ -122,4 +122,3 @@ BEGIN
 END;$body$ language 'plpgsql';
 -- select im_resource_mgmt_work_days(55815, '2020-01-01', '2020-01-31');
 -- select im_resource_mgmt_absence_days(55815, '2020-01-01', '2020-01-31');
-
