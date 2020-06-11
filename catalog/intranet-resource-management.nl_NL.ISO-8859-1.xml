@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="ISO-8859-1"?>
+<message_catalog package_key="intranet-resource-management" locale="nl_NL" charset="ISO-8859-1">
+
+  <msg key="Count_Absences">Tel afwezigheid</msg>
+  <msg key="Count_Absences_Help">Vakanties en andere soorten afwezigheid kunnen al dan niet al onderdeel zijn van de projectplanning. Dit rapport weet dat niet, dus de gebruiker moet de selectie &#34;Tel Afwezigheid&#34; in de juiste stand zetten.</msg>
+  <msg key="Date_Scale">Datum schaal</msg>
+  <msg key="Dim_day_of_month">Dag</msg>
+  <msg key="Dim_month_of_year">Maand</msg>
+  <msg key="Dim_year">Jaar</msg>
+  <msg key="Resource_Assignments">Resource toewijzingen</msg>
+  <msg key="Resource_Planning_based_on_Planned_Hours">Resource Planning - Gebaseerd op geplande uren</msg>
+  <msg key="Resource_Planning_Report">Resource Planning - Hoofdrapport</msg>
+  <msg key="Show_Days">Dagen</msg>
+  <msg key="Show_Hours">Uren</msg>
+  <msg key="Show_Percentage">Percentage</msg>
+  <msg key="Show_Value">Waarde</msg>
+  <msg key="Year_and_Month">Jaar en Maand</msg>
+  <msg key="Year_and_Week">Jaar en Week</msg>
+  <msg key="Year_Month_and_Day">Jaar, Maand en Dag</msg>
+  <msg key="Year_Week_and_Day">Jaar, Week en Dag</msg>
+</message_catalog>
