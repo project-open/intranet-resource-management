@@ -294,29 +294,6 @@ ad_proc im_resource_mgmt_resource_planning_add_member_component { } {
 
     # Only show if the freelance package is installed.
     if {![db_table_exists im_freelance_skills]} { return "" }
-
-
-
-    # ------------------------------------------------
-    # Parameter Logic
-    # 
-    # Get the freel_trans_order_by variable from the http header
-    # because we can't trust that the embedding page will pass
-    # this param into this component.
-
-    set current_url [ad_conn url]
-    set header_vars [ns_conn form]
-    set var_list [ad_ns_set_keys $header_vars]
-
-    # set local TCL vars from header vars
-    ad_ns_set_to_tcl_vars $header_vars
-
-    # Remove the "freel_trans_order_by" from the var_list
-    set order_by_pos [lsearch $var_list "freel_trans_order_by"]
-    if {$order_by_pos > -1} {
-	set var_list [lreplace $var_list $order_by_pos $order_by_pos]
-    }
-
     
 
     # ------------------------------------------------
