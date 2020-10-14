@@ -20,6 +20,7 @@ DECLARE
 	v_date				date;
 	v_work_days			float[];
 	v_date_difference		integer;
+	v_work_day_difference		float;
 	v_perc				float;
 	v				float;
 	row				record;
@@ -44,8 +45,11 @@ BEGIN
 			a.absence_status_id not in (select * from im_sub_categories(16002) union select * from im_sub_categories(16006)) -- exclude deleted and rejected
 	LOOP
 		v_date_difference = 1 + row.end_date::date - row.start_date::date;
-		v_perc = 100.0 * row.duration_days / v_date_difference;
-		RAISE NOTICE 'im_resource_mgmt_work_days(%,%,%): Absence %: %perc', p_user_id, row.start_date::date, row.end_date::date, row.absence_name, v_perc;
+		v_work_day_difference = sum(unnest) / 100.0 from unnest(im_resource_mgmt_work_days(p_user_id, row.start_date::date, row.end_date::date));
+		IF v_work_day_difference < 1.0 THEN v_work_day_difference := 1.0; END IF;
+
+		v_perc = 100.0 * row.duration_days / v_work_day_difference;
+		RAISE NOTICE 'im_resource_mgmt_absence_days(%, %, %): Absence "%" with % days in % day interval with % work days => % perc', p_user_id, row.start_date::date, row.end_date::date, row.absence_name, row.duration_days, v_date_difference, v_work_day_difference, v_perc;
 		v_date := row.start_date;
 		WHILE (v_date <= row.end_date) LOOP
 
@@ -70,6 +74,9 @@ BEGIN
 		IF v_weekday = 1 OR v_weekday = 7 THEN
 			v_work_days[v_date - p_start_date] := 0;
 		END IF;
+
+		v_work_days[v_date - p_start_date] = round(v_work_days[v_date - p_start_date]::numeric,1);
+
 		v_date := v_date + 1;
 	END LOOP;
 
@@ -79,7 +86,11 @@ END;$body$ language 'plpgsql';
 
 -- select im_resource_mgmt_work_days(55807, '2020-10-01', '2020-10-31');
 -- select im_resource_mgmt_work_days_cosine(55807, '2020-10-01', '2020-10-31');
-
 -- select im_resource_mgmt_absence_days(55807, '2020-10-01', '2020-10-31');
-select im_resource_mgmt_absence_days(55807, '2019-03-19', '2021-01-29');
+
+select im_resource_mgmt_absence_days(55807, '2020-10-01', '2020-11-01');
+
+select im_resource_mgmt_work_days(55807, '2020-09-07', '2020-10-09');
+
+select sum(unnest) / 100.0 from unnest(im_resource_mgmt_work_days(55807, '2020-09-07', '2020-10-09'));
 
