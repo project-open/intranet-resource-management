@@ -349,10 +349,10 @@ ad_proc -public im_resource_mgmt_resource_planning_percentage {
 			child.parent_id,
 			(length(child.tree_sortkey) / 8) - 3 as level,
 			greatest(to_char(child.start_date::date, 'J')::integer, :report_start_julian::integer) child_start_julian,
-			extract(hour from child.start_date) * 60 + extract(minutes from child.start_date) as child_start_minutes,
+			round((extract(hour from child.start_date) + extract(minute from child.start_date) / 60.0)::numeric, 2) as child_start_hours,
 
 			least(to_char(child.end_date, 'J')::integer, :report_end_julian::integer) as child_end_julian,
-			extract(hour from child.end_date) * 60 + extract(minutes from child.end_date) as child_end_minutes,
+			round((extract(hour from child.end_date) + extract(minute from child.end_date) / 60.0)::numeric ,2) as child_end_hours,
 
 			coalesce(t.planned_units, 0) as planned_units
 		from	im_projects parent,
@@ -372,8 +372,8 @@ ad_proc -public im_resource_mgmt_resource_planning_percentage {
 	set project_start_julian_hash($project_id) $child_start_julian
 	set project_end_julian_hash($project_id) $child_end_julian
 
-	set project_start_minutes_hash($project_id) $child_start_minutes
-	set project_end_minutes_hash($project_id) $child_end_minutes
+	set project_start_hours_hash($project_id) $child_start_hours
+	set project_end_hours_hash($project_id) $child_end_hours
 
 	set project_level_hash($project_id) $level
 	set project_planned_hours($project_id) $planned_units
@@ -648,8 +648,8 @@ ad_proc -public im_resource_mgmt_resource_planning_percentage {
 	set end_julian $project_end_julian_hash($project_id)
 	set parent_list $left_dimension_hash($key)
 
-	set start_minutes $project_start_julian_hash($project_id)
-	set end_minutes $project_end_julian_hash($project_id); # !!!
+	set start_hours $project_start_hours_hash($project_id)
+	set end_hours $project_end_hours_hash($project_id);
 
 	foreach oid $parent_list {
 	    for {set j $start_julian} {$j <= $end_julian} {incr j} {
@@ -657,7 +657,37 @@ ad_proc -public im_resource_mgmt_resource_planning_percentage {
 		# Skip weekends
 		if {[info exists weekend_hash($j)]} { continue }
 
-#	if {48349 == $project_id} { ad_return_complaint 1 "pid=$project_id, uid=$user_id, start_julian=$start_julian, end_julian=$end_julian, perc=$percentage, assigavail=$assigavail" }
+		set assig $assigavail
+
+		# First day of the interval - Cut percentage based on start_hour
+		if {$j == $start_julian} { 
+		    set hours [expr 17.0 - $start_hours]; # Hours from start of interval until 5:00pm (=17.0)
+		    if {$hours < 0.0} { set hours 0.0 }
+		    if {$hours > 8.0} { set hours 8.0 }
+		    set assig [expr round($assigavail * $hours / 8.0)] 
+		    # ns_log Notice "im_resource_mgmt_resource_planning_percentage:  1st day of interval: j=[expr $j-$start_julian], oid=$oid, uid=$user_id, start_julian=$start_julian, start_hours=$start_hours, end_julian=$end_julian, end_hours=$end_hours, hours=$hours, perc=$percentage, assig=$assig"
+		}
+
+		# Last day of the interval - Cut percentage based on end_hour
+		if {$j == $end_julian} { 
+		    set hours [expr 17.0 - $end_hours]; # Hours from start of interval until 5:00pm (=17.0)
+		    if {$hours < 0.0} { set hours 0.0 }
+		    if {$hours > 8.0} { set hours 8.0 }
+		    set assig [expr round($assigavail * (8.0 - $hours) / 8.0)] 
+		    # ns_log Notice "im_resource_mgmt_resource_planning_percentage: last day of interval: j=[expr $j-$start_julian], oid=$oid, uid=$user_id, start_julian=$start_julian, start_hours=$start_hours, end_julian=$end_julian, end_hours=$end_hours, hours=$hours, perc=$percentage, assig=$assig"
+		}
+
+		# Special case: 1-day assignment - Cut percentage based on both start and end
+		if {$start_julian == $end_julian} {
+		    if {$start_hours < 9.0} { set start_hours 9.0 }
+		    if {$end_hours > 17.0} { set end_hours 17.0 }
+		    set hours [expr $end_hours - $start_hours]
+		    if {$hours < 0.0} { set hours 0.0 }
+		    if {$hours > 8.0} { set hours 8.0 }
+		    set assig [expr round($assigavail * $hours / 8.0)] 
+		    # ns_log Notice "im_resource_mgmt_resource_planning_percentage: only day of interval: j=[expr $j-$start_julian], oid=$oid, uid=$user_id, start_julian=$start_julian, start_hours=$start_hours, end_julian=$end_julian, end_hours=$end_hours, hours=$hours, perc=$percentage, assig=$assig"
+		}
+
 
 
 		# Calculate the date component of the key, depending on top_vars
@@ -675,7 +705,7 @@ ad_proc -public im_resource_mgmt_resource_planning_percentage {
 		set key [join $key_list "-"]
 		set v 0
 		if {[info exists assignment_hash($key)]} { set v $assignment_hash($key) }
-		set assignment_hash($key) [expr $v + $assigavail]
+		set assignment_hash($key) [expr $v + $assig]
 	    }
 	}
     }
