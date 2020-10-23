@@ -42,7 +42,7 @@ ad_page_contract {
 #im_permission_flush
 
 set current_user_id [auth::require_login]
-if {![im_permission $current_user_id "view_projects_all"]} {
+if {0 && ![im_permission $current_user_id "view_projects_all"]} {
     ad_return_complaint 1 "You don't have permissions to see this page"
     ad_script_abort
 }

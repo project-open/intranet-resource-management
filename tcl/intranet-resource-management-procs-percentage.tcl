@@ -245,6 +245,21 @@ ad_proc -public im_resource_mgmt_resource_planning_percentage {
     set clicks([clock clicks -microseconds]) absences
 
 
+    # ------------------------------------------------------------
+    # Permissions
+    # Normal users can only see "their" projects.
+    #
+    set project_permission_where_clause "
+	and parent.project_id in (
+		select	bom.object_id_one
+		from	acs_rels bom
+		where	bom.object_id_two = :current_user_id
+	)
+    "
+    if {[im_permission $current_user_id "view_projects_all"]} {
+        set project_permission_where_clause ""
+    }
+
 
     # ------------------------------------------------------------
     # ns_log Notice "percentage-report: Assignments"
@@ -294,6 +309,7 @@ ad_proc -public im_resource_mgmt_resource_planning_percentage {
 			and r.object_id_one = child.project_id
 			and r.object_id_two = u.user_id
 			and u.user_id not in ([join $excluded_uids ","])
+			$project_permission_where_clause
 			$assignment_where_clause
 		order by
 			child.tree_sortkey,
@@ -308,8 +324,8 @@ ad_proc -public im_resource_mgmt_resource_planning_percentage {
 	if {$percentage > 0} {
 	    set key "$project_id-$user_id"
 	    set project_user_assignment_hash($key) $percentage
+	    set assigned_user_hash($user_id) $user_id
 	}
-
     }
 
     # Check for existing assignments 
@@ -333,9 +349,15 @@ ad_proc -public im_resource_mgmt_resource_planning_percentage {
 			child.parent_id,
 			(length(child.tree_sortkey) / 8) - 3 as level,
 			greatest(to_char(child.start_date::date, 'J')::integer, :report_start_julian::integer) child_start_julian,
-			least(to_char(child.end_date, 'J')::integer, :report_end_julian::integer) as child_end_julian
+			extract(hour from child.start_date) * 60 + extract(minutes from child.start_date) as child_start_minutes,
+
+			least(to_char(child.end_date, 'J')::integer, :report_end_julian::integer) as child_end_julian,
+			extract(hour from child.end_date) * 60 + extract(minutes from child.end_date) as child_end_minutes,
+
+			coalesce(t.planned_units, 0) as planned_units
 		from	im_projects parent,
 			im_projects child
+			LEFT OUTER JOIN im_timesheet_tasks t ON (child.project_id = t.task_id)
 		where	parent.project_id in ([join $main_project_list ","])
 			and child.tree_sortkey
 				between parent.tree_sortkey
@@ -346,9 +368,15 @@ ad_proc -public im_resource_mgmt_resource_planning_percentage {
 	set object_name_hash($project_id) $project_name
 	set object_type_hash($project_id) "im_project"
 	set object_parent_hash($project_id) $parent_id
+
 	set project_start_julian_hash($project_id) $child_start_julian
 	set project_end_julian_hash($project_id) $child_end_julian
+
+	set project_start_minutes_hash($project_id) $child_start_minutes
+	set project_end_minutes_hash($project_id) $child_end_minutes
+
 	set project_level_hash($project_id) $level
+	set project_planned_hours($project_id) $planned_units
 	set object_availability_hash($project_id) ""
 	set collapse_hash($project_id) "c"
     }
@@ -620,11 +648,17 @@ ad_proc -public im_resource_mgmt_resource_planning_percentage {
 	set end_julian $project_end_julian_hash($project_id)
 	set parent_list $left_dimension_hash($key)
 
+	set start_minutes $project_start_julian_hash($project_id)
+	set end_minutes $project_end_julian_hash($project_id); # !!!
+
 	foreach oid $parent_list {
 	    for {set j $start_julian} {$j <= $end_julian} {incr j} {
 
 		# Skip weekends
 		if {[info exists weekend_hash($j)]} { continue }
+
+#	if {48349 == $project_id} { ad_return_complaint 1 "pid=$project_id, uid=$user_id, start_julian=$start_julian, end_julian=$end_julian, perc=$percentage, assigavail=$assigavail" }
+
 
 		# Calculate the date component of the key, depending on top_vars
 		set key_list [util_memoize [list im_resource_management_top_scale_from_julian -julian $j -top_vars $top_vars]]
