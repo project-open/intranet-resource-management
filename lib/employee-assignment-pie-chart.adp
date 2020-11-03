@@ -1,36 +1,18 @@
 <div id=@diagram_id@></div>
 
-<style type="text/css">
-.extjs-indent-level-0 {
-        font-size: 11px; padding-left: 5px
-}
-.extjs-indent-level-1 {
-        font-size: 11px; padding-left: 25px
-}
-.extjs-indent-level-2 {
-        font-size: 11px; padding-left: 45px
-}
-.extjs-indent-level-3 {
-        font-size: 11px; padding-left: 65px
-}
-.extjs-indent-level-4 {
-        font-size: 11px; padding-left: 85px
-}
-.extjs-indent-level-5 {
-        font-size: 11px; padding-left: 105px
-}
-.extjs-indent-level-6 {
-        font-size: 11px; padding-left: 125px
-}
-.extjs-indent-level-7 {
-        font-size: 11px; padding-left: 145px
-}
-.extjs-indent-level-8 {
-        font-size: 11px; padding-left: 165px
-}
+<style type="text/css" <if @::__csp_nonce@ not nil>nonce="@::__csp_nonce;literal@"</if>>
+.extjs-indent-level-0 { font-size: 11px; padding-left: 5px }
+.extjs-indent-level-1 { font-size: 11px; padding-left: 25px }
+.extjs-indent-level-2 { font-size: 11px; padding-left: 45px }
+.extjs-indent-level-3 { font-size: 11px; padding-left: 65px }
+.extjs-indent-level-4 { font-size: 11px; padding-left: 85px }
+.extjs-indent-level-5 { font-size: 11px; padding-left: 105px }
+.extjs-indent-level-6 { font-size: 11px; padding-left: 125px }
+.extjs-indent-level-7 { font-size: 11px; padding-left: 145px }
+.extjs-indent-level-8 { font-size: 11px; padding-left: 165px }
 </style>
 
-<script type='text/javascript'>
+<script type='text/javascript' <if @::__csp_nonce@ not nil>nonce="@::__csp_nonce;literal@"</if>>
 Ext.require(['Ext.chart.*', 'Ext.Window', 'Ext.fx.target.Sprite', 'Ext.layout.container.Fit']);
 Ext.onReady(function () {
     
