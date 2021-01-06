@@ -96,7 +96,7 @@ if {"" == $end_date} { set end_date [db_string get_previous_month "SELECT '$star
 # Contents
 
 
-set html [im_resource_mgmt_resource_planning \
+set html [im_resource_mgmt_resource_planning_hour \
 	-start_date $start_date \
 	-end_date $end_date \
 	-top_vars $top_vars \
