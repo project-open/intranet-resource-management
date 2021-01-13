@@ -371,13 +371,15 @@ ad_proc im_resource_mgmt_resource_planning_add_member_component { } {
 		now()::date + 30 as end_date
     "
 
-    set result [im_resource_mgmt_resource_planning \
-		-start_date $start_date \
-		-end_date $end_date \
-		-top_vars "year month_of_year day_of_month" \
-		-user_id $user_list
+    set page_url "/intranet-resource-management/resources-planning"
+    set result [im_resource_mgmt_resource_planning_percentage \
+		    -report_start_date $start_date \
+		    -report_end_date $end_date \
+		    -top_vars "year month_of_year week_of_year" \
+		    -report_user_id $user_list \
+		    -page_url $page_url \
     ]
-
+    
     return $result
 }
 
