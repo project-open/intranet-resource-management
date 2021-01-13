@@ -37,7 +37,7 @@ ad_proc -public im_resource_mgmt_resource_planning_percentage {
     {-page_url:required}
     {-absences_included_in_project_planning_p "1"}
     {-report_shows "percentage"}
-    {-debug_p 1}
+    {-debug_p 0}
 } {
     Creates Resource Report 
 
@@ -267,6 +267,8 @@ ad_proc -public im_resource_mgmt_resource_planning_percentage {
     # This SQL is used as a sub-query in several other SQLs
     #
     set excluded_uids [db_list excluded_uids "
+				select 0
+			   UNION
 				select member_id
 				from   group_distinct_member_map
 				where  group_id = [im_profile_skill_profile]
