@@ -290,9 +290,9 @@ set help_html "<table align='left' border='0'><tr><td>$help_html</td></tr></tabl
 # Navbars
 # ---------------------------------------------------------------
 
-set main_navbar_label "resource_management"
+set main_navbar_label "portfolio"
 set bind_vars [ns_set create]
-set parent_menu_id [db_string parent_menu "select menu_id from im_menus where label = :main_navbar_label"]
+set parent_menu_id [db_string parent_menu "select menu_id from im_menus where label = :main_navbar_label" -default 0]
 set sub_navbar [im_sub_navbar \
                     -components \
                     -base_url "/intranet-resource-management/index" \
