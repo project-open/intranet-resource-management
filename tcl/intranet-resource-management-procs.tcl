@@ -3,7 +3,7 @@
 # Copyright (C) 2010-2013 ]project-open[
 #
 # All rights reserved. Please check
-# http://www.project-open.com/license/ for details.
+# https://www.project-open.com/license/ for details.
 
 ad_library {
     Report on and modify resource assignments to tasks of various types.
@@ -385,7 +385,7 @@ ad_proc im_resource_mgmt_resource_planning_add_member_component { } {
 
 
 ad_proc -private hsv2hex {h s v} {
-	# http://code.activestate.com/recipes/133527/ (
+	# https://code.activestate.com/recipes/133527/ (
 	# Arguments: h hue, s saturation, v value
 	# Results: Returns an rgb triple from hsv
 	if {$s <= 0.0} {

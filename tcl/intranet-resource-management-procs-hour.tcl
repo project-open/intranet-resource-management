@@ -3,7 +3,7 @@
 # Copyright (C) 2010-2013 ]project-open[
 #
 # All rights reserved. Please check
-# http://www.project-open.com/license/ for details.
+# https://www.project-open.com/license/ for details.
 
 ad_library {
     Hourly report about resource management.
@@ -86,7 +86,7 @@ ad_proc -public im_resource_mgmt_get_bar_color_hour {
 	    if { $val > 100 } { set bar_chart_color "\#ff0000" }
 	}
 	"gradient" {
-	    # http://stackoverflow.com/questions/340209/generate-colors-between-red-and-green-for-a-power-meter
+	    # https://stackoverflow.com/questions/340209/generate-colors-between-red-and-green-for-a-power-meter
 	    if { $val > 100 } { set val 100 }
 	    set val [expr abs($val - 100)]
 	    set val [expr {$val / 100}]
