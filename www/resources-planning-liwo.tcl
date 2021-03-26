@@ -3,7 +3,7 @@
 # Copyright (c) 2003-2011 ]project-open[
 #
 # All rights reserved. Please check
-# http://www.project-open.com/ for licensing details.
+# https://www.project-open.com/ for licensing details.
 
 set clicks_base [clock clicks]
 
@@ -299,7 +299,7 @@ set project_menu ""
 set menu_select_label "projects_resource_planning_liwo"
 set main_navbar_label "resource_management"
 set bind_vars [ns_set create]
-set parent_menu_id [db_string parent_menu "select menu_id from im_menus where label = 'resource_management'"]
+set parent_menu_id [db_string parent_menu "select menu_id from im_menus where label = 'resource_management'" -default 0]
 set sub_navbar [im_sub_navbar \
                     -base_url "/intranet-resource-management/index" \
                     -plugin_url "/intranet-resource-management/index" \
