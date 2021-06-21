@@ -7,7 +7,7 @@
     <initial-install-p>f</initial-install-p>
     <singleton-p>t</singleton-p>
     <auto-mount>intranet-resource-management</auto-mount>
-    <version name="5.0.4.0.0" url="https://www.project-open.net/download/apm/intranet-resource-management-5.0.4.0.0.apm">
+    <version name="5.1.0.0.0" url="https://www.project-open.net/download/apm/intranet-resource-management-5.1.0.0.0.apm">
         <owner url="mailto:frank.bergmann@project-open.com">Frank Bergmann</owner>
         <summary>Resource Management</summary>
         <release-date>2016-11-15</release-date>
