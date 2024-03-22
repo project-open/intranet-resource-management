@@ -383,11 +383,11 @@ END;$body$ language 'plpgsql';
 -- select im_resource_mgmt_work_days(463, '2018-12-01'::date, '2019-01-01');
 
 
--- Returns a real[] for each day between start and end 
--- with 100 for each day the user has taken vacation.
--- Half days off will appear with 50.
 create or replace function im_resource_mgmt_user_absence (integer, date, date)
 returns float[] as $body$
+-- Returns a real[] for each day between start and end 
+-- with 100 for each day the user has taken vacation.
+-- Half days off will appear with 0.5 (50%).
 DECLARE
 	p_user_id			alias for $1;
 	p_start_date			alias for $2;
