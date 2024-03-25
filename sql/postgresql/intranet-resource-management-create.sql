@@ -383,6 +383,7 @@ END;$body$ language 'plpgsql';
 -- select im_resource_mgmt_work_days(463, '2018-12-01'::date, '2019-01-01');
 
 
+
 create or replace function im_resource_mgmt_user_absence (integer, date, date)
 returns float[] as $body$
 -- Returns a real[] for each day between start and end 
@@ -393,12 +394,9 @@ DECLARE
 	p_start_date			alias for $2;
 	p_end_date			alias for $3;
 
-	v_weekday			integer;
 	v_date				date;
 	v_work_days			float[];
-        v_absence_work_days             float[];
 	v_result			float[];
-	v_absence_duration_work_days	integer;
 	v_absence_percentage		float;
 	row				record;
 BEGIN
@@ -414,67 +412,32 @@ BEGIN
 	-- Loop through all of the user absences between start_date and end_date
 	-- And add them to the result
 	FOR row IN
-		select	*
+		select	a.*,
+			(select sum(unnest) from unnest(im_resource_mgmt_work_days(a.owner_id, a.start_date::date, a.end_date::date))) / 100 as work_days
 		from	im_user_absences a
 		where	a.owner_id = p_user_id and
 			a.end_date >= p_start_date and
 			a.start_date <= p_end_date and
 			a.absence_status_id not in (16002, 16006) 		--- deleted or rejected
+		order by a.absence_id
 	LOOP
-		-- Calculate the number of work days in the absence
-		v_absence_duration_work_days = 0;
+	        -- RAISE NOTICE 'im_resource_mgmt_user_absence(%,%,%): Absence %: durationdays=%, workdays=%, start=%, end=%', p_user_id, p_start_date, p_end_date, row.absence_name, row.duration_days, row.work_days, row.start_date::date, row.end_date::date;
 
-                -- Calculate the workable days during the absence.
-                -- Use the v_work_days by default, unless the absence is (partially) outside the reporting interval
-                IF (row.start_date::date >= p_start_date::date AND row.end_date::date <= p_end_date::date) THEN
-                        -- The absence completely contained within the report interval. Just use work_days
-		        v_date := row.start_date;
-		        WHILE (v_date <= row.end_date) LOOP
-			        IF v_work_days[v_date - p_start_date::date] > 0 THEN
-				        v_absence_duration_work_days = 1 + v_absence_duration_work_days;
-			        END IF;
-			        v_date := v_date + 1;
-		        END LOOP;
-		        -- RAISE NOTICE 'im_resource_mgmt_user_absence(%,%,%): Absence % in report interval: dur=%, workdays=%, start=%, end=%', p_user_id, p_start_date, p_end_date, row.absence_name, row.duration_days, v_absence_duration_work_days, row.start_date::date, row.end_date::date;
-                ELSE
-                        -- The absence intersects the boundaries of the reporting interval. We need to calculate the work_days during the absence.
-                        v_absence_work_days = im_resource_mgmt_work_days(p_user_id, row.start_date::date, row.end_date::date);
-		        -- RAISE NOTICE 'im_resource_mgmt_user_absence(%,%,%): Absence % outside report interval: v_absence_work_days=%', p_user_id, p_start_date, p_end_date, row.absence_name, v_absence_work_days;
-		        v_date := row.start_date;
-		        WHILE (v_date <= row.end_date) LOOP
-			        IF v_absence_work_days[v_date - row.start_date::date] > 0 THEN
-				        v_absence_duration_work_days = 1 + v_absence_duration_work_days;
-			        END IF;
-			        v_date := v_date + 1;
-		        END LOOP;
-		        -- RAISE NOTICE 'im_resource_mgmt_user_absence(%,%,%): Absence % outside report interval: dur=%, workdays=%, start=%, end=%', p_user_id, p_start_date, p_end_date, row.absence_name, row.duration_days, v_absence_duration_work_days, row.start_date::date, row.end_date::date;
-
-                END IF;
-
-		WHILE (v_date <= row.end_date) LOOP
-			IF v_absence_work_days[v_date - row.start_date::date] > 0 THEN
-				v_absence_duration_work_days = 1 + v_absence_duration_work_days;
-			END IF;
-			v_date := v_date + 1;
-		END LOOP;
-
-		-- Calculate the percentage away
-		IF 0 != v_absence_duration_work_days THEN
-			v_absence_percentage := 100.0 * row.duration_days / v_absence_duration_work_days;
+		-- Calculate the percentage of each vacation day
+		v_absence_percentage := 0;
+		IF 0 != row.work_days THEN
+			v_absence_percentage := 100.0 * row.duration_days / row.work_days;
 		ELSE
-			-- Error: Division by zero:
-			-- The vacation is completely within bank holidays.
-			RAISE WARNING 'im_resource_mgmt_user_absence(%,%,%): Absence %: No workdays for vacation', p_user_id, p_start_date, p_end_date, row.absence_name;
-			v_absence_percentage := 0;
+			RAISE WARNING 'im_resource_mgmt_user_absence(%,%,%): Absence %: Zero workdays for vacation', p_user_id, p_start_date, p_end_date, row.absence_name;
 		END IF;
-		IF v_absence_duration_work_days > 100 THEN
-			-- Error: Overlapping vacations or duration days > work days
-			RAISE WARNING 'im_resource_mgmt_user_absence(%,%,%): Absence %: More duration_days=% than work_days=%', p_user_id, p_start_date, p_end_date, row.absence_name, row.duration_days, v_absence_duration_work_days;
+		IF v_absence_percentage > 100 THEN
+			-- Error: duration days > work days
+			RAISE WARNING 'im_resource_mgmt_user_absence(%,%,%): Absence %: More duration_days=% than work_days=%', p_user_id, p_start_date, p_end_date, row.absence_name, row.duration_days, row.work_days;
 			v_absence_percentage := 100;
 		END IF;
 
 		-- Add the absence percentage to the result set
-		-- RAISE NOTICE 'im_resource_mgmt_user_absence(%,%,%): Absence %: dur=%, workdays=%, perc=%, start=%, end=%', p_user_id, p_start_date, p_end_date, row.absence_name, row.duration_days, v_absence_duration_work_days, v_absence_percentage, row.start_date, row.end_date;
+		-- RAISE NOTICE 'im_resource_mgmt_user_absence(%,%,%): Absence %: dur=%, workdays=%, perc=%, start=%, end=%', p_user_id, p_start_date, p_end_date, row.absence_name, row.duration_days, row.work_days, v_absence_percentage, row.start_date, row.end_date;
 
 		-- Add the vacation to the vacation days
 		v_date := row.start_date;
@@ -489,6 +452,7 @@ BEGIN
 	return v_result;
 END;$body$ language 'plpgsql';
 -- select im_resource_mgmt_user_absence(11180, '2019-11-01', '2019-11-30');
+-- select im_resource_mgmt_user_absence(55795, '2023-01-01'::date, '2023-03-01'::date);
 
 
 
